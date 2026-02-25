@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VertexLab Solutions - Mobile Apps</title>
+    <meta name="description" content="VertexLab Solutions - Building innovative mobile apps for iOS and Android">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #2E7D32;
+            --secondary: #1976D2;
+            --accent: #F5A623;
+            --dark: #1a1a2e;
+            --light: #f5f5f5;
+            --white: #ffffff;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background: var(--light);
+        }
+        
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, #1b5e20 100%);
+            color: var(--white);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--white);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        nav {
+            display: flex;
+            gap: 2rem;
+        }
+        
+        nav a {
+            color: var(--white);
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        }
+        
+        nav a:hover {
+            opacity: 0.8;
+        }
+        
+        /* Hero */
+        .hero {
+            background: linear-gradient(135deg, var(--primary) 0%, #1b5e20 100%);
+            color: var(--white);
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+        
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin-top: 2rem;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .stat-label {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        /* Apps Grid */
+        .apps-section {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+        
+        .section-title {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .section-title h2 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .section-title p {
+            color: #666;
+        }
+        
+        .apps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .app-card {
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .app-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        
+        .app-icon {
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+        }
+        
+        .app-content {
+            padding: 1.5rem;
+        }
+        
+        .app-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .app-tag {
+            background: var(--primary);
+            color: var(--white);
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        
+        .app-tag.submitted {
+            background: var(--secondary);
+        }
+        
+        .app-tag.built {
+            background: var(--accent);
+            color: var(--dark);
+        }
+        
+        .app-description {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .app-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature {
+            background: #f0f0f0;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #555;
+        }
+        
+        .app-links {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .app-link {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 8px;
+            text-align: center;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: opacity 0.3s;
+        }
+        
+        .app-link:hover {
+            opacity: 0.85;
+        }
+        
+        .app-link.ios {
+            background: var(--dark);
+            color: var(--white);
+        }
+        
+        .app-link.android {
+            background: #34A853;
+            color: var(--white);
+        }
+        
+        .app-link.coming {
+            background: #e0e0e0;
+            color: #666;
+            cursor: default;
+        }
+        
+        /* Social */
+        .social-section {
+            background: var(--dark);
+            color: var(--white);
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+        
+        .social-section h2 {
+            margin-bottom: 1rem;
+        }
+        
+        .social-section p {
+            opacity: 0.8;
+            margin-bottom: 2rem;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .social-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--white);
+            text-decoration: none;
+            padding: 1.5rem 2rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            min-width: 120px;
+            transition: background 0.3s;
+        }
+        
+        .social-link:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .social-icon {
+            font-size: 2rem;
+        }
+        
+        /* Support */
+        .support-section {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+        }
+        
+        .support-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        
+        .support-card h3 {
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .support-option {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .support-option:last-child {
+            margin-bottom: 0;
+        }
+        
+        .support-icon {
+            font-size: 1.5rem;
+        }
+        
+        .support-info h4 {
+            margin-bottom: 0.25rem;
+        }
+        
+        .support-info a {
+            color: var(--secondary);
+            text-decoration: none;
+        }
+        
+        /* Footer */
+        footer {
+            background: var(--dark);
+            color: var(--white);
+            text-align: center;
+            padding: 2rem;
+            opacity: 0.8;
+        }
+        
+        footer a {
+            color: var(--white);
+        }
+        
+        /* Mobile */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .hero-stats {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            
+            nav {
+                display: none;
+            }
+            
+            .apps-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">VL</div>
+                VertexLab Solutions
+            </div>
+            <nav>
+                <a href="#apps">Apps</a>
+                <a href="#social">Connect</a>
+                <a href="#support">Support</a>
+            </nav>
+        </div>
+    </header>
+    
+    <section class="hero">
+        <h1>Building Apps That Matter</h1>
+        <p>Innovative mobile applications for iOS and Android. Designed to help you track, learn, and grow.</p>
+        <div class="hero-stats">
+            <div class="stat">
+                <div class="stat-number">10+</div>
+                <div class="stat-label">Apps Built</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">2</div>
+                <div class="stat-label">Platforms</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">2025</div>
+                <div class="stat-label">Started</div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="apps-section" id="apps">
+        <div class="section-title">
+            <h2>Our Apps</h2>
+            <p>Download our apps from the App Store or Google Play</p>
+        </div>
+        
+        <div class="apps-grid">
+            <!-- QuitTrack -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #1B7A4E, #0d4731);">🚭</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        QuitTrack
+                        <span class="app-tag submitted">Live</span>
+                    </div>
+                    <p class="app-description">Quit any bad habit with tracking, streaks, and shareable milestone cards.</p>
+                    <div class="app-features">
+                        <span class="feature">Streaks</span>
+                        <span class="feature">Money Saved</span>
+                        <span class="feature">Health Timeline</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- MoodBit -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #4A90D9, #2a5a99);">🧠</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        MoodBit
+                        <span class="app-tag submitted">Submitted</span>
+                    </div>
+                    <p class="app-description">Track habits and discover how they correlate with your mood over time.</p>
+                    <div class="app-features">
+                        <span class="feature">Correlation</span>
+                        <span class="feature">Trends</span>
+                        <span class="feature">Calendar Heatmap</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SubWise -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #9C27B0, #6a1b9a);">💜</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        SubWise
+                        <span class="app-tag">Ready</span>
+                    </div>
+                    <p class="app-description">Track and manage all your subscriptions in one place.</p>
+                    <div class="app-features">
+                        <span class="feature">Multi-sub</span>
+                        <span class="feature">Cost Analysis</span>
+                        <span class="feature">Reminders</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CalmNow -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #0D7377, #065456);">🧘</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        CalmNow - Panic Relief
+                        <span class="app-tag submitted">Submitted</span>
+                    </div>
+                    <p class="app-description">Panic and anxiety relief with breathing exercises, grounding techniques, and more.</p>
+                    <div class="app-features">
+                        <span class="feature">Breathing</span>
+                        <span class="feature">Grounding</span>
+                        <span class="feature">Emergency 911</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ClearBill -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #0D9488, #065f59);">💊</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        ClearBill
+                        <span class="app-tag submitted">Submitted</span>
+                    </div>
+                    <p class="app-description">Medical bill error checker - find mistakes and save money on healthcare.</p>
+                    <div class="app-features">
+                        <span class="feature">Error Detection</span>
+                        <span class="feature">Dispute Letters</span>
+                        <span class="feature">Price Lookup</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TradeInvoice -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #1B2A4A, #0d1525);">📋</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        TradeInvoice
+                        <span class="app-tag submitted">Submitted</span>
+                    </div>
+                    <p class="app-description">Invoice app for contractors - plumbers, electricians, HVAC, and more.</p>
+                    <div class="app-features">
+                        <span class="feature">Voice Input</span>
+                        <span class="feature">Trade Templates</span>
+                        <span class="feature">Offline-First</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- PixelFix -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #2563EB, #1d4ed8);">✨</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        PixelFix
+                        <span class="app-tag submitted">Submitted</span>
+                    </div>
+                    <p class="app-description">AI-powered photo tools - background remover, enhancer, eraser, passport photo.</p>
+                    <div class="app-features">
+                        <span class="feature">AI Tools</span>
+                        <span class="feature">Background Remover</span>
+                        <span class="feature">Passport Photo</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- LandlordKit -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #6366F1, #4338ca);">🏠</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        LandlordKit
+                        <span class="app-tag submitted">Submitted</span>
+                    </div>
+                    <p class="app-description">Property maintenance and landlord toolkit for managing rental properties.</p>
+                    <div class="app-features">
+                        <span class="feature">Maintenance</span>
+                        <span class="feature">Tenant Tracking</span>
+                        <span class="feature">Reports</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- DepositGuard -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #1E3A5F, #0f1f33);">🛡️</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        DepositGuard
+                        <span class="app-tag built">Building</span>
+                    </div>
+                    <p class="app-description">Renter's deposit protection vault - document move-in/out, track damages.</p>
+                    <div class="app-features">
+                        <span class="feature">Photo Vault</span>
+                        <span class="feature">Evidence Reports</span>
+                        <span class="feature">Dispute Letters</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- FamilyBridge -->
+            <div class="app-card">
+                <div class="app-icon" style="background: linear-gradient(135deg, #E91E63, #c2185b);">💑</div>
+                <div class="app-content">
+                    <div class="app-name">
+                        FamilyBridge
+                        <span class="app-tag built">Building</span>
+                    </div>
+                    <p class="app-description">Family wellness and relationship coaching app with Islamic features.</p>
+                    <div class="app-features">
+                        <span class="feature">Couples</span>
+                        <span class="feature">Parent-Teen</span>
+                        <span class="feature">Kids Islamic</span>
+                    </div>
+                    <div class="app-links">
+                        <a href="#" class="app-link ios coming">iOS Coming</a>
+                        <a href="#" class="app-link android coming">Android Coming</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="social-section" id="social">
+        <h2>Connect With Us</h2>
+        <p>Follow us on social media for updates and new releases</p>
+        <div class="social-links">
+            <a href="https://x.com/vertexlabs" class="social-link" target="_blank">
+                <span class="social-icon">𝕏</span>
+                <span>X (Twitter)</span>
+            </a>
+            <a href="https://reddit.com/r/vertexlabs" class="social-link" target="_blank">
+                <span class="social-icon">🤖</span>
+                <span>Reddit</span>
+            </a>
+            <a href="https://tiktok.com/@vertexlabs" class="social-link" target="_blank">
+                <span class="social-icon">🎵</span>
+                <span>TikTok</span>
+            </a>
+            <a href="https://github.com/tuhin-014" class="social-link" target="_blank">
+                <span class="social-icon">🐙</span>
+                <span>GitHub</span>
+            </a>
+        </div>
+    </section>
+    
+    <section class="support-section" id="support">
+        <div class="section-title">
+            <h2>Support</h2>
+            <p>We're here to help</p>
+        </div>
+        
+        <div class="support-card">
+            <h3>📧 Contact Us</h3>
+            
+            <div class="support-option">
+                <span class="support-icon">💬</span>
+                <div class="support-info">
+                    <h4>General Inquiries</h4>
+                    <a href="mailto:tuhin014@gmail.com">tuhin014@gmail.com</a>
+                </div>
+            </div>
+            
+            <div class="support-option">
+                <span class="support-icon">🐛</span>
+                <div class="support-info">
+                    <h4>Report a Bug</h4>
+                    <a href="mailto:support@vertexlabsolutions.com">support@vertexlabsolutions.com</a>
+                </div>
+            </div>
+            
+            <div class="support-option">
+                <span class="support-icon">💡</span>
+                <div class="support-info">
+                    <h4>Feature Requests</h4>
+                    <a href="mailto:ideas@vertexlabsolutions.com">ideas@vertexlabsolutions.com</a>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <footer>
+        <p>© 2025 VertexLab Solutions. All rights reserved.</p>
+        <p style="margin-top: 0.5rem;">
+            <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a>
+        </p>
+    </footer>
+</body>
+</html>
