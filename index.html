@@ -3,706 +3,405 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VertexLab Solutions - Mobile Apps</title>
-    <meta name="description" content="VertexLab Solutions - Building innovative mobile apps for iOS and Android">
+    <title>VertexLab Solutions — Apps & B2B Tools That Save Time</title>
+    <meta name="description" content="VertexLab Solutions builds mobile apps and B2B SaaS tools that automate boring work, reduce errors, and help businesses grow.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--primary:#2E7D32;--blue:#3b82f6;--orange:#f97316;--teal:#0D9488;--dark:#0f172a;--light:#f8fafc;--white:#fff;--gray:#64748b;--border:#e2e8f0}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:var(--dark);background:var(--light)}
+        a{color:inherit;text-decoration:none}
         
-        :root {
-            --primary: #2E7D32;
-            --secondary: #1976D2;
-            --accent: #F5A623;
-            --dark: #1a1a2e;
-            --light: #f5f5f5;
-            --white: #ffffff;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            line-height: 1.6;
-            color: var(--dark);
-            background: var(--light);
-        }
-        
-        /* Header */
-        header {
-            background: linear-gradient(135deg, var(--primary) 0%, #1b5e20 100%);
-            color: var(--white);
-            padding: 1rem 2rem;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        
-        .header-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: var(--white);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary);
-            font-weight: bold;
-        }
-        
-        nav {
-            display: flex;
-            gap: 2rem;
-        }
-        
-        nav a {
-            color: var(--white);
-            text-decoration: none;
-            font-weight: 500;
-            transition: opacity 0.3s;
-        }
-        
-        nav a:hover {
-            opacity: 0.8;
-        }
+        /* Nav */
+        nav{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+        .nav-brand{font-size:20px;font-weight:800;color:var(--dark)}
+        .nav-brand span{color:var(--primary)}
+        .nav-links{display:flex;gap:28px;align-items:center}
+        .nav-links a{font-size:14px;font-weight:500;color:var(--gray);transition:color .2s}
+        .nav-links a:hover{color:var(--dark)}
         
         /* Hero */
-        .hero {
-            background: linear-gradient(135deg, var(--primary) 0%, #1b5e20 100%);
-            color: var(--white);
-            padding: 4rem 2rem;
-            text-align: center;
-        }
+        .hero{background:linear-gradient(135deg,var(--dark) 0%,#1e293b 100%);color:var(--white);padding:80px 24px;text-align:center}
+        .hero h1{font-size:clamp(32px,5vw,52px);font-weight:900;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px}
+        .hero h1 span{background:linear-gradient(135deg,#4ade80,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .hero p{font-size:18px;color:rgba(255,255,255,.6);max-width:600px;margin:0 auto 32px}
+        .hero-stats{display:flex;gap:40px;justify-content:center;flex-wrap:wrap}
+        .hero-stat{text-align:center}
+        .hero-stat .num{font-size:28px;font-weight:800;color:#4ade80}
+        .hero-stat .lbl{font-size:12px;color:rgba(255,255,255,.4)}
         
-        .hero h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
+        /* Section */
+        .section{max-width:1200px;margin:0 auto;padding:60px 24px}
+        .section-header{text-align:center;margin-bottom:40px}
+        .section-header .badge{display:inline-block;padding:4px 14px;background:var(--primary);color:var(--white);font-size:12px;font-weight:700;border-radius:20px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+        .section-header .badge.blue{background:var(--blue)}
+        .section-header h2{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+        .section-header p{color:var(--gray);font-size:16px;max-width:500px;margin:0 auto}
         
-        .hero p {
-            font-size: 1.25rem;
-            opacity: 0.9;
-            max-width: 600px;
-            margin: 0 auto 2rem;
-        }
+        /* App Grid */
+        .app-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+        .app-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:24px;transition:transform .2s,box-shadow .2s}
+        .app-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.08)}
+        .app-card .top{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+        .app-card .emoji{font-size:36px}
+        .app-card .info h3{font-size:16px;font-weight:700}
+        .app-card .info .status{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;display:inline-block;margin-top:2px}
+        .status-live{background:#dcfce7;color:#16a34a}
+        .status-review{background:#fef3c7;color:#d97706}
+        .status-ready{background:#dbeafe;color:#2563eb}
+        .status-building{background:#f3e8ff;color:#7c3aed}
+        .app-card .desc{font-size:13px;color:var(--gray);margin-bottom:14px;line-height:1.5}
+        .app-card .tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+        .app-card .tag{font-size:11px;padding:3px 8px;background:var(--light);border-radius:6px;color:var(--gray)}
+        .app-card .store-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--dark);color:var(--white);border-radius:8px;font-size:12px;font-weight:600;transition:background .2s}
+        .app-card .store-btn:hover{background:#334155}
+        .app-card .store-btn.disabled{background:var(--border);color:var(--gray);cursor:default}
         
-        .hero-stats {
-            display: flex;
-            justify-content: center;
-            gap: 3rem;
-            margin-top: 2rem;
-        }
-        
-        .stat {
-            text-align: center;
-        }
-        
-        .stat-number {
-            font-size: 2rem;
-            font-weight: 700;
-        }
-        
-        .stat-label {
-            opacity: 0.8;
-            font-size: 0.9rem;
-        }
-        
-        /* Apps Grid */
-        .apps-section {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 4rem 2rem;
-        }
-        
-        .section-title {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-        
-        .section-title h2 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .section-title p {
-            color: #666;
-        }
-        
-        .apps-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-        
-        .app-card {
-            background: var(--white);
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-        
-        .app-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-        }
-        
-        .app-icon {
-            height: 180px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 4rem;
-        }
-        
-        .app-content {
-            padding: 1.5rem;
-        }
-        
-        .app-name {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .app-tag {
-            background: var(--primary);
-            color: var(--white);
-            padding: 0.2rem 0.6rem;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: 500;
-        }
-        
-        .app-tag.submitted {
-            background: var(--secondary);
-        }
-        
-        .app-tag.built {
-            background: var(--accent);
-            color: var(--dark);
-        }
-        
-        .app-description {
-            color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-        
-        .app-features {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .feature {
-            background: #f0f0f0;
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            color: #555;
-        }
-        
-        .app-links {
-            display: flex;
-            gap: 1rem;
-        }
-        
-        .app-link {
-            flex: 1;
-            padding: 0.75rem;
-            border-radius: 8px;
-            text-align: center;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.9rem;
-            transition: opacity 0.3s;
-        }
-        
-        .app-link:hover {
-            opacity: 0.85;
-        }
-        
-        .app-link.ios {
-            background: var(--dark);
-            color: var(--white);
-        }
-        
-        .app-link.android {
-            background: #34A853;
-            color: var(--white);
-        }
-        
-        .app-link.coming {
-            background: #e0e0e0;
-            color: #666;
-            cursor: default;
-        }
-        
-        /* Social */
-        .social-section {
-            background: var(--dark);
-            color: var(--white);
-            padding: 4rem 2rem;
-            text-align: center;
-        }
-        
-        .social-section h2 {
-            margin-bottom: 1rem;
-        }
-        
-        .social-section p {
-            opacity: 0.8;
-            margin-bottom: 2rem;
-        }
-        
-        .social-links {
-            display: flex;
-            justify-content: center;
-            gap: 2rem;
-            flex-wrap: wrap;
-        }
-        
-        .social-link {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--white);
-            text-decoration: none;
-            padding: 1.5rem 2rem;
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            min-width: 120px;
-            transition: background 0.3s;
-        }
-        
-        .social-link:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .social-icon {
-            font-size: 2rem;
-        }
-        
-        /* Support */
-        .support-section {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 4rem 2rem;
-        }
-        
-        .support-card {
-            background: var(--white);
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        }
-        
-        .support-card h3 {
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .support-option {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: #f9f9f9;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-        
-        .support-option:last-child {
-            margin-bottom: 0;
-        }
-        
-        .support-icon {
-            font-size: 1.5rem;
-        }
-        
-        .support-info h4 {
-            margin-bottom: 0.25rem;
-        }
-        
-        .support-info a {
-            color: var(--secondary);
-            text-decoration: none;
-        }
+        /* B2B Grid */
+        .b2b-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px}
+        .b2b-card{background:var(--white);border:2px solid var(--border);border-radius:20px;padding:28px;transition:transform .2s,box-shadow .2s}
+        .b2b-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.08);border-color:var(--blue)}
+        .b2b-card .b2b-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px}
+        .b2b-card h3{font-size:18px;font-weight:700;margin-bottom:4px}
+        .b2b-card .subtitle{font-size:13px;color:var(--gray);margin-bottom:14px}
+        .b2b-card .features{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+        .b2b-card .feat{font-size:12px;color:var(--gray);display:flex;align-items:center;gap:6px}
+        .b2b-card .feat::before{content:'✓';color:var(--primary);font-weight:700}
+        .b2b-card .price{font-size:14px;font-weight:700;color:var(--dark);margin-bottom:14px}
+        .b2b-card .cta{display:inline-flex;align-items:center;gap:6px;padding:10px 24px;border-radius:10px;font-size:13px;font-weight:600;transition:all .2s}
+        .b2b-card .cta.primary{background:var(--blue);color:var(--white)}
+        .b2b-card .cta.primary:hover{background:#2563eb}
+        .b2b-card .cta.orange{background:var(--orange);color:var(--white)}
+        .b2b-card .cta.teal{background:var(--teal);color:var(--white)}
+        .b2b-card .cta.coming{background:var(--light);color:var(--gray);border:1px solid var(--border)}
         
         /* Footer */
-        footer {
-            background: var(--dark);
-            color: var(--white);
-            text-align: center;
-            padding: 2rem;
-            opacity: 0.8;
-        }
+        footer{background:var(--dark);color:rgba(255,255,255,.5);padding:40px 24px;text-align:center}
+        footer .brand{font-size:18px;font-weight:700;color:var(--white);margin-bottom:8px}
+        footer .brand span{color:#4ade80}
+        footer .links{display:flex;gap:20px;justify-content:center;margin:16px 0}
+        footer .links a{font-size:13px;color:rgba(255,255,255,.4);transition:color .2s}
+        footer .links a:hover{color:var(--white)}
+        footer .copy{font-size:12px;color:rgba(255,255,255,.25)}
         
-        footer a {
-            color: var(--white);
-        }
-        
-        /* Mobile */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2rem;
-            }
-            
-            .hero-stats {
-                flex-direction: column;
-                gap: 1.5rem;
-            }
-            
-            nav {
-                display: none;
-            }
-            
-            .apps-grid {
-                grid-template-columns: 1fr;
-            }
+        @media(max-width:600px){
+            .hero-stats{gap:20px}
+            .nav-links{gap:16px}
+            .b2b-grid{grid-template-columns:1fr}
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="header-content">
-            <div class="logo">
-                <div class="logo-icon">VL</div>
-                VertexLab Solutions
-            </div>
-            <nav>
-                <a href="#apps">Apps</a>
-                <a href="#social">Connect</a>
-                <a href="#support">Support</a>
-            </nav>
+
+<!-- Nav -->
+<nav>
+    <div class="nav-inner">
+        <div class="nav-brand">Vertex<span>Lab</span></div>
+        <div class="nav-links">
+            <a href="#apps">Apps</a>
+            <a href="#b2b">B2B Solutions</a>
+            <a href="mailto:tuhin014@gmail.com">Contact</a>
         </div>
-    </header>
+    </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+    <h1>Tools That <span>Save Time</span> &<br>Grow Businesses</h1>
+    <p>We build mobile apps and B2B SaaS products that automate boring work, reduce human errors, and help small businesses thrive.</p>
+    <div class="hero-stats">
+        <div class="hero-stat"><div class="num">20+</div><div class="lbl">Apps Built</div></div>
+        <div class="hero-stat"><div class="num">iOS + Web</div><div class="lbl">Platforms</div></div>
+        <div class="hero-stat"><div class="num">B2B + B2C</div><div class="lbl">Markets</div></div>
+    </div>
+</div>
+
+<!-- Mobile Apps Section -->
+<div class="section" id="apps">
+    <div class="section-header">
+        <div class="badge">📱 Mobile Apps</div>
+        <h2>iOS Apps</h2>
+        <p>Tools for everyday life — health, finance, productivity, and more</p>
+    </div>
     
-    <section class="hero">
-        <h1>Building Apps That Matter</h1>
-        <p>Innovative mobile applications for iOS and Android. Designed to help you track, learn, and grow.</p>
-        <div class="hero-stats">
-            <div class="stat">
-                <div class="stat-number">10+</div>
-                <div class="stat-label">Apps Built</div>
+    <div class="app-grid">
+        <!-- LIVE -->
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">🚭</div>
+                <div class="info">
+                    <h3>QuitTrack</h3>
+                    <span class="status status-live">● Live</span>
+                </div>
             </div>
-            <div class="stat">
-                <div class="stat-number">2</div>
-                <div class="stat-label">Platforms</div>
-            </div>
-            <div class="stat">
-                <div class="stat-number">2025</div>
-                <div class="stat-label">Started</div>
-            </div>
-        </div>
-    </section>
-    
-    <section class="apps-section" id="apps">
-        <div class="section-title">
-            <h2>Our Apps</h2>
-            <p>Download our apps from the App Store or Google Play</p>
+            <div class="desc">Quit any bad habit with tracking, streaks, money saved, and shareable milestone cards.</div>
+            <div class="tags"><span class="tag">Streaks</span><span class="tag">Money Saved</span><span class="tag">Health Timeline</span></div>
+            <a href="https://apps.apple.com/app/id6741068461" class="store-btn">🍎 App Store</a>
         </div>
         
-        <div class="apps-grid">
-            <!-- QuitTrack -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #1B7A4E, #0d4731);">🚭</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        QuitTrack
-                        <span class="app-tag submitted">Live</span>
-                    </div>
-                    <p class="app-description">Quit any bad habit with tracking, streaks, and shareable milestone cards.</p>
-                    <div class="app-features">
-                        <span class="feature">Streaks</span>
-                        <span class="feature">Money Saved</span>
-                        <span class="feature">Health Timeline</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
+        <!-- SUBMITTED / IN REVIEW -->
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">🧠</div>
+                <div class="info">
+                    <h3>MoodBit</h3>
+                    <span class="status status-review">⏳ In Review</span>
                 </div>
             </div>
-            
-            <!-- MoodBit -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #4A90D9, #2a5a99);">🧠</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        MoodBit
-                        <span class="app-tag submitted">Submitted</span>
-                    </div>
-                    <p class="app-description">Track habits and discover how they correlate with your mood over time.</p>
-                    <div class="app-features">
-                        <span class="feature">Correlation</span>
-                        <span class="feature">Trends</span>
-                        <span class="feature">Calendar Heatmap</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- SubWise -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #9C27B0, #6a1b9a);">💜</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        SubWise
-                        <span class="app-tag">Ready</span>
-                    </div>
-                    <p class="app-description">Track and manage all your subscriptions in one place.</p>
-                    <div class="app-features">
-                        <span class="feature">Multi-sub</span>
-                        <span class="feature">Cost Analysis</span>
-                        <span class="feature">Reminders</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- CalmNow -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #0D7377, #065456);">🧘</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        CalmNow - Panic Relief
-                        <span class="app-tag submitted">Submitted</span>
-                    </div>
-                    <p class="app-description">Panic and anxiety relief with breathing exercises, grounding techniques, and more.</p>
-                    <div class="app-features">
-                        <span class="feature">Breathing</span>
-                        <span class="feature">Grounding</span>
-                        <span class="feature">Emergency 911</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ClearBill -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #0D9488, #065f59);">💊</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        ClearBill
-                        <span class="app-tag submitted">Submitted</span>
-                    </div>
-                    <p class="app-description">Medical bill error checker - find mistakes and save money on healthcare.</p>
-                    <div class="app-features">
-                        <span class="feature">Error Detection</span>
-                        <span class="feature">Dispute Letters</span>
-                        <span class="feature">Price Lookup</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- TradeInvoice -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #1B2A4A, #0d1525);">📋</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        TradeInvoice
-                        <span class="app-tag submitted">Submitted</span>
-                    </div>
-                    <p class="app-description">Invoice app for contractors - plumbers, electricians, HVAC, and more.</p>
-                    <div class="app-features">
-                        <span class="feature">Voice Input</span>
-                        <span class="feature">Trade Templates</span>
-                        <span class="feature">Offline-First</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- PixelFix -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #2563EB, #1d4ed8);">✨</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        PixelFix
-                        <span class="app-tag submitted">Submitted</span>
-                    </div>
-                    <p class="app-description">AI-powered photo tools - background remover, enhancer, eraser, passport photo.</p>
-                    <div class="app-features">
-                        <span class="feature">AI Tools</span>
-                        <span class="feature">Background Remover</span>
-                        <span class="feature">Passport Photo</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- LandlordKit -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #6366F1, #4338ca);">🏠</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        LandlordKit
-                        <span class="app-tag submitted">Submitted</span>
-                    </div>
-                    <p class="app-description">Property maintenance and landlord toolkit for managing rental properties.</p>
-                    <div class="app-features">
-                        <span class="feature">Maintenance</span>
-                        <span class="feature">Tenant Tracking</span>
-                        <span class="feature">Reports</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- DepositGuard -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #1E3A5F, #0f1f33);">🛡️</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        DepositGuard
-                        <span class="app-tag built">Building</span>
-                    </div>
-                    <p class="app-description">Renter's deposit protection vault - document move-in/out, track damages.</p>
-                    <div class="app-features">
-                        <span class="feature">Photo Vault</span>
-                        <span class="feature">Evidence Reports</span>
-                        <span class="feature">Dispute Letters</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- FamilyBridge -->
-            <div class="app-card">
-                <div class="app-icon" style="background: linear-gradient(135deg, #E91E63, #c2185b);">💑</div>
-                <div class="app-content">
-                    <div class="app-name">
-                        FamilyBridge
-                        <span class="app-tag built">Building</span>
-                    </div>
-                    <p class="app-description">Family wellness and relationship coaching app with Islamic features.</p>
-                    <div class="app-features">
-                        <span class="feature">Couples</span>
-                        <span class="feature">Parent-Teen</span>
-                        <span class="feature">Kids Islamic</span>
-                    </div>
-                    <div class="app-links">
-                        <a href="#" class="app-link ios coming">iOS Coming</a>
-                        <a href="#" class="app-link android coming">Android Coming</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <section class="social-section" id="social">
-        <h2>Connect With Us</h2>
-        <p>Follow us on social media for updates and new releases</p>
-        <div class="social-links">
-            <a href="https://x.com/vertexlabs" class="social-link" target="_blank">
-                <span class="social-icon">𝕏</span>
-                <span>X (Twitter)</span>
-            </a>
-            <a href="https://reddit.com/r/vertexlabs" class="social-link" target="_blank">
-                <span class="social-icon">🤖</span>
-                <span>Reddit</span>
-            </a>
-            <a href="https://tiktok.com/@vertexlabs" class="social-link" target="_blank">
-                <span class="social-icon">🎵</span>
-                <span>TikTok</span>
-            </a>
-            <a href="https://github.com/tuhin-014" class="social-link" target="_blank">
-                <span class="social-icon">🐙</span>
-                <span>GitHub</span>
-            </a>
-        </div>
-    </section>
-    
-    <section class="support-section" id="support">
-        <div class="section-title">
-            <h2>Support</h2>
-            <p>We're here to help</p>
+            <div class="desc">Track habits and discover how they correlate with your mood over time using Pearson correlation.</div>
+            <div class="tags"><span class="tag">Correlation</span><span class="tag">Trends</span><span class="tag">Heatmap</span></div>
+            <a href="https://apps.apple.com/app/id6759418672" class="store-btn">🍎 App Store</a>
         </div>
         
-        <div class="support-card">
-            <h3>📧 Contact Us</h3>
-            
-            <div class="support-option">
-                <span class="support-icon">💬</span>
-                <div class="support-info">
-                    <h4>General Inquiries</h4>
-                    <a href="mailto:tuhin014@gmail.com">tuhin014@gmail.com</a>
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">🧘</div>
+                <div class="info">
+                    <h3>CalmNow - Panic Relief</h3>
+                    <span class="status status-review">⏳ In Review</span>
                 </div>
             </div>
-            
-            <div class="support-option">
-                <span class="support-icon">🐛</span>
-                <div class="support-info">
-                    <h4>Report a Bug</h4>
-                    <a href="mailto:support@vertexlabsolutions.com">support@vertexlabsolutions.com</a>
+            <div class="desc">Panic and anxiety relief with breathing exercises, grounding techniques, and emergency contacts.</div>
+            <div class="tags"><span class="tag">Breathing</span><span class="tag">Grounding</span><span class="tag">Emergency 911</span></div>
+            <a href="https://apps.apple.com/app/id6759452120" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">💊</div>
+                <div class="info">
+                    <h3>ClearBill</h3>
+                    <span class="status status-review">⏳ In Review</span>
                 </div>
             </div>
-            
-            <div class="support-option">
-                <span class="support-icon">💡</span>
-                <div class="support-info">
-                    <h4>Feature Requests</h4>
-                    <a href="mailto:ideas@vertexlabsolutions.com">ideas@vertexlabsolutions.com</a>
+            <div class="desc">Medical bill error checker — find mistakes, dispute overcharges, and save money on healthcare.</div>
+            <div class="tags"><span class="tag">Error Detection</span><span class="tag">Dispute Letters</span><span class="tag">Fair Price</span></div>
+            <a href="https://apps.apple.com/app/id6759484929" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">📋</div>
+                <div class="info">
+                    <h3>TradeInvoice</h3>
+                    <span class="status status-review">⏳ In Review</span>
                 </div>
+            </div>
+            <div class="desc">Invoice app for contractors — plumbers, electricians, HVAC with voice input and trade templates.</div>
+            <div class="tags"><span class="tag">Voice Input</span><span class="tag">Trade Templates</span><span class="tag">Offline-First</span></div>
+            <a href="https://apps.apple.com/app/id6759491053" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">✨</div>
+                <div class="info">
+                    <h3>PixelFix</h3>
+                    <span class="status status-review">⏳ In Review</span>
+                </div>
+            </div>
+            <div class="desc">AI-powered photo tools — background remover, enhancer, magic eraser, and passport photo.</div>
+            <div class="tags"><span class="tag">AI Tools</span><span class="tag">Background Remover</span><span class="tag">Passport Photo</span></div>
+            <a href="https://apps.apple.com/app/id6759491893" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">🏠</div>
+                <div class="info">
+                    <h3>LandlordKit</h3>
+                    <span class="status status-review">⏳ In Review</span>
+                </div>
+            </div>
+            <div class="desc">Property maintenance and landlord toolkit for managing rental properties and tenants.</div>
+            <div class="tags"><span class="tag">Maintenance</span><span class="tag">Tenant Tracking</span><span class="tag">Reports</span></div>
+            <a href="https://apps.apple.com/app/id6759428782" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">📄</div>
+                <div class="info">
+                    <h3>ClearScan</h3>
+                    <span class="status status-review">⏳ In Review</span>
+                </div>
+            </div>
+            <div class="desc">Document scanner with OCR, free e-signatures, PDF editor, and smart organization.</div>
+            <div class="tags"><span class="tag">OCR</span><span class="tag">E-Signatures</span><span class="tag">PDF Editor</span></div>
+            <a href="https://apps.apple.com/app/id6759505455" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">💰</div>
+                <div class="info">
+                    <h3>SideHustle Boss</h3>
+                    <span class="status status-review">⏳ In Review</span>
+                </div>
+            </div>
+            <div class="desc">Gig worker money and tax tracker — mileage, expenses, income, deductions, 1099-K ready.</div>
+            <div class="tags"><span class="tag">Gig Tracker</span><span class="tag">Tax Calculator</span><span class="tag">Mileage</span></div>
+            <a href="https://apps.apple.com/app/id6759819640" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">🍃</div>
+                <div class="info">
+                    <h3>LeanFast</h3>
+                    <span class="status status-review">⏳ In Review</span>
+                </div>
+            </div>
+            <div class="desc">Intermittent fasting tracker with AI coaching, progress charts, and meal planning.</div>
+            <div class="tags"><span class="tag">Fasting Timer</span><span class="tag">AI Coach</span><span class="tag">Progress</span></div>
+            <a href="https://apps.apple.com/app/id6759789528" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">😴</div>
+                <div class="info">
+                    <h3>DriftOff</h3>
+                    <span class="status status-review">⏳ In Review</span>
+                </div>
+            </div>
+            <div class="desc">Fall asleep faster with soothing soundscapes, bedtime stories, and sleep tracking.</div>
+            <div class="tags"><span class="tag">Soundscapes</span><span class="tag">Sleep Stories</span><span class="tag">Timer</span></div>
+            <a href="https://apps.apple.com/app/id6759835149" class="store-btn">🍎 App Store</a>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">💜</div>
+                <div class="info">
+                    <h3>SubWise</h3>
+                    <span class="status status-ready">🔵 Ready</span>
+                </div>
+            </div>
+            <div class="desc">Track and manage all your subscriptions in one place — see where your money goes.</div>
+            <div class="tags"><span class="tag">Multi-sub</span><span class="tag">Cost Analysis</span><span class="tag">Reminders</span></div>
+            <span class="store-btn disabled">Coming Soon</span>
+        </div>
+        
+        <div class="app-card">
+            <div class="top">
+                <div class="emoji">🏎️</div>
+                <div class="info">
+                    <h3>RushOut</h3>
+                    <span class="status status-ready">🔵 Ready</span>
+                </div>
+            </div>
+            <div class="desc">Knockout racing game — fast-paced elimination races with power-ups and multiplayer.</div>
+            <div class="tags"><span class="tag">Racing</span><span class="tag">Multiplayer</span><span class="tag">Power-ups</span></div>
+            <span class="store-btn disabled">Coming Soon</span>
+        </div>
+    </div>
+</div>
+
+<!-- B2B Solutions Section -->
+<div class="section" id="b2b" style="background:var(--white);margin:0 auto;max-width:100%;padding:60px 24px">
+    <div class="section-header">
+        <div class="badge blue">💼 B2B Solutions</div>
+        <h2>SaaS Products for Small Business</h2>
+        <p>Automation tools that save time, reduce errors, and grow revenue</p>
+    </div>
+    
+    <div style="max-width:1200px;margin:0 auto">
+        <div class="b2b-grid">
+            <!-- KitchenShield -->
+            <div class="b2b-card">
+                <div class="b2b-icon" style="background:rgba(5,150,105,.1)">🛡️</div>
+                <h3>KitchenShield</h3>
+                <div class="subtitle">Restaurant Food Safety Compliance</div>
+                <div class="features">
+                    <div class="feat">Digital temperature logs</div>
+                    <div class="feat">AI HACCP plan generator</div>
+                    <div class="feat">40-point inspection checklist</div>
+                    <div class="feat">Employee cert tracking</div>
+                    <div class="feat">One-click audit reports</div>
+                </div>
+                <div class="price">From $99/mo · 14-day free trial</div>
+                <a href="https://kitchen-shield.vercel.app" class="cta teal">Try KitchenShield →</a>
+            </div>
+            
+            <!-- OrderAI -->
+            <div class="b2b-card">
+                <div class="b2b-icon" style="background:rgba(249,115,22,.1)">📞</div>
+                <h3>OrderAI</h3>
+                <div class="subtitle">AI Phone Ordering for Restaurants</div>
+                <div class="features">
+                    <div class="feat">24/7 AI call answering</div>
+                    <div class="feat">Natural conversation ordering</div>
+                    <div class="feat">Smart upselling (+15-25%)</div>
+                    <div class="feat">Real-time kitchen dashboard</div>
+                    <div class="feat">Call analytics & recordings</div>
+                </div>
+                <div class="price">From $49/mo · 14-day free trial</div>
+                <a href="https://orderai-web.vercel.app" class="cta orange">Try OrderAI →</a>
+            </div>
+            
+            <!-- ReviewAI -->
+            <div class="b2b-card">
+                <div class="b2b-icon" style="background:rgba(59,130,246,.1)">⭐</div>
+                <h3>ReviewAI</h3>
+                <div class="subtitle">AI Review Response Tool</div>
+                <div class="features">
+                    <div class="feat">AI responses in 2 seconds</div>
+                    <div class="feat">4 brand voice options</div>
+                    <div class="feat">Auto-respond to positive reviews</div>
+                    <div class="feat">Sentiment analytics</div>
+                    <div class="feat">Multi-platform (Google, Yelp, FB)</div>
+                </div>
+                <div class="price">Free plan available · Pro $49/mo</div>
+                <a href="https://review-ai-eight-peach.vercel.app" class="cta primary">Try ReviewAI →</a>
+            </div>
+            
+            <!-- SafetyKit -->
+            <div class="b2b-card">
+                <div class="b2b-icon" style="background:rgba(232,96,10,.1)">🛡️</div>
+                <h3>SafetyKit</h3>
+                <div class="subtitle">OSHA Compliance for Small Business</div>
+                <div class="features">
+                    <div class="feat">26 inspection templates (5 industries)</div>
+                    <div class="feat">OSHA 300/300A/301 forms</div>
+                    <div class="feat">50 Toolbox Talks library</div>
+                    <div class="feat">Employee cert tracking</div>
+                    <div class="feat">Guided incident reporting</div>
+                </div>
+                <div class="price">From $29/mo · iOS App</div>
+                <span class="cta coming">Coming Soon</span>
+            </div>
+            
+            <!-- CleanVerify -->
+            <div class="b2b-card">
+                <div class="b2b-icon" style="background:rgba(13,148,136,.1)">🧹</div>
+                <h3>CleanVerify</h3>
+                <div class="subtitle">Cleaning Proof & Quality Tracker</div>
+                <div class="features">
+                    <div class="feat">Before/after photo proof</div>
+                    <div class="feat">GPS check-in/check-out</div>
+                    <div class="feat">QR room verification</div>
+                    <div class="feat">Auto-generated proof reports</div>
+                    <div class="feat">Client satisfaction ratings</div>
+                </div>
+                <div class="price">From $19/mo · iOS App</div>
+                <span class="cta coming">Coming Soon</span>
             </div>
         </div>
-    </section>
-    
-    <footer>
-        <p>© 2025 VertexLab Solutions. All rights reserved.</p>
-        <p style="margin-top: 0.5rem;">
-            <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a>
-        </p>
-    </footer>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer>
+    <div class="brand">Vertex<span>Lab</span> Solutions</div>
+    <p style="font-size:14px;margin-bottom:12px">Building tools that save time and grow businesses</p>
+    <div class="links">
+        <a href="mailto:tuhin014@gmail.com">Contact</a>
+        <a href="https://github.com/tuhin-014">GitHub</a>
+    </div>
+    <div class="copy">© 2026 VertexLab Solutions. All rights reserved.</div>
+</footer>
+
 </body>
 </html>
