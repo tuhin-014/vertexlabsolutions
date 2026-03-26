@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireFlow — Pitch Deck</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#fff;overflow-x:hidden}
+.slide{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 40px;position:relative;border-bottom:1px solid rgba(255,255,255,.05)}
+.slide:nth-child(even){background:#1e293b}
+.tag{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.15);color:#818cf8;font-size:13px;font-weight:700;padding:6px 16px;border-radius:20px;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px}
+h1{font-size:clamp(36px,5vw,64px);font-weight:900;letter-spacing:-2px;line-height:1.1;text-align:center;max-width:900px}
+h1 span,.accent{color:#818cf8}
+h2{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-1.5px;line-height:1.15;text-align:center;max-width:800px;margin-bottom:16px}
+h3{font-size:24px;font-weight:700;margin-bottom:8px}
+p{font-size:18px;color:rgba(255,255,255,.6);max-width:600px;text-align:center;line-height:1.6;margin-top:12px}
+.stats{display:flex;gap:40px;margin-top:40px;flex-wrap:wrap;justify-content:center}
+.stat{text-align:center}
+.stat .num{font-size:48px;font-weight:900;color:#818cf8}
+.stat .lbl{font-size:14px;color:rgba(255,255,255,.4);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1000px;margin-top:40px;width:100%}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:32px;text-align:left}
+.card .icon{font-size:36px;margin-bottom:16px}
+.card h3{color:#fff;font-size:20px}
+.card p{color:rgba(255,255,255,.5);font-size:14px;text-align:left;margin-top:8px;max-width:100%}
+.steps{display:flex;gap:16px;max-width:1100px;margin-top:40px;flex-wrap:wrap;justify-content:center}
+.step{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:24px;flex:1;min-width:150px;text-align:center}
+.step .num{width:36px;height:36px;border-radius:50%;background:#6366F1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;margin:0 auto 10px}
+.step h3{font-size:14px;color:#fff}
+.step p{font-size:12px;text-align:center;margin-top:4px}
+.compare{width:100%;max-width:800px;margin-top:40px;border-collapse:collapse}
+.compare th{text-align:left;padding:12px 16px;font-size:14px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.1)}
+.compare td{padding:12px 16px;font-size:15px;border-bottom:1px solid rgba(255,255,255,.05)}
+.compare .yes{color:#4ade80;font-weight:700}
+.compare .no{color:#ef4444;font-weight:700}
+.pricing{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1000px;margin-top:40px;width:100%}
+.plan{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;text-align:center}
+.plan.popular{border-color:#6366F1;background:rgba(99,102,241,.1)}
+.plan h3{font-size:18px;color:#fff}
+.plan .price{font-size:36px;font-weight:900;color:#fff;margin:12px 0}
+.plan .price span{font-size:16px;font-weight:400;color:rgba(255,255,255,.4)}
+.plan ul{list-style:none;text-align:left;margin-top:16px}
+.plan li{font-size:13px;color:rgba(255,255,255,.5);padding:4px 0}
+.plan li::before{content:'✓ ';color:#818cf8;font-weight:700}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;background:#6366F1;color:#fff;font-size:18px;font-weight:700;padding:16px 40px;border-radius:14px;text-decoration:none;margin-top:32px;transition:transform .2s,box-shadow .2s}
+.cta-btn:hover{transform:scale(1.05);box-shadow:0 8px 30px rgba(99,102,241,.3)}
+
+/* Timeline */
+.timeline{max-width:700px;margin-top:40px;width:100%}
+.timeline-item{display:flex;gap:20px;padding:20px 0;border-left:3px solid rgba(99,102,241,.3);margin-left:20px;padding-left:24px;position:relative}
+.timeline-item::before{content:'';position:absolute;left:-8px;top:24px;width:13px;height:13px;border-radius:50%;background:#6366F1}
+.timeline-item .day{font-size:13px;font-weight:700;color:#818cf8;min-width:60px}
+.timeline-item .content h3{font-size:15px;color:#fff;margin-bottom:4px}
+.timeline-item .content p{font-size:13px;text-align:left;margin:0;max-width:100%}
+
+.footer{text-align:center;padding:40px;color:rgba(255,255,255,.2);font-size:13px}
+@media(max-width:600px){.slide{padding:40px 20px}.stats{gap:20px}.stat .num{font-size:32px}.steps{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1: Hero -->
+<div class="slide" style="background:linear-gradient(135deg,#0f172a 0%,#1a0a2e 50%,#1e293b 100%)">
+  <div class="tag">🤝 HireFlow</div>
+  <h1>From Job Post to <span>Productive Employee</span> — Powered by AI</h1>
+  <p>The all-in-one hiring + onboarding platform built for small businesses. Find the right person AND make sure they stick.</p>
+  <a href="https://hireflow-web.vercel.app" class="cta-btn">Try HireFlow Free →</a>
+  <div class="stats">
+    <div class="stat"><div class="num">10s</div><div class="lbl">AI writes job post</div></div>
+    <div class="stat"><div class="num">4x</div><div class="lbl">Faster time-to-hire</div></div>
+    <div class="stat"><div class="num">$4,700</div><div class="lbl">Avg cost per hire (saved)</div></div>
+    <div class="stat"><div class="num">30 days</div><div class="lbl">Structured onboarding</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 2: The Problem -->
+<div class="slide">
+  <div class="tag">😩 The Problem</div>
+  <h2>Small Business Hiring is a <span>Nightmare</span></h2>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(250px,1fr))">
+    <div class="card"><div class="icon">📝</div><h3>Writing Job Posts</h3><p>30+ minutes staring at a blank screen trying to write a decent listing</p></div>
+    <div class="card"><div class="icon">📬</div><h3>200 Bad Resumes</h3><p>Half are spam, half are unqualified. You spend 5+ hours reading them all</p></div>
+    <div class="card"><div class="icon">👻</div><h3>Ghosting & No-Shows</h3><p>Schedule 10 interviews. 5 ghost. 3 show up. 1 is qualified.</p></div>
+    <div class="card"><div class="icon">🚪</div><h3>They Quit in 2 Weeks</h3><p>No onboarding plan. New hire feels lost. Quits. Start over.</p></div>
+  </div>
+  <div class="stats" style="margin-top:40px">
+    <div class="stat"><div class="num" style="color:#ef4444">76%</div><div class="lbl">say hiring is #1 challenge</div></div>
+    <div class="stat"><div class="num" style="color:#ef4444">42 days</div><div class="lbl">average time to fill a role</div></div>
+    <div class="stat"><div class="num" style="color:#ef4444">30%</div><div class="lbl">of new hires quit within 90 days</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 3: The Solution - 6 Steps -->
+<div class="slide">
+  <div class="tag">✨ The Solution</div>
+  <h2>HireFlow Handles <span>Everything</span></h2>
+  <p>From "I need someone" to "they're crushing it" — in one tool</p>
+  <div class="steps">
+    <div class="step"><div class="num">1</div><h3>Describe Role</h3><p>Tell AI what you need in plain English</p></div>
+    <div class="step"><div class="num">2</div><h3>AI Writes Post</h3><p>Complete job listing in 10 seconds</p></div>
+    <div class="step"><div class="num">3</div><h3>AI Screens</h3><p>Every resume ranked 0-100 automatically</p></div>
+    <div class="step"><div class="num">4</div><h3>Interview</h3><p>Schedule with one click, auto-reminders</p></div>
+    <div class="step"><div class="num">5</div><h3>Hire</h3><p>AI offer letter, e-signature, done</p></div>
+    <div class="step"><div class="num">6</div><h3>Onboard</h3><p>30-day plan, training, check-ins</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 4: AI Screening -->
+<div class="slide">
+  <div class="tag">🤖 AI Screening</div>
+  <h2>AI Reads Every Resume <span>So You Don't Have To</span></h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr;max-width:800px">
+    <div class="card" style="border-color:rgba(74,222,128,.3)">
+      <div class="icon">✅</div>
+      <h3>Score: 94 — Maria R.</h3>
+      <p><strong style="color:#4ade80">AI Summary:</strong> 5 years line cook experience, ServSafe certified, bilingual English/Spanish, available immediately</p>
+      <p style="margin-top:8px"><strong style="color:#4ade80">Strengths:</strong> Extensive experience, all certifications met, flexible schedule</p>
+    </div>
+    <div class="card" style="border-color:rgba(239,68,68,.3)">
+      <div class="icon">❌</div>
+      <h3>Score: 32 — John D.</h3>
+      <p><strong style="color:#ef4444">AI Summary:</strong> No kitchen experience, looking for any job, no certifications</p>
+      <p style="margin-top:8px"><strong style="color:#ef4444">Auto-rejected:</strong> Missing required food safety cert, no relevant experience</p>
+    </div>
+  </div>
+  <p style="margin-top:24px;font-size:16px">200 applicants → AI ranks them all → You only review the <span class="accent" style="font-weight:700">top 5</span></p>
+</div>
+
+<!-- SLIDE 5: Onboarding -->
+<div class="slide">
+  <div class="tag">📋 Onboarding</div>
+  <h2>Don't Just Hire Them. <span>Keep Them.</span></h2>
+  <p>30% of new hires quit in 90 days because of bad onboarding. HireFlow fixes that.</p>
+  <div class="timeline">
+    <div class="timeline-item"><div class="day">Day 1</div><div class="content"><h3>Welcome & Paperwork</h3><p>Digital W-4, I-9, direct deposit. Tour, meet the team, get uniform.</p></div></div>
+    <div class="timeline-item"><div class="day">Day 2-3</div><div class="content"><h3>Shadow & Learn</h3><p>Shadow a senior team member. Learn the basics, tools, and workflow.</p></div></div>
+    <div class="timeline-item"><div class="day">Day 7</div><div class="content"><h3>First Check-In</h3><p>Manager check-in: How are you feeling? Any questions? Any concerns?</p></div></div>
+    <div class="timeline-item"><div class="day">Day 14</div><div class="content"><h3>Expanding Responsibilities</h3><p>Taking on more tasks independently. Second check-in with manager.</p></div></div>
+    <div class="timeline-item"><div class="day">Day 30</div><div class="content"><h3>Performance Review</h3><p>Formal review. Are they a good fit? Ready for full independence?</p></div></div>
+  </div>
+  <p style="font-size:14px;margin-top:20px">New hire sees their checklist on their phone. Manager tracks progress on the dashboard.</p>
+</div>
+
+<!-- SLIDE 6: vs Competitors -->
+<div class="slide">
+  <div class="tag">🏆 Why HireFlow</div>
+  <h2>Built for Small Business, <span>Not Enterprise</span></h2>
+  <table class="compare">
+    <tr><th>Feature</th><th>Indeed / ZipRecruiter</th><th>Workable ($149+)</th><th style="color:#818cf8">HireFlow ($69)</th></tr>
+    <tr><td>AI Job Post Writer</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓</td></tr>
+    <tr><td>AI Resume Screening</td><td class="no">✕</td><td class="no">Basic</td><td class="yes">✓ Score 0-100</td></tr>
+    <tr><td>Interview Scheduler</td><td class="no">✕</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Offer Letter Generator</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓ AI</td></tr>
+    <tr><td>30-Day Onboarding</td><td class="no">✕</td><td class="no">✕</td><td class="yes">✓ Built-in</td></tr>
+    <tr><td>Mobile-First</td><td class="no">Desktop</td><td class="no">Desktop</td><td class="yes">✓ Phone-first</td></tr>
+    <tr><td>Price</td><td>$5-25/day per post</td><td>$149+/mo</td><td class="yes">$69/mo</td></tr>
+  </table>
+</div>
+
+<!-- SLIDE 7: Pricing -->
+<div class="slide">
+  <div class="tag">💳 Pricing</div>
+  <h2>Simple, Transparent Pricing</h2>
+  <p>14-day free trial · No credit card required</p>
+  <div class="pricing">
+    <div class="plan"><h3>Free</h3><div class="price">$0</div><ul><li>1 active job</li><li>10 applicants</li><li>Basic onboarding</li><li>1 user</li></ul></div>
+    <div class="plan"><h3>Starter</h3><div class="price">$69<span>/mo</span></div><ul><li>3 active jobs</li><li>AI screening</li><li>Onboard templates</li><li>10 employees</li><li>2 users</li></ul></div>
+    <div class="plan popular"><h3>Growth ⭐</h3><div class="price">$129<span>/mo</span></div><ul><li>10 active jobs</li><li>AI screener + onboard</li><li>Interview scheduler</li><li>Analytics</li><li>25 employees</li></ul></div>
+    <div class="plan"><h3>Pro</h3><div class="price">$249<span>/mo</span></div><ul><li>Unlimited jobs</li><li>Team collaboration</li><li>Custom training</li><li>Multi-location</li><li>100 employees</li></ul></div>
+  </div>
+</div>
+
+<!-- SLIDE 8: ROI -->
+<div class="slide">
+  <div class="tag">💰 The Math</div>
+  <h2>HireFlow <span>Pays for Itself</span> with One Hire</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr;max-width:700px">
+    <div class="card" style="text-align:center">
+      <h3 style="color:#ef4444">Without HireFlow</h3>
+      <p style="text-align:center;font-size:36px;font-weight:900;color:#ef4444;margin:12px 0">$4,700</p>
+      <p style="text-align:center">Average cost per hire</p>
+      <p style="text-align:center;margin-top:8px;font-size:14px">+ 15-20 hours of your time</p>
+      <p style="text-align:center;font-size:14px">+ 42 days to fill the role</p>
+    </div>
+    <div class="card" style="text-align:center;border-color:rgba(74,222,128,.3)">
+      <h3 style="color:#4ade80">With HireFlow</h3>
+      <p style="text-align:center;font-size:36px;font-weight:900;color:#4ade80;margin:12px 0">$69</p>
+      <p style="text-align:center">Monthly subscription</p>
+      <p style="text-align:center;margin-top:8px;font-size:14px">+ 2-3 hours of your time</p>
+      <p style="text-align:center;font-size:14px">+ 10 days to fill the role</p>
+    </div>
+  </div>
+  <p style="margin-top:24px;font-size:16px"><span class="accent" style="font-weight:700">68x ROI</span> on your first hire alone</p>
+</div>
+
+<!-- SLIDE 9: CTA -->
+<div class="slide" style="background:linear-gradient(135deg,#1a0a2e,#0f172a)">
+  <h2>Stop Losing New Hires in the <span>First Month</span></h2>
+  <p>Find the right person AND make sure they stick. All from one platform.</p>
+  <a href="https://hireflow-web.vercel.app" class="cta-btn">Start Your Free Trial →</a>
+  <p style="font-size:14px;margin-top:12px;color:rgba(255,255,255,.3)">14 days free · No credit card · Cancel anytime</p>
+</div>
+
+<div class="footer">© 2026 VertexLab Solutions · hireflow-web.vercel.app</div>
+
+</body>
+</html>

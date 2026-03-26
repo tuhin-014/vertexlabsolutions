@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CaterFlow — Pitch Deck</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#fff;overflow-x:hidden}
+.slide{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 40px;position:relative;border-bottom:1px solid rgba(255,255,255,.05)}
+.slide:nth-child(even){background:#1e293b}
+.tag{display:inline-flex;align-items:center;gap:6px;background:rgba(249,115,22,.15);color:#f97316;font-size:13px;font-weight:700;padding:6px 16px;border-radius:20px;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px}
+h1{font-size:clamp(36px,5vw,64px);font-weight:900;letter-spacing:-2px;line-height:1.1;text-align:center;max-width:900px}
+h1 span{color:#f97316}
+h2{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-1.5px;line-height:1.15;text-align:center;max-width:800px;margin-bottom:16px}
+h3{font-size:24px;font-weight:700;margin-bottom:8px}
+p{font-size:18px;color:rgba(255,255,255,.6);max-width:600px;text-align:center;line-height:1.6;margin-top:12px}
+.subtitle{font-size:20px;color:rgba(255,255,255,.5);margin-top:16px;text-align:center}
+
+/* Stats */
+.stats{display:flex;gap:40px;margin-top:40px;flex-wrap:wrap;justify-content:center}
+.stat{text-align:center}
+.stat .num{font-size:48px;font-weight:900;color:#f97316}
+.stat .lbl{font-size:14px;color:rgba(255,255,255,.4);margin-top:4px}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1000px;margin-top:40px;width:100%}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:32px;text-align:left}
+.card .icon{font-size:36px;margin-bottom:16px}
+.card h3{color:#fff;font-size:20px}
+.card p{color:rgba(255,255,255,.5);font-size:14px;text-align:left;margin-top:8px;max-width:100%}
+
+/* Steps */
+.steps{display:flex;gap:20px;max-width:1000px;margin-top:40px;flex-wrap:wrap;justify-content:center}
+.step{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;flex:1;min-width:200px;text-align:center}
+.step .num{width:40px;height:40px;border-radius:50%;background:#f97316;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;margin:0 auto 12px}
+.step h3{font-size:16px;color:#fff}
+.step p{font-size:13px;text-align:center;margin-top:6px}
+
+/* Comparison */
+.compare{width:100%;max-width:800px;margin-top:40px;border-collapse:collapse}
+.compare th{text-align:left;padding:12px 16px;font-size:14px;color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.1)}
+.compare td{padding:12px 16px;font-size:15px;border-bottom:1px solid rgba(255,255,255,.05)}
+.compare .yes{color:#4ade80;font-weight:700}
+.compare .no{color:#ef4444;font-weight:700}
+.compare tr:last-child td{border:none}
+
+/* Pricing */
+.pricing{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:1000px;margin-top:40px;width:100%}
+.plan{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:28px;text-align:center}
+.plan.popular{border-color:#f97316;background:rgba(249,115,22,.1)}
+.plan h3{font-size:18px;color:#fff}
+.plan .price{font-size:36px;font-weight:900;color:#fff;margin:12px 0}
+.plan .price span{font-size:16px;font-weight:400;color:rgba(255,255,255,.4)}
+.plan ul{list-style:none;text-align:left;margin-top:16px}
+.plan li{font-size:13px;color:rgba(255,255,255,.5);padding:4px 0}
+.plan li::before{content:'✓ ';color:#f97316;font-weight:700}
+
+/* CTA */
+.cta-btn{display:inline-flex;align-items:center;gap:8px;background:#f97316;color:#fff;font-size:18px;font-weight:700;padding:16px 40px;border-radius:14px;text-decoration:none;margin-top:32px;transition:transform .2s,box-shadow .2s}
+.cta-btn:hover{transform:scale(1.05);box-shadow:0 8px 30px rgba(249,115,22,.3)}
+
+/* Footer */
+.footer{text-align:center;padding:40px;color:rgba(255,255,255,.2);font-size:13px}
+
+@media(max-width:600px){
+  .slide{padding:40px 20px}
+  .stats{gap:20px}
+  .stat .num{font-size:32px}
+  .steps{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<!-- SLIDE 1: Hero -->
+<div class="slide" style="background:linear-gradient(135deg,#0f172a 0%,#1a0a2e 50%,#1e293b 100%)">
+  <div class="tag">🍽️ CaterFlow</div>
+  <h1>Generate Catering Proposals in <span>30 Seconds</span></h1>
+  <p>The AI-powered platform that helps restaurants win more catering orders, protect margins, and grow revenue — all from one dashboard.</p>
+  <a href="https://getcaterflow.com" class="cta-btn">Try CaterFlow Free →</a>
+  <div class="stats">
+    <div class="stat"><div class="num">30s</div><div class="lbl">Average quote time</div></div>
+    <div class="stat"><div class="num">10x</div><div class="lbl">Faster than manual</div></div>
+    <div class="stat"><div class="num">74%</div><div class="lbl">Quote approval rate</div></div>
+    <div class="stat"><div class="num">$500+</div><div class="lbl">Avg order value</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 2: The Problem -->
+<div class="slide">
+  <div class="tag">😩 The Problem</div>
+  <h2>Catering Quoting is <span>Broken</span></h2>
+  <div class="steps">
+    <div class="step"><div class="num">1</div><h3>Client calls</h3><p>"We need lunch for 50 people next Friday"</p></div>
+    <div class="step"><div class="num">2</div><h3>You grab a calculator</h3><p>Spend 30-60 min figuring out menu, pricing, staff</p></div>
+    <div class="step"><div class="num">3</div><h3>Type it up in Word</h3><p>Another 20 min making it look decent</p></div>
+    <div class="step"><div class="num">4</div><h3>Email & wait</h3><p>No tracking. No idea if they opened it.</p></div>
+  </div>
+  <div class="stats" style="margin-top:40px">
+    <div class="stat"><div class="num" style="color:#ef4444">57%</div><div class="lbl">of restaurants find scaling catering hard</div></div>
+    <div class="stat"><div class="num" style="color:#ef4444">91%</div><div class="lbl">saw food costs rise unexpectedly</div></div>
+    <div class="stat"><div class="num" style="color:#ef4444">86%</div><div class="lbl">report being understaffed</div></div>
+  </div>
+</div>
+
+<!-- SLIDE 3: The Solution -->
+<div class="slide">
+  <div class="tag">✨ The Solution</div>
+  <h2>With CaterFlow, it takes <span>30 seconds</span></h2>
+  <div class="steps">
+    <div class="step"><div class="num" style="background:#f97316">1</div><h3>Describe the event</h3><p>"50 people, corporate lunch, $25/head budget"</p></div>
+    <div class="step"><div class="num" style="background:#f97316">2</div><h3>AI builds proposal</h3><p>Complete menu, pricing, allergens — in 30 seconds</p></div>
+    <div class="step"><div class="num" style="background:#f97316">3</div><h3>Send with one click</h3><p>Client gets a beautiful branded link</p></div>
+    <div class="step"><div class="num" style="background:#f97316">4</div><h3>Client approves</h3><p>One-tap approval on their phone. Done!</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 4: Features -->
+<div class="slide">
+  <div class="tag">🚀 Features</div>
+  <h2>Everything You Need to Run Catering</h2>
+  <div class="grid">
+    <div class="card"><div class="icon">🤖</div><h3>AI Instant Quoting</h3><p>Describe the event → complete proposal in 30 seconds. Menu, pricing, allergens, branded PDF.</p></div>
+    <div class="card"><div class="icon">👤</div><h3>Client Portal</h3><p>Branded page where clients browse menus, approve quotes, and pay online.</p></div>
+    <div class="card"><div class="icon">📅</div><h3>Smart Calendar</h3><p>See kitchen capacity at a glance. Never double-book or overcommit again.</p></div>
+    <div class="card"><div class="icon">💰</div><h3>Margin Protection</h3><p>Real-time food cost tracking. Get alerts before your margins shrink.</p></div>
+    <div class="card"><div class="icon">🔄</div><h3>Recurring Orders</h3><p>Automate weekly corporate accounts. "Every Tuesday lunch for 30" — handled.</p></div>
+    <div class="card"><div class="icon">📊</div><h3>Revenue Analytics</h3><p>Win rate, top clients, most profitable items. Data-driven decisions.</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 5: ROI -->
+<div class="slide">
+  <div class="tag">💰 The ROI</div>
+  <h2>CaterFlow <span>Pays for Itself</span> on Day 1</h2>
+  <table class="compare">
+    <tr><th></th><th>Without CaterFlow</th><th>With CaterFlow</th></tr>
+    <tr><td>Time per quote</td><td class="no">30-60 minutes</td><td class="yes">30 seconds</td></tr>
+    <tr><td>Quotes per week</td><td>5-10</td><td class="yes">50+</td></tr>
+    <tr><td>Hours wasted/month</td><td class="no">20+ hours</td><td class="yes">2 hours</td></tr>
+    <tr><td>Win rate</td><td>~30%</td><td class="yes">74%</td></tr>
+    <tr><td>Double bookings</td><td class="no">Happens often</td><td class="yes">Never</td></tr>
+    <tr><td>Margin visibility</td><td class="no">Find out too late</td><td class="yes">Real-time alerts</td></tr>
+    <tr><td>Monthly cost</td><td>Free (but costs time)</td><td>$79-249/mo</td></tr>
+    <tr><td><strong>ROI</strong></td><td></td><td class="yes"><strong>One catering order ($500+) > annual subscription</strong></td></tr>
+  </table>
+</div>
+
+<!-- SLIDE 6: Pricing -->
+<div class="slide">
+  <div class="tag">💳 Pricing</div>
+  <h2>Simple, Transparent Pricing</h2>
+  <p>14-day free trial · No credit card required</p>
+  <div class="pricing">
+    <div class="plan"><h3>Starter</h3><div class="price">$79<span>/mo</span></div><ul><li>20 AI quotes/month</li><li>Smart calendar</li><li>Basic CRM</li><li>1 user</li></ul></div>
+    <div class="plan popular"><h3>Growth ⭐</h3><div class="price">$149<span>/mo</span></div><ul><li>Unlimited AI quotes</li><li>Client portal</li><li>Email delivery</li><li>Quote analytics</li><li>3 users</li></ul></div>
+    <div class="plan"><h3>Pro</h3><div class="price">$249<span>/mo</span></div><ul><li>Everything in Growth</li><li>Margin tracking</li><li>Recurring orders</li><li>Delivery mgmt</li><li>10 users</li></ul></div>
+    <div class="plan"><h3>Enterprise</h3><div class="price">$399<span>/mo</span></div><ul><li>Everything in Pro</li><li>Multi-location</li><li>API access</li><li>Unlimited users</li></ul></div>
+  </div>
+</div>
+
+<!-- SLIDE 7: CTA -->
+<div class="slide" style="background:linear-gradient(135deg,#1a0a2e,#0f172a)">
+  <h2>Ready to 10x Your Catering Operations?</h2>
+  <p>Join restaurants saving 20+ hours per month on quoting alone.</p>
+  <a href="https://getcaterflow.com" class="cta-btn">Start Your Free Trial →</a>
+  <p style="font-size:14px;margin-top:12px;color:rgba(255,255,255,.3)">14 days free · No credit card · Cancel anytime</p>
+</div>
+
+<div class="footer">© 2026 VertexLab Solutions · getcaterflow.com</div>
+
+</body>
+</html>
