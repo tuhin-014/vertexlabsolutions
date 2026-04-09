@@ -109,7 +109,7 @@
         <div class="nav-links">
             <a href="#apps">Apps</a>
             <a href="#b2b">B2B Solutions</a>
-            <a href="mailto:tuhin014@gmail.com">Contact</a>
+            <a href="mailto:vertexlabsolutions@gmail.com">Contact</a>
         </div>
     </div>
 </nav>
@@ -533,10 +533,12 @@
     <p style="font-size:14px;margin-bottom:12px">Building tools that save time and grow businesses</p>
     <div class="links">
         <a href="/blog/">Blog</a>
-        <a href="mailto:tuhin014@gmail.com">Contact</a>
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms</a>
+        <a href="mailto:vertexlabsolutions@gmail.com">Contact</a>
         <a href="https://github.com/tuhin-014">GitHub</a>
     </div>
-    <div class="copy">© 2026 VertexLab Solutions. All rights reserved.</div>
+    <div class="copy">© 2026 VertexLab Solutions LLC. All rights reserved.</div>
 </footer>
 
 <script>
@@ -569,5 +571,34 @@ async function handleSubscribe(e) {
 }
 </script>
 
+<!-- Cookie Consent Banner -->
+<div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#fff;padding:16px 24px;z-index:9999;box-shadow:0 -2px 10px rgba(0,0,0,0.3);font-family:-apple-system,sans-serif;font-size:14px;">
+  <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <p style="margin:0;flex:1;min-width:200px;">We use cookies to improve your experience and analyze site traffic. By continuing, you agree to our <a href="/privacy" style="color:#4ade80;text-decoration:underline;">Privacy Policy</a>.</p>
+    <div style="display:flex;gap:8px;">
+      <button onclick="acceptCookies()" style="background:#2E7D32;color:white;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Accept</button>
+      <button onclick="declineCookies()" style="background:transparent;color:#aaa;border:1px solid #555;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Decline</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var consent = localStorage.getItem('cookie_consent');
+  if (consent === null) {
+    document.getElementById('cookie-banner').style.display = 'block';
+  } else if (consent === 'declined') {
+    window['ga-disable-G-GLW5B39P0J'] = true;
+  }
+})();
+function acceptCookies() {
+  localStorage.setItem('cookie_consent', 'accepted');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+function declineCookies() {
+  localStorage.setItem('cookie_consent', 'declined');
+  window['ga-disable-G-GLW5B39P0J'] = true;
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+</script>
 </body>
 </html>
