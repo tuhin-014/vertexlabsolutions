@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GLW5B39P0J"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-GLW5B39P0J');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CleanOps - All-in-One Cleaning Business Software | Schedule, Invoice, Get Paid</title>
+    <meta name="description" content="CleanOps is the all-in-one cleaning business software for maid services, janitorial companies, and solo cleaners. Schedule jobs, track teams with GPS, send photo proof, invoice clients, and accept Stripe payments — starting at $29/mo.">
+    <meta name="keywords" content="cleaning business software, cleaning scheduling app, maid service software, janitorial management software, cleaning company app, cleaning invoicing software">
+    <meta property="og:title" content="CleanOps - Run Your Cleaning Business Like a Pro">
+    <meta property="og:description" content="Schedule, invoice, and get paid. All-in-one cleaning business software starting at $29/mo.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://vertexlabsolutions.com/cleanops/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="CleanOps - All-in-One Cleaning Business Software">
+    <meta name="twitter:description" content="Schedule, invoice, and get paid. Cleaning business software starting at $29/mo.">
+    <link rel="canonical" href="https://vertexlabsolutions.com/cleanops/">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧹</text></svg>">
+
+    <!-- Schema.org SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "CleanOps",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "description": "All-in-one cleaning business software. Job scheduling, client management, team tracking, GPS check-in, photo proof, invoicing, Stripe payments, and client portal.",
+      "url": "https://cleanops-web.vercel.app",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Starter",
+          "price": "29",
+          "priceCurrency": "USD",
+          "billingDuration": "P1M"
+        },
+        {
+          "@type": "Offer",
+          "name": "Pro",
+          "price": "49",
+          "priceCurrency": "USD",
+          "billingDuration": "P1M"
+        },
+        {
+          "@type": "Offer",
+          "name": "Business",
+          "price": "99",
+          "priceCurrency": "USD",
+          "billingDuration": "P1M"
+        }
+      ],
+      "featureList": ["Job Scheduling", "Client Management", "Team Tracking", "GPS Check-in", "Photo Proof", "Invoicing", "Stripe Payments", "Client Portal"]
+    }
+    </script>
+
+    <!-- Schema.org FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the best cleaning business software in 2026?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CleanOps is an all-in-one cleaning business software that combines job scheduling, client management, team tracking with GPS check-in, photo proof, invoicing, and Stripe payments in a single platform starting at $29/mo. Unlike general-purpose tools, CleanOps is built specifically for cleaning businesses."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How much does cleaning scheduling software cost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CleanOps offers three plans: Starter at $29/mo for solo cleaners, Pro at $49/mo for growing teams, and Business at $99/mo for established companies. All plans include core scheduling and invoicing features."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does CleanOps work for maid service companies?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. CleanOps is designed for all types of cleaning businesses including maid services, janitorial companies, solo cleaners, and commercial cleaning operations. Features like team tracking, GPS check-in, and photo proof are ideal for maid services managing multiple cleaners."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I send invoices and accept payments with CleanOps?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. CleanOps includes built-in invoicing with Stripe payment processing. You can generate invoices automatically after job completion and clients can pay online through the client portal."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the best cleaning scheduling app for small businesses?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "CleanOps is purpose-built for small cleaning businesses. The Starter plan at $29/mo includes drag-and-drop scheduling, client management, and invoicing — everything a solo cleaner or small team needs to replace paper scheduling and text message coordination."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does CleanOps have GPS tracking and photo proof?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. CleanOps includes GPS check-in so you can verify when and where your team arrives. Photo proof lets cleaners upload before-and-after photos that are shared with clients through the client portal for full transparency."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--primary:#2E7D32;--blue:#3b82f6;--orange:#f97316;--teal:#0D9488;--dark:#0f172a;--light:#f8fafc;--white:#fff;--gray:#64748b;--border:#e2e8f0;--accent:#16a34a}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:var(--dark);background:var(--light)}
+        a{color:inherit;text-decoration:none}
+
+        /* Nav */
+        nav{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+        .nav-brand{font-size:20px;font-weight:800;color:var(--dark);display:flex;align-items:center;gap:8px}
+        .nav-brand span{color:var(--primary)}
+        .nav-links{display:flex;gap:28px;align-items:center}
+        .nav-links a{font-size:14px;font-weight:500;color:var(--gray);transition:color .2s}
+        .nav-links a:hover{color:var(--dark)}
+        .nav-cta{background:var(--primary);color:var(--white)!important;padding:8px 20px;border-radius:8px;font-weight:600;transition:background .2s}
+        .nav-cta:hover{background:#1b5e20}
+
+        /* Hero */
+        .hero{background:linear-gradient(135deg,var(--dark) 0%,#1e293b 100%);color:var(--white);padding:100px 24px 80px;text-align:center}
+        .hero .badge{display:inline-block;padding:6px 16px;background:rgba(74,222,128,.15);color:#4ade80;font-size:13px;font-weight:600;border-radius:20px;margin-bottom:20px}
+        .hero h1{font-size:clamp(32px,5vw,56px);font-weight:900;letter-spacing:-1.5px;line-height:1.1;margin-bottom:20px}
+        .hero h1 span{background:linear-gradient(135deg,#4ade80,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .hero p{font-size:18px;color:rgba(255,255,255,.6);max-width:640px;margin:0 auto 36px}
+        .hero-cta{display:inline-flex;align-items:center;gap:8px;padding:16px 36px;background:var(--primary);color:var(--white);border-radius:12px;font-size:16px;font-weight:700;transition:all .2s;border:none;cursor:pointer}
+        .hero-cta:hover{background:#1b5e20;transform:translateY(-2px);box-shadow:0 8px 24px rgba(46,125,50,.3)}
+        .hero-sub{margin-top:14px;font-size:14px;color:rgba(255,255,255,.4)}
+
+        /* Section */
+        .section{max-width:1200px;margin:0 auto;padding:80px 24px}
+        .section-header{text-align:center;margin-bottom:48px}
+        .section-header .badge{display:inline-block;padding:4px 14px;background:var(--primary);color:var(--white);font-size:12px;font-weight:700;border-radius:20px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+        .section-header h2{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+        .section-header p{color:var(--gray);font-size:16px;max-width:560px;margin:0 auto}
+
+        /* Feature Grid */
+        .feature-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+        .feature-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:28px;transition:transform .2s,box-shadow .2s}
+        .feature-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.08)}
+        .feature-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;background:rgba(46,125,50,.1)}
+        .feature-card h3{font-size:16px;font-weight:700;margin-bottom:6px}
+        .feature-card p{font-size:13px;color:var(--gray);line-height:1.6}
+
+        /* How It Works */
+        .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:32px;margin-top:20px}
+        .step{text-align:center;padding:24px}
+        .step-num{width:56px;height:56px;border-radius:50%;background:var(--primary);color:var(--white);font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+        .step h3{font-size:18px;font-weight:700;margin-bottom:8px}
+        .step p{font-size:14px;color:var(--gray)}
+
+        /* Pricing */
+        .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:960px;margin:0 auto}
+        .price-card{background:var(--white);border:2px solid var(--border);border-radius:20px;padding:32px;text-align:center;transition:transform .2s,box-shadow .2s;position:relative}
+        .price-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.08)}
+        .price-card.popular{border-color:var(--primary)}
+        .price-card.popular::before{content:'MOST POPULAR';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--primary);color:var(--white);padding:4px 16px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:1px}
+        .price-card h3{font-size:20px;font-weight:700;margin-bottom:4px}
+        .price-card .price{font-size:48px;font-weight:900;margin:16px 0 4px}
+        .price-card .price span{font-size:16px;font-weight:400;color:var(--gray)}
+        .price-card .price-desc{font-size:14px;color:var(--gray);margin-bottom:24px}
+        .price-card ul{list-style:none;text-align:left;margin-bottom:28px}
+        .price-card ul li{font-size:14px;padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+        .price-card ul li::before{content:'✓';color:var(--primary);font-weight:700}
+        .price-card .cta{display:block;padding:14px;border-radius:10px;font-size:14px;font-weight:700;transition:all .2s;text-align:center}
+        .price-card .cta.primary{background:var(--primary);color:var(--white)}
+        .price-card .cta.primary:hover{background:#1b5e20}
+        .price-card .cta.outline{border:2px solid var(--border);color:var(--dark)}
+        .price-card .cta.outline:hover{border-color:var(--primary);color:var(--primary)}
+
+        /* FAQ */
+        .faq-list{max-width:760px;margin:0 auto}
+        .faq-item{border-bottom:1px solid var(--border);padding:20px 0}
+        .faq-q{font-size:16px;font-weight:700;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
+        .faq-q::after{content:'+';font-size:20px;color:var(--gray);transition:transform .2s}
+        .faq-item.open .faq-q::after{transform:rotate(45deg)}
+        .faq-a{font-size:14px;color:var(--gray);line-height:1.7;max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s ease}
+        .faq-item.open .faq-a{max-height:200px;padding-top:12px}
+
+        /* CTA Banner */
+        .cta-banner{background:linear-gradient(135deg,var(--dark),#1e293b);color:var(--white);padding:60px 24px;text-align:center;border-radius:20px;margin:0 auto;max-width:1200px}
+        .cta-banner h2{font-size:32px;font-weight:800;margin-bottom:12px}
+        .cta-banner p{font-size:16px;color:rgba(255,255,255,.6);margin-bottom:28px;max-width:500px;margin-left:auto;margin-right:auto}
+
+        /* Footer */
+        footer{background:var(--dark);color:rgba(255,255,255,.5);padding:40px 24px;text-align:center;margin-top:80px}
+        footer .brand{font-size:18px;font-weight:700;color:var(--white);margin-bottom:8px}
+        footer .brand span{color:#4ade80}
+        footer .links{display:flex;gap:20px;justify-content:center;margin:16px 0;flex-wrap:wrap}
+        footer .links a{font-size:13px;color:rgba(255,255,255,.4);transition:color .2s}
+        footer .links a:hover{color:var(--white)}
+        footer .copy{font-size:12px;color:rgba(255,255,255,.25)}
+
+        @media(max-width:600px){
+            .nav-links{gap:16px}
+            .hero{padding:60px 24px}
+            .steps{grid-template-columns:1fr}
+            .pricing-grid{grid-template-columns:1fr}
+            .feature-grid{grid-template-columns:1fr}
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Nav -->
+    <nav>
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">🧹 Clean<span>Ops</span></a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#faq">FAQ</a>
+                <a href="https://cleanops-web.vercel.app/auth/signup" class="nav-cta">Start Free Trial</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="badge">All-in-One Cleaning Business Software</div>
+        <h1>Run Your Cleaning Business <span>Like a Pro</span></h1>
+        <p>Schedule jobs, manage clients, track your team with GPS, send photo proof, invoice instantly, and accept payments online. Replace paper and text messages with one simple platform.</p>
+        <a href="https://cleanops-web.vercel.app/auth/signup" class="hero-cta">Start Free Trial &rarr;</a>
+        <div class="hero-sub">No credit card required &middot; 14-day free trial &middot; Plans from $29/mo</div>
+    </section>
+
+    <!-- Features -->
+    <section class="section" id="features">
+        <div class="section-header">
+            <div class="badge">Features</div>
+            <h2>Everything You Need to Run Your Cleaning Business</h2>
+            <p>Stop juggling spreadsheets, texts, and paper. CleanOps puts scheduling, invoicing, and team management in one place.</p>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📅</div>
+                <h3>Job Scheduling</h3>
+                <p>Drag-and-drop calendar for one-time and recurring jobs. Assign cleaners, set time windows, and avoid double-booking.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">👥</div>
+                <h3>Client Management</h3>
+                <p>Store client details, property notes, access codes, and special instructions. Full history for every client.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📍</div>
+                <h3>Team Tracking</h3>
+                <p>See who's on which job in real-time. Track hours, monitor performance, and manage your team from anywhere.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📌</div>
+                <h3>GPS Check-in</h3>
+                <p>Verify arrival and departure with GPS timestamps. Know exactly when your team arrives and leaves each job site.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📸</div>
+                <h3>Photo Proof</h3>
+                <p>Before-and-after photos for every job. Build client trust, resolve disputes, and maintain quality standards.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>Invoicing &amp; Payments</h3>
+                <p>Auto-generate invoices after job completion. Accept online payments via Stripe. Get paid faster with less effort.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🖥️</div>
+                <h3>Client Portal</h3>
+                <p>Clients book services, view job history, check photo proof, and pay invoices online through their own portal.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Mobile Friendly</h3>
+                <p>Fully responsive design works on any phone or tablet. Your team can manage everything from the field.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="section" id="how-it-works" style="background:var(--white);border-top:1px solid var(--border);border-bottom:1px solid var(--border);max-width:100%;padding-left:24px;padding-right:24px">
+        <div style="max-width:1200px;margin:0 auto">
+            <div class="section-header">
+                <div class="badge">How It Works</div>
+                <h2>Get Started in 3 Simple Steps</h2>
+                <p>You can be up and running in under 10 minutes. No setup fees, no contracts.</p>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <h3>Sign Up</h3>
+                    <p>Create your free account in 30 seconds. No credit card required. Start your 14-day free trial instantly.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <h3>Add Clients</h3>
+                    <p>Import your client list or add them one by one. Set up property details, access codes, and special instructions.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <h3>Start Scheduling</h3>
+                    <p>Create jobs, assign your team, and let CleanOps handle reminders, check-ins, photo proof, and invoicing automatically.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="section" id="pricing">
+        <div class="section-header">
+            <div class="badge">Pricing</div>
+            <h2>Simple, Transparent Pricing</h2>
+            <p>Start free. Upgrade when you're ready. No contracts, cancel anytime.</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <h3>Starter</h3>
+                <div class="price">$29<span>/mo</span></div>
+                <div class="price-desc">For solo cleaners and small teams</div>
+                <ul>
+                    <li>Up to 3 team members</li>
+                    <li>Job scheduling &amp; calendar</li>
+                    <li>Client management</li>
+                    <li>GPS check-in</li>
+                    <li>Photo proof</li>
+                    <li>Basic invoicing</li>
+                    <li>Email support</li>
+                </ul>
+                <a href="https://cleanops-web.vercel.app/auth/signup" class="cta outline">Start Free Trial</a>
+            </div>
+            <div class="price-card popular">
+                <h3>Pro</h3>
+                <div class="price">$49<span>/mo</span></div>
+                <div class="price-desc">For growing cleaning companies</div>
+                <ul>
+                    <li>Up to 10 team members</li>
+                    <li>Everything in Starter</li>
+                    <li>Stripe online payments</li>
+                    <li>Client portal</li>
+                    <li>Recurring jobs</li>
+                    <li>Team performance reports</li>
+                    <li>Priority support</li>
+                </ul>
+                <a href="https://cleanops-web.vercel.app/auth/signup" class="cta primary">Start Free Trial</a>
+            </div>
+            <div class="price-card">
+                <h3>Business</h3>
+                <div class="price">$99<span>/mo</span></div>
+                <div class="price-desc">For established cleaning companies</div>
+                <ul>
+                    <li>Unlimited team members</li>
+                    <li>Everything in Pro</li>
+                    <li>Route optimization</li>
+                    <li>Custom branding</li>
+                    <li>Advanced analytics</li>
+                    <li>API access</li>
+                    <li>Dedicated support</li>
+                </ul>
+                <a href="https://cleanops-web.vercel.app/auth/signup" class="cta outline">Start Free Trial</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq" style="background:var(--white);border-top:1px solid var(--border);max-width:100%;padding-left:24px;padding-right:24px">
+        <div style="max-width:1200px;margin:0 auto">
+            <div class="section-header">
+                <div class="badge">FAQ</div>
+                <h2>Frequently Asked Questions</h2>
+                <p>Everything you need to know about CleanOps cleaning business software.</p>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item">
+                    <div class="faq-q">What is the best cleaning business software in 2026?</div>
+                    <div class="faq-a">CleanOps is an all-in-one cleaning business software that combines job scheduling, client management, team tracking with GPS check-in, photo proof, invoicing, and Stripe payments in a single platform starting at $29/mo. Unlike general-purpose field service tools, CleanOps is built specifically for cleaning businesses.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q">How much does cleaning scheduling software cost?</div>
+                    <div class="faq-a">CleanOps offers three plans: Starter at $29/mo for solo cleaners, Pro at $49/mo for growing teams, and Business at $99/mo for established companies. All plans include a 14-day free trial with no credit card required.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q">Does CleanOps work for maid service companies?</div>
+                    <div class="faq-a">Yes. CleanOps is designed for all types of cleaning businesses including maid services, janitorial companies, solo cleaners, and commercial cleaning operations. Features like team tracking, GPS check-in, and photo proof are ideal for maid services managing multiple cleaners across different locations.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q">Can I send invoices and accept payments with CleanOps?</div>
+                    <div class="faq-a">Yes. CleanOps includes built-in invoicing with Stripe payment processing. You can generate invoices automatically after job completion and clients can pay online through the client portal. No more chasing checks or cash.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q">What is the best cleaning scheduling app for small businesses?</div>
+                    <div class="faq-a">CleanOps is purpose-built for small cleaning businesses. The Starter plan at $29/mo includes drag-and-drop scheduling, client management, GPS check-in, and invoicing. It replaces paper scheduling and text message coordination with one streamlined platform.</div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-q">Does CleanOps have GPS tracking and photo proof?</div>
+                    <div class="faq-a">Yes. GPS check-in verifies when and where your team arrives at each job. Photo proof lets cleaners upload before-and-after photos that are shared with clients through the client portal for full transparency and quality assurance.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Banner -->
+    <section class="section">
+        <div class="cta-banner">
+            <h2>Ready to Grow Your Cleaning Business?</h2>
+            <p>Join hundreds of cleaning businesses that replaced paper and text messages with CleanOps.</p>
+            <a href="https://cleanops-web.vercel.app/auth/signup" class="hero-cta">Start Free Trial &rarr;</a>
+            <div class="hero-sub" style="margin-top:14px">No credit card required &middot; 14-day free trial</div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="brand">🧹 Clean<span>Ops</span></div>
+        <p style="margin-bottom:8px">All-in-one cleaning business software</p>
+        <div class="links">
+            <a href="https://cleanops-web.vercel.app">App</a>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
+            <a href="/">VertexLab Solutions</a>
+        </div>
+        <div class="copy">&copy; 2026 VertexLab Solutions. All rights reserved.</div>
+    </footer>
+
+    <script>
+        // FAQ accordion
+        document.querySelectorAll('.faq-q').forEach(q => {
+            q.addEventListener('click', () => {
+                const item = q.parentElement;
+                document.querySelectorAll('.faq-item').forEach(i => {
+                    if (i !== item) i.classList.remove('open');
+                });
+                item.classList.toggle('open');
+            });
+        });
+    </script>
+</body>
+</html>
