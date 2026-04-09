@@ -514,16 +514,60 @@
     </div>
 </div>
 
+<!-- Email Capture -->
+<div id="email-capture" style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:60px 24px;text-align:center">
+    <div style="max-width:600px;margin:0 auto">
+        <h2 style="font-size:28px;font-weight:800;color:#fff;margin-bottom:8px">Get Product Updates & Tips</h2>
+        <p style="color:rgba(255,255,255,.5);font-size:15px;margin-bottom:24px">Join our newsletter for app launches, business growth tips, and exclusive early access.</p>
+        <form id="subscribe-form" style="display:flex;gap:10px;max-width:460px;margin:0 auto" onsubmit="return handleSubscribe(event)">
+            <input type="email" id="sub-email" placeholder="you@email.com" required style="flex:1;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;font-size:15px;outline:none">
+            <button type="submit" id="sub-btn" style="padding:14px 28px;background:#4ade80;color:#0f172a;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s;white-space:nowrap">Subscribe</button>
+        </form>
+        <p id="sub-msg" style="color:#4ade80;font-size:13px;margin-top:12px;display:none"></p>
+    </div>
+</div>
+
 <!-- Footer -->
 <footer>
     <div class="brand">Vertex<span>Lab</span> Solutions</div>
     <p style="font-size:14px;margin-bottom:12px">Building tools that save time and grow businesses</p>
     <div class="links">
+        <a href="/blog/">Blog</a>
         <a href="mailto:tuhin014@gmail.com">Contact</a>
         <a href="https://github.com/tuhin-014">GitHub</a>
     </div>
     <div class="copy">© 2026 VertexLab Solutions. All rights reserved.</div>
 </footer>
+
+<script>
+async function handleSubscribe(e) {
+    e.preventDefault();
+    const btn = document.getElementById('sub-btn');
+    const msg = document.getElementById('sub-msg');
+    const email = document.getElementById('sub-email').value;
+    btn.textContent = 'Sending...'; btn.disabled = true;
+    try {
+        const res = await fetch('https://vertexhub-app.vercel.app/api/subscribe', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email, product: 'VertexLab', source: 'main-site'})
+        });
+        if (res.ok) {
+            msg.textContent = 'You\'re in! Check your inbox for a welcome email.';
+            msg.style.color = '#4ade80';
+            document.getElementById('sub-email').value = '';
+        } else {
+            msg.textContent = 'Something went wrong. Please try again.';
+            msg.style.color = '#f87171';
+        }
+    } catch {
+        msg.textContent = 'Network error. Please try again.';
+        msg.style.color = '#f87171';
+    }
+    msg.style.display = 'block';
+    btn.textContent = 'Subscribe'; btn.disabled = false;
+}
+</script>
 
 </body>
 </html>

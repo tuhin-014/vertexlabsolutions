@@ -426,6 +426,19 @@
         </div>
     </section>
 
+    <!-- Email Capture -->
+    <div style="background:linear-gradient(135deg,#0f172a,#1e293b);padding:48px 24px;text-align:center">
+        <div style="max-width:560px;margin:0 auto">
+            <h2 style="font-size:24px;font-weight:800;color:#fff;margin-bottom:8px">Get CleanOps Tips & Updates</h2>
+            <p style="color:rgba(255,255,255,.5);font-size:14px;margin-bottom:20px">Cleaning business growth tips, new features, and exclusive offers.</p>
+            <form id="subscribe-form" style="display:flex;gap:10px;max-width:440px;margin:0 auto" onsubmit="return handleSubscribe(event)">
+                <input type="email" id="sub-email" placeholder="you@email.com" required style="flex:1;padding:14px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;font-size:15px;outline:none">
+                <button type="submit" id="sub-btn" style="padding:14px 24px;background:#4ade80;color:#0f172a;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap">Subscribe</button>
+            </form>
+            <p id="sub-msg" style="color:#4ade80;font-size:13px;margin-top:12px;display:none"></p>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer>
         <div class="brand">🧹 Clean<span>Ops</span></div>
@@ -435,6 +448,7 @@
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
+            <a href="/blog/">Blog</a>
             <a href="/">VertexLab Solutions</a>
         </div>
         <div class="copy">&copy; 2026 VertexLab Solutions. All rights reserved.</div>
@@ -451,6 +465,35 @@
                 item.classList.toggle('open');
             });
         });
+
+        // Email subscribe
+        async function handleSubscribe(e) {
+            e.preventDefault();
+            const btn = document.getElementById('sub-btn');
+            const msg = document.getElementById('sub-msg');
+            const email = document.getElementById('sub-email').value;
+            btn.textContent = 'Sending...'; btn.disabled = true;
+            try {
+                const res = await fetch('https://vertexhub-app.vercel.app/api/subscribe', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, product: 'CleanOps', source: 'cleanops-landing'})
+                });
+                if (res.ok) {
+                    msg.textContent = 'You\'re in! Check your inbox for a welcome email.';
+                    msg.style.color = '#4ade80';
+                    document.getElementById('sub-email').value = '';
+                } else {
+                    msg.textContent = 'Something went wrong. Please try again.';
+                    msg.style.color = '#f87171';
+                }
+            } catch {
+                msg.textContent = 'Network error. Please try again.';
+                msg.style.color = '#f87171';
+            }
+            msg.style.display = 'block';
+            btn.textContent = 'Subscribe'; btn.disabled = false;
+        }
     </script>
 </body>
 </html>
