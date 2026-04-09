@@ -239,6 +239,59 @@
 
 ---
 
+## Cold Email Outreach Campaign
+
+### Strategy
+
+Direct outreach to cleaning businesses found via Google Maps / Google Places API. Personal, non-spammy 4-email sequence over 14 days.
+
+**Full email templates:** See [cleanops-cold-outreach.md](./cleanops-cold-outreach.md)
+
+**Lead generation script:** See [cleanops-outreach.py](../scripts/cleanops-outreach.py)
+
+### Email Sequence
+
+| Step | Day | Subject | Purpose |
+|---|---|---|---|
+| 1 | 0 | Quick question about [Business Name] | Introduction -- personal, curiosity-driven |
+| 2 | 3 | How [City] cleaning businesses save 10 hours/week | Value proposition -- time savings |
+| 3 | 7 | From 5 clients to 20 in 3 months | Social proof -- case study |
+| 4 | 14 | Should I close your file? | Breakup -- last chance |
+
+### Targets & Projections
+
+- **Volume:** 50 cleaning businesses contacted per week (10/day, Mon-Fri)
+- **Target cities:** Atlanta, Dallas, Houston, Phoenix, Charlotte, Nashville, Orlando, Tampa, San Antonio, Austin
+- **Expected response rate:** 5-10% (2.5-5 replies per week)
+- **Expected trial signup rate:** 2-5% (1-2.5 new trials per week from outreach alone)
+- **Monthly impact:** 4-10 new trial signups per month from cold outreach
+- **Cost:** $0 (organic outreach, no ad spend)
+
+### Lead Sources
+
+1. Google Places API -- automated search for "cleaning service" in target cities
+2. Yelp business listings
+3. Facebook business pages from cleaning groups
+4. Instagram hashtag research (#cleaningbusiness, #maidservice)
+
+### Sending Rules
+
+- Send between 7-9 AM local time (before their first job of the day)
+- Always personalize with real business name and city
+- Reply to all responses within 2 hours
+- Honor all opt-outs immediately
+- Full CAN-SPAM compliance (physical address + unsubscribe in every email)
+
+### Outreach Metrics to Track
+
+- Emails sent per week
+- Open rate (target: 40%+)
+- Reply rate (target: 5-10%)
+- Trial signups from outreach
+- Conversion to paid from outreach leads
+
+---
+
 ## Immediate Next Steps
 
 1. [x] Add CleanOps as Tier 1 in VertexHub for automated social posting
