@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GLW5B39P0J"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-GLW5B39P0J');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DopaFlow - ADHD Focus Timer App | Built for ADHD Brains</title>
+    <meta name="description" content="DopaFlow is the ADHD focus timer app that uses dopamine-friendly work sprints, distraction-aware timers, and streak motivation to help ADHD brains stay productive.">
+    <meta name="keywords" content="ADHD focus timer, ADHD productivity app, pomodoro for ADHD, best ADHD app, ADHD task timer, dopamine timer, focus app for ADHD">
+    <link rel="canonical" href="https://vertexlabsolutions.com/dopaflow/">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="DopaFlow - ADHD Focus Timer App | Built for ADHD Brains">
+    <meta property="og:description" content="Dopamine-friendly work sprints, distraction-aware timers, and streak motivation designed specifically for ADHD brains.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://vertexlabsolutions.com/dopaflow/">
+
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "DopaFlow",
+      "operatingSystem": "iOS",
+      "applicationCategory": "ProductivityApplication",
+      "description": "ADHD focus timer app with dopamine-friendly work sprints, distraction-aware timers, task sprinting, and streak motivation.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150"
+      },
+      "downloadUrl": "https://apps.apple.com/app/id6759934340",
+      "softwareVersion": "1.0",
+      "author": {
+        "@type": "Organization",
+        "name": "VertexLab Solutions LLC"
+      }
+    }
+    </script>
+
+    <!-- FAQ Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the best ADHD app for focus?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "DopaFlow is designed specifically for ADHD brains. Unlike generic timers, it uses dopamine-friendly sprint intervals, distraction-aware pauses, and streak-based motivation to keep you focused without burnout."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is DopaFlow better than a regular Pomodoro timer for ADHD?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Standard Pomodoro timers use fixed 25-minute intervals that often don't match ADHD attention patterns. DopaFlow uses adaptive sprint lengths, rewards micro-wins with dopamine feedback, and lets you adjust sessions to match your current focus capacity."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How does DopaFlow help with ADHD productivity?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "DopaFlow breaks tasks into small, rewarding sprints that align with how ADHD brains process dopamine. It tracks streaks to build motivation, uses distraction-aware timers that adapt when you lose focus, and provides visual progress feedback to keep you engaged."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is DopaFlow free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "DopaFlow is free to download with core features available at no cost. Optional premium features are available through in-app purchases for users who want advanced analytics and customization."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--primary:#7c3aed;--primary-light:#a78bfa;--dark:#0f172a;--light:#f8fafc;--white:#fff;--gray:#64748b;--border:#e2e8f0;--accent:#f59e0b;--green:#22c55e}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:var(--dark);background:var(--light)}
+        a{color:inherit;text-decoration:none}
+
+        /* Nav */
+        nav{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+        .nav-brand{font-size:20px;font-weight:800;color:var(--dark)}
+        .nav-brand span{color:var(--primary)}
+        .nav-links{display:flex;gap:28px;align-items:center}
+        .nav-links a{font-size:14px;font-weight:500;color:var(--gray);transition:color .2s}
+        .nav-links a:hover{color:var(--dark)}
+
+        /* Hero */
+        .hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%);color:var(--white);padding:80px 24px 60px;text-align:center}
+        .hero-emoji{font-size:64px;margin-bottom:16px}
+        .hero h1{font-size:clamp(28px,5vw,48px);font-weight:900;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px}
+        .hero h1 span{background:linear-gradient(135deg,#a78bfa,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .hero p{font-size:18px;color:rgba(255,255,255,.65);max-width:600px;margin:0 auto 32px}
+        .store-btn-hero{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:var(--white);color:var(--dark);border-radius:12px;font-size:16px;font-weight:700;transition:transform .2s,box-shadow .2s}
+        .store-btn-hero:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+        .hero-sub{margin-top:16px;font-size:13px;color:rgba(255,255,255,.4)}
+
+        /* Section */
+        .section{max-width:1000px;margin:0 auto;padding:60px 24px}
+        .section-header{text-align:center;margin-bottom:40px}
+        .section-header .badge{display:inline-block;padding:4px 14px;background:var(--primary);color:var(--white);font-size:12px;font-weight:700;border-radius:20px;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+        .section-header h2{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:8px}
+        .section-header p{color:var(--gray);font-size:16px;max-width:550px;margin:0 auto}
+
+        /* Feature Grid */
+        .feature-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+        .feature-card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:24px;transition:transform .2s,box-shadow .2s}
+        .feature-card:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.08)}
+        .feature-card .f-icon{font-size:32px;margin-bottom:12px}
+        .feature-card h3{font-size:16px;font-weight:700;margin-bottom:6px}
+        .feature-card p{font-size:13px;color:var(--gray);line-height:1.5}
+
+        /* Science Section */
+        .science{background:var(--white);border:1px solid var(--border);border-radius:20px;padding:32px;margin-top:0}
+        .science h3{font-size:18px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+        .science p{font-size:14px;color:var(--gray);line-height:1.7;margin-bottom:12px}
+        .science ul{padding-left:20px;margin-bottom:12px}
+        .science ul li{font-size:14px;color:var(--gray);line-height:1.7;margin-bottom:6px}
+        .science ul li strong{color:var(--dark)}
+
+        /* Comparison Table */
+        .comparison-table{width:100%;border-collapse:collapse;background:var(--white);border-radius:16px;overflow:hidden;border:1px solid var(--border)}
+        .comparison-table th,.comparison-table td{padding:14px 20px;text-align:left;font-size:14px;border-bottom:1px solid var(--border)}
+        .comparison-table thead th{background:var(--dark);color:var(--white);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.5px}
+        .comparison-table thead th:first-child{background:var(--dark)}
+        .comparison-table thead th.highlight{background:var(--primary)}
+        .comparison-table tbody td{color:var(--gray)}
+        .comparison-table tbody td:nth-child(3){color:var(--dark);font-weight:600}
+        .comparison-table tbody tr:last-child td{border-bottom:none}
+        .check{color:var(--green);font-weight:700}
+        .cross{color:#ef4444;font-weight:700}
+
+        /* FAQ */
+        .faq-list{display:flex;flex-direction:column;gap:16px}
+        .faq-item{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px 24px}
+        .faq-item h3{font-size:16px;font-weight:700;margin-bottom:8px;color:var(--dark)}
+        .faq-item p{font-size:14px;color:var(--gray);line-height:1.6}
+
+        /* CTA */
+        .cta-section{background:linear-gradient(135deg,#1e1b4b 0%,#4c1d95 100%);color:var(--white);padding:60px 24px;text-align:center;border-radius:20px;margin:0 24px 0}
+        .cta-section h2{font-size:28px;font-weight:800;margin-bottom:12px}
+        .cta-section p{color:rgba(255,255,255,.6);margin-bottom:24px;font-size:16px}
+
+        /* Footer */
+        footer{background:var(--dark);color:rgba(255,255,255,.5);padding:40px 24px;text-align:center}
+        footer .brand{font-size:18px;font-weight:700;color:var(--white);margin-bottom:8px}
+        footer .brand span{color:#a78bfa}
+        footer .links{display:flex;gap:20px;justify-content:center;margin:16px 0;flex-wrap:wrap}
+        footer .links a{font-size:13px;color:rgba(255,255,255,.4);transition:color .2s}
+        footer .links a:hover{color:var(--white)}
+        footer .copy{font-size:12px;color:rgba(255,255,255,.25)}
+
+        /* Table wrapper for mobile */
+        .table-wrap{overflow-x:auto;border-radius:16px}
+
+        @media(max-width:600px){
+            .hero{padding:60px 20px 40px}
+            .feature-grid{grid-template-columns:1fr}
+            .nav-links{gap:16px}
+            .comparison-table th,.comparison-table td{padding:10px 12px;font-size:13px}
+            .cta-section{margin:0 16px}
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+    <div class="nav-inner">
+        <a href="/" class="nav-brand">Vertex<span>Lab</span></a>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#science">Why It Works</a>
+            <a href="#faq">FAQ</a>
+            <a href="privacy-policy.html">Privacy</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+    <div class="hero-emoji">⚡</div>
+    <h1>DopaFlow — The Focus Timer<br><span>Built for ADHD Brains</span></h1>
+    <p>Dopamine-friendly work sprints, distraction-aware timers, and streak motivation designed for how your brain actually works.</p>
+    <a href="https://apps.apple.com/app/id6759934340" class="store-btn-hero">🍎 Download on the App Store</a>
+    <div class="hero-sub">Free on iOS &bull; No account required &bull; 100% private</div>
+</div>
+
+<!-- Key Features -->
+<div class="section" id="features">
+    <div class="section-header">
+        <div class="badge">Features</div>
+        <h2>Built Different for ADHD</h2>
+        <p>Every feature in DopaFlow is designed around how ADHD brains handle focus, motivation, and task switching.</p>
+    </div>
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="f-icon">🧠</div>
+            <h3>Dopamine-Friendly Sprints</h3>
+            <p>Short, rewarding work bursts that match ADHD attention patterns. Each completed sprint triggers a micro-reward to keep your dopamine system engaged.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">🛡️</div>
+            <h3>Distraction-Aware Timers</h3>
+            <p>Timers that adapt when you lose focus. Instead of punishing you for getting distracted, DopaFlow helps you gently return to your task.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">🏃</div>
+            <h3>Task Sprinting</h3>
+            <p>Break overwhelming tasks into tiny, actionable sprints. Stop staring at a huge to-do list and start knocking out small wins immediately.</p>
+        </div>
+        <div class="feature-card">
+            <div class="f-icon">🔥</div>
+            <h3>Streak Motivation</h3>
+            <p>Visual streak tracking that leverages ADHD's response to immediate feedback. Watch your consistency build day by day with satisfying progress visuals.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Why DopaFlow Works for ADHD -->
+<div class="section" id="science">
+    <div class="section-header">
+        <div class="badge">The Science</div>
+        <h2>Why DopaFlow Works for ADHD</h2>
+        <p>Traditional productivity tools are built for neurotypical brains. DopaFlow is not.</p>
+    </div>
+    <div class="science">
+        <h3>🔬 The ADHD Focus Problem</h3>
+        <p>ADHD brains have lower baseline dopamine levels, which makes it harder to start tasks, maintain focus, and resist distractions. Standard timers ignore this entirely — they assume everyone can just "push through" a 25-minute block.</p>
+        <h3>💡 How DopaFlow Solves It</h3>
+        <ul>
+            <li><strong>Shorter, variable sprint lengths</strong> — match your actual attention capacity instead of forcing a fixed interval.</li>
+            <li><strong>Immediate micro-rewards</strong> — each completed sprint delivers visual and haptic feedback that keeps your dopamine system active.</li>
+            <li><strong>Low-friction task breakdown</strong> — turn a paralyzing task into a series of small, achievable steps you can sprint through.</li>
+            <li><strong>Streak momentum</strong> — ADHD brains respond powerfully to streaks and visible progress. DopaFlow makes consistency feel rewarding, not exhausting.</li>
+            <li><strong>No guilt, no shame</strong> — missed a session? DopaFlow encourages you to start fresh instead of showing you what you missed.</li>
+        </ul>
+        <p>The result: you work with your ADHD brain instead of fighting against it.</p>
+    </div>
+</div>
+
+<!-- Comparison Table -->
+<div class="section">
+    <div class="section-header">
+        <div class="badge">Compare</div>
+        <h2>DopaFlow vs Regular Pomodoro Timers</h2>
+        <p>See why ADHD brains need more than a basic countdown timer.</p>
+    </div>
+    <div class="table-wrap">
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Regular Pomodoro</th>
+                    <th class="highlight">DopaFlow</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Sprint length</td>
+                    <td>Fixed 25 min</td>
+                    <td>Adaptive to your focus</td>
+                </tr>
+                <tr>
+                    <td>Dopamine feedback</td>
+                    <td><span class="cross">&#10005;</span> None</td>
+                    <td><span class="check">&#10003;</span> Visual + haptic rewards</td>
+                </tr>
+                <tr>
+                    <td>Task breakdown</td>
+                    <td><span class="cross">&#10005;</span> Not included</td>
+                    <td><span class="check">&#10003;</span> Built-in sprint breakdown</td>
+                </tr>
+                <tr>
+                    <td>Distraction recovery</td>
+                    <td><span class="cross">&#10005;</span> Timer just keeps running</td>
+                    <td><span class="check">&#10003;</span> Gentle refocus prompts</td>
+                </tr>
+                <tr>
+                    <td>Streak motivation</td>
+                    <td><span class="cross">&#10005;</span> Basic or none</td>
+                    <td><span class="check">&#10003;</span> Visual streaks + progress</td>
+                </tr>
+                <tr>
+                    <td>ADHD-specific design</td>
+                    <td><span class="cross">&#10005;</span> Generic</td>
+                    <td><span class="check">&#10003;</span> Purpose-built for ADHD</td>
+                </tr>
+                <tr>
+                    <td>Guilt-free missed sessions</td>
+                    <td><span class="cross">&#10005;</span> Shows failures</td>
+                    <td><span class="check">&#10003;</span> Fresh start encouraged</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- FAQ -->
+<div class="section" id="faq">
+    <div class="section-header">
+        <div class="badge">FAQ</div>
+        <h2>Frequently Asked Questions</h2>
+    </div>
+    <div class="faq-list">
+        <div class="faq-item">
+            <h3>What is the best ADHD app for focus?</h3>
+            <p>DopaFlow is designed specifically for ADHD brains. Unlike generic timer apps, it uses dopamine-friendly sprint intervals, distraction-aware pauses, and streak-based motivation to help you stay focused without burnout. It works with your ADHD instead of against it.</p>
+        </div>
+        <div class="faq-item">
+            <h3>Is DopaFlow better than a regular Pomodoro timer for ADHD?</h3>
+            <p>Standard Pomodoro timers use fixed 25-minute intervals that often don't match ADHD attention patterns. DopaFlow uses adaptive sprint lengths, rewards micro-wins with dopamine feedback, and lets you adjust sessions to match your current focus capacity. It is a Pomodoro-style timer rebuilt from the ground up for ADHD.</p>
+        </div>
+        <div class="faq-item">
+            <h3>How does DopaFlow help with ADHD productivity?</h3>
+            <p>DopaFlow breaks tasks into small, rewarding sprints that align with how ADHD brains process dopamine. It tracks streaks to build motivation, uses distraction-aware timers that adapt when you lose focus, and provides visual progress feedback to keep you engaged throughout your work sessions.</p>
+        </div>
+        <div class="faq-item">
+            <h3>Is DopaFlow free to use?</h3>
+            <p>DopaFlow is free to download with core features available at no cost. Optional premium features are available through in-app purchases for users who want advanced analytics and additional customization options.</p>
+        </div>
+        <div class="faq-item">
+            <h3>Does DopaFlow collect my data?</h3>
+            <p>No. DopaFlow stores all data locally on your device. There are no accounts, no tracking, and no third-party analytics. Your focus sessions and tasks stay completely private. Read our <a href="privacy-policy.html" style="color:var(--primary);text-decoration:underline">privacy policy</a> for full details.</p>
+        </div>
+        <div class="faq-item">
+            <h3>What makes DopaFlow different from other ADHD productivity apps?</h3>
+            <p>Most productivity apps are designed for neurotypical brains and then marketed to ADHD users. DopaFlow was built from day one around ADHD neuroscience — shorter sprints, immediate dopamine rewards, task breakdown to overcome paralysis, and zero guilt for missed sessions.</p>
+        </div>
+    </div>
+</div>
+
+<!-- CTA -->
+<div class="section">
+    <div class="cta-section">
+        <h2>Start Focusing Today</h2>
+        <p>Join thousands of ADHD brains who finally found a focus timer that works for them.</p>
+        <a href="https://apps.apple.com/app/id6759934340" class="store-btn-hero">🍎 Download on the App Store</a>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer>
+    <div class="brand">Dopa<span>Flow</span></div>
+    <div class="links">
+        <a href="/">VertexLab Solutions</a>
+        <a href="privacy-policy.html">Privacy Policy</a>
+        <a href="mailto:tuhin014@gmail.com">Contact</a>
+        <a href="https://apps.apple.com/app/id6759934340">App Store</a>
+    </div>
+    <div class="copy">&copy; 2026 VertexLab Solutions LLC. All rights reserved.</div>
+</footer>
+
+</body>
+</html>
