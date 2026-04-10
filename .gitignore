@@ -2,12 +2,13 @@
 
 # Operational reports — NEVER commit to this public repo
 # Tracked in the private tuhin-014/vertex-reports repo instead
-marketing-reports/
-health-reports/
-revenue-reports/
-build-reports/
-ceo-briefings/
-seo-reports/
-market-research/
-aso-reports/
-revival-reports/
+# (no trailing slash so symlinks also match)
+marketing-reports
+health-reports
+revenue-reports
+build-reports
+ceo-briefings
+seo-reports
+market-research
+aso-reports
+revival-reports
