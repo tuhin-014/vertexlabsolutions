@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GLW5B39P0J"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-GLW5B39P0J');
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rellora — Stress &amp; Recovery, Explained | Apple Watch Insights</title>
+    <meta name="description" content="Rellora reads your Apple Watch data and explains your stress and recovery in plain English — a self-explaining daily score and a weekly report, computed privately on your device.">
+    <meta name="keywords" content="stress tracker, recovery score, HRV app, apple watch stress, readiness score, whoop alternative, heart rate variability, burnout tracker">
+    <link rel="canonical" href="https://vertexlabsolutions.com/rellora/">
+    <meta property="og:title" content="Rellora — Stress &amp; Recovery, Explained">
+    <meta property="og:description" content="Your Apple Watch already tracks the signals. Rellora tells you what they mean — a self-explaining stress &amp; recovery score, private by design.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://vertexlabsolutions.com/rellora/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Rellora — Stress &amp; Recovery, Explained">
+    <meta name="twitter:description" content="A self-explaining stress &amp; recovery score for Apple Watch. Private by design.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫧</text></svg>">
+
+    <!-- Schema.org SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Rellora",
+      "operatingSystem": "iOS",
+      "applicationCategory": "HealthApplication",
+      "description": "Rellora reads Apple Watch data (HRV, resting heart rate, sleep, respiratory rate, wrist temperature) and explains your stress and recovery in plain English. A self-explaining daily score and a weekly report, computed privately on your device.",
+      "url": "https://vertexlabsolutions.com/rellora/",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "VertexLab Solutions LLC",
+        "url": "https://vertexlabsolutions.com"
+      }
+    }
+    </script>
+
+    <!-- FAQ Schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What does Rellora do?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Rellora reads the signals your Apple Watch already records — heart rate variability, resting heart rate, sleep, respiratory rate and wrist temperature — and turns them into a daily stress and recovery score that explains itself in plain English, plus a weekly report."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is my health data private?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Rellora reads your Apple Health data only with your permission, processes everything on your device, and generates its written insights on-device using Apple's Foundation Models. Your health data is never sent to us, to any server, or to any third-party AI."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need an Apple Watch?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "An Apple Watch provides the richest data (overnight HRV, sleep, respiratory rate and wrist temperature). You can still use Rellora with iPhone-only heart-rate data, though insights are most accurate with a Watch."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Rellora a medical device?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Rellora is a general wellness tool. It shows stress and recovery trends and does not diagnose, treat, or measure any medical condition. It is not a substitute for professional medical advice."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--primary:#2E7D32;--accent:#0D9488;--dark:#0f172a;--light:#f8fafc;--white:#fff;--gray:#64748b;--border:#e2e8f0}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:var(--dark);background:var(--light)}
+        a{color:inherit;text-decoration:none}
+
+        nav{background:var(--white);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between}
+        .nav-brand{font-size:20px;font-weight:800;color:var(--dark)}
+        .nav-brand span{color:var(--primary)}
+        .nav-links{display:flex;gap:28px;align-items:center}
+        .nav-links a{font-size:14px;font-weight:500;color:var(--gray);transition:color .2s}
+        .nav-links a:hover{color:var(--dark)}
+
+        .hero{background:linear-gradient(135deg,#0f172a 0%,#134e4a 100%);color:var(--white);padding:80px 24px 64px;text-align:center}
+        .hero .emoji-icon{font-size:64px;margin-bottom:16px}
+        .hero h1{font-size:clamp(28px,4.5vw,44px);font-weight:900;letter-spacing:-1.5px;line-height:1.15;margin-bottom:16px;max-width:760px;margin-left:auto;margin-right:auto}
+        .hero h1 em{font-style:normal;background:linear-gradient(135deg,#4ade80,#2dd4bf);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .hero p{font-size:18px;color:rgba(255,255,255,.65);max-width:600px;margin:0 auto 32px}
+        .badge{display:inline-block;padding:8px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#cbd5e1;border-radius:999px;font-size:14px;font-weight:600;letter-spacing:.3px}
+        .waitlist{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;max-width:440px;margin:0 auto}
+        .waitlist input{flex:1;min-width:220px;padding:14px 18px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;border-radius:12px;font-size:15px;outline:none}
+        .waitlist input::placeholder{color:rgba(255,255,255,.45)}
+        .waitlist input:focus{border-color:#4ade80}
+        .waitlist button{padding:14px 26px;background:linear-gradient(135deg,#4ade80,#2dd4bf);color:#04241d;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;transition:transform .2s}
+        .waitlist button:hover{transform:translateY(-2px)}
+        .waitlist-note{font-size:13px!important;color:rgba(255,255,255,.45)!important;margin:14px auto 0!important}
+        .waitlist-msg{font-size:14px!important;font-weight:600;margin:14px auto 0!important;display:none}
+
+        .section{max-width:1000px;margin:0 auto;padding:64px 24px}
+        .section h2{font-size:clamp(24px,3.5vw,32px);font-weight:800;text-align:center;letter-spacing:-.5px;margin-bottom:12px}
+        .section .sub{text-align:center;color:var(--gray);max-width:560px;margin:0 auto 40px;font-size:16px}
+
+        .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+        .card{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:28px 24px}
+        .card .ico{font-size:32px;margin-bottom:12px}
+        .card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+        .card p{font-size:14.5px;color:var(--gray)}
+
+        .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;counter-reset:step}
+        .step{background:var(--white);border:1px solid var(--border);border-radius:16px;padding:24px;position:relative}
+        .step::before{counter-increment:step;content:counter(step);display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;font-weight:800;font-size:15px;margin-bottom:14px}
+        .step h3{font-size:16px;font-weight:700;margin-bottom:6px}
+        .step p{font-size:14px;color:var(--gray)}
+
+        .quote{background:var(--white);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:12px;padding:24px 28px;max-width:720px;margin:0 auto;font-size:16.5px;color:#334155}
+        .quote strong{color:var(--dark)}
+
+        .faq{max-width:760px;margin:0 auto}
+        .faq details{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:12px}
+        .faq summary{font-weight:700;font-size:16px;cursor:pointer;list-style:none}
+        .faq summary::-webkit-details-marker{display:none}
+        .faq p{margin-top:10px;color:var(--gray);font-size:15px}
+
+        .support{background:linear-gradient(135deg,#0f172a 0%,#134e4a 100%);color:#fff;text-align:center;padding:64px 24px}
+        .support h2{font-size:28px;font-weight:800;margin-bottom:10px}
+        .support p{color:rgba(255,255,255,.7);max-width:520px;margin:0 auto 24px}
+        .support a.mail{display:inline-flex;align-items:center;gap:8px;padding:14px 30px;background:#fff;color:var(--dark);border-radius:12px;font-weight:700;font-size:16px}
+
+        footer{background:#0b1120;color:#94a3b8;text-align:center;padding:32px 24px;font-size:13px}
+        footer a{color:#4ade80}
+    </style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">Vertex<span>Lab</span></a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="#faq">FAQ</a>
+      <a href="#support">Support</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="emoji-icon">🫧</div>
+  <h1>Your Apple Watch tracks the signals. <em>Rellora tells you what they mean.</em></h1>
+  <p>A daily stress &amp; recovery score that explains itself in plain English — plus a weekly report — computed privately on your device.</p>
+  <!-- Early-access waitlist — posts to the shared VertexLab subscribe API, tagged product:'Rellora'. -->
+  <form class="waitlist" id="waitlist-form" onsubmit="return handleWaitlist(event)">
+    <input type="email" id="wl-email" placeholder="you@email.com" required aria-label="Email address">
+    <button type="submit" id="wl-btn">Get early access</button>
+  </form>
+  <p class="waitlist-note" id="wl-note">Be first to try it. No spam — just the launch.</p>
+  <p class="waitlist-msg" id="wl-msg"></p>
+</header>
+
+<section class="section" id="features">
+  <h2>Stop guessing at your numbers</h2>
+  <p class="sub">Most apps hand you a score and walk away. Rellora tells you the <em>why</em> and the one thing to do about it.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="ico">🧠</div>
+      <h3>A score that explains itself</h3>
+      <p>"Recovery 68 — your overnight HRV was 38ms vs your 52ms baseline and deep sleep was short." Every number comes with a reason.</p>
+    </div>
+    <div class="card">
+      <div class="ico">📋</div>
+      <h3>Plain-English weekly report</h3>
+      <p>A short written summary of your week — what drove your stress, what's trending up, and the single biggest lever for next week.</p>
+    </div>
+    <div class="card">
+      <div class="ico">⌚️</div>
+      <h3>Uses data you already have</h3>
+      <p>Reads HRV, resting heart rate, sleep, respiratory rate and wrist temperature from Apple Health. No extra device, no second subscription.</p>
+    </div>
+    <div class="card">
+      <div class="ico">🔒</div>
+      <h3>Private by design</h3>
+      <p>Everything — including the AI-written insights — is computed on your device. Your health data never leaves your phone.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <h2>How it works</h2>
+  <p class="sub">Three quiet steps, running in the background while you live your life.</p>
+  <div class="steps">
+    <div class="step">
+      <h3>Connect Apple Health</h3>
+      <p>Grant read-only access to the signals your Apple Watch already records overnight.</p>
+    </div>
+    <div class="step">
+      <h3>Build your baseline</h3>
+      <p>Rellora learns <em>your</em> normal over a couple of weeks — because HRV only makes sense compared to yourself.</p>
+    </div>
+    <div class="step">
+      <h3>Read your day, explained</h3>
+      <p>Each morning: one calm score, the reasons behind it, and what to prioritize — in words, not just charts.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="quote">
+    Rellora is built for the person who's stressed, sleeping poorly, and wants to understand why — <strong>not</strong> the elite athlete chasing a training number. Calm by design: no alarming alerts, no red-vs-green verdicts, just clear insight you can act on.
+  </div>
+</section>
+
+<section class="section" id="faq">
+  <h2>Frequently asked</h2>
+  <div class="faq">
+    <details>
+      <summary>Is my health data private?</summary>
+      <p>Yes. Rellora reads your Apple Health data only with permission, processes everything on your device, and generates its written insights on-device using Apple's Foundation Models. Your health data is never sent to us, to any server, or to any third-party AI.</p>
+    </details>
+    <details>
+      <summary>Do I need an Apple Watch?</summary>
+      <p>An Apple Watch gives the richest data (overnight HRV, sleep, respiratory rate, wrist temperature). You can still use Rellora with iPhone-only heart-rate data, though insights are most accurate with a Watch.</p>
+    </details>
+    <details>
+      <summary>Does it measure cortisol?</summary>
+      <p>No. No wrist wearable can directly measure cortisol. Rellora tracks physiological signals associated with stress and recovery — like HRV, resting heart rate and sleep — and explains their trends. It reports stress and recovery, not hormone levels.</p>
+    </details>
+    <details>
+      <summary>Is Rellora a medical device?</summary>
+      <p>No. Rellora is a general wellness tool. It shows stress and recovery trends and does not diagnose, treat, or measure any medical condition. It is not a substitute for professional medical advice.</p>
+    </details>
+  </div>
+</section>
+
+<section class="support" id="support">
+  <h2>Support</h2>
+  <p>Questions, feedback, or need a hand? We're a small team and we read every message.</p>
+  <a class="mail" href="mailto:vertexlabsolutions@gmail.com">✉️ vertexlabsolutions@gmail.com</a>
+</section>
+
+<footer>
+  <p>Rellora is a general wellness app and does not provide medical advice.<br>
+  &copy; 2026 VertexLab Solutions LLC. All rights reserved. &nbsp;|&nbsp; <a href="/rellora/privacy-policy.html">Privacy Policy</a> &nbsp;|&nbsp; <a href="/terms">Terms of Service</a></p>
+</footer>
+
+<!-- Cookie Consent Banner -->
+<div id="cookie-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#fff;padding:16px 24px;z-index:9999;box-shadow:0 -2px 10px rgba(0,0,0,0.3);font-family:-apple-system,sans-serif;font-size:14px;">
+  <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <p style="margin:0;flex:1;min-width:200px;">We use cookies to improve your experience and analyze site traffic. By continuing, you agree to our <a href="/privacy" style="color:#4ade80;text-decoration:underline;">Privacy Policy</a>.</p>
+    <div style="display:flex;gap:8px;">
+      <button onclick="acceptCookies()" style="background:#2E7D32;color:white;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Accept</button>
+      <button onclick="declineCookies()" style="background:transparent;color:#aaa;border:1px solid #555;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px;">Decline</button>
+    </div>
+  </div>
+</div>
+<script>
+async function handleWaitlist(e){
+  e.preventDefault();
+  var btn=document.getElementById('wl-btn');
+  var note=document.getElementById('wl-note');
+  var msg=document.getElementById('wl-msg');
+  var email=document.getElementById('wl-email').value;
+  btn.textContent='Sending...'; btn.disabled=true;
+  try{
+    var res=await fetch('https://vertexhub-app.vercel.app/api/subscribe',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:email, product:'Rellora', source:'rellora-landing'})
+    });
+    if(res.ok){
+      msg.textContent="You're on the list — we'll email you the moment Rellora launches.";
+      msg.style.color='#4ade80';
+      document.getElementById('wl-email').value='';
+      note.style.display='none';
+    }else{
+      msg.textContent='Something went wrong. Please try again.';
+      msg.style.color='#f87171';
+    }
+  }catch{
+    msg.textContent='Network error. Please try again.';
+    msg.style.color='#f87171';
+  }
+  msg.style.display='block';
+  btn.textContent='Get early access'; btn.disabled=false;
+  return false;
+}
+(function(){
+  var consent = localStorage.getItem('cookie_consent');
+  if (consent === null) {
+    document.getElementById('cookie-banner').style.display = 'block';
+  } else if (consent === 'declined') {
+    window['ga-disable-G-GLW5B39P0J'] = true;
+  }
+})();
+function acceptCookies() {
+  localStorage.setItem('cookie_consent', 'accepted');
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+function declineCookies() {
+  localStorage.setItem('cookie_consent', 'declined');
+  window['ga-disable-G-GLW5B39P0J'] = true;
+  document.getElementById('cookie-banner').style.display = 'none';
+}
+</script>
+</body>
+</html>
