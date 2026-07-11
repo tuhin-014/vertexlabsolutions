@@ -331,7 +331,7 @@ async function handleWaitlist(e, emailId, btnId, msgId){
       body:JSON.stringify({email:email, product:'CrewDay', source:'crewday-landing'})
     });
     if(res.ok){
-      msg.innerHTML="You're on the list! <a href='/crewday/template.html' style='color:#F0A61F;text-decoration:underline'>Download your free daily-log template now →</a>";
+      msg.innerHTML="You're on the list! <a href='/crewday/template' style='color:#F0A61F;text-decoration:underline'>Download your free daily-log template now →</a>";
       msg.style.color='#4ade80';
       document.getElementById(emailId||'wl-email').value='';
       if(!emailId && note){note.style.display='none';}
