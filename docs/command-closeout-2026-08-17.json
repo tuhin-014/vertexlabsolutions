@@ -1,0 +1,45 @@
+{
+  "date": "2026-08-17",
+  "project": "vertexlabsolutions / market-research",
+  "objective": "Scheduled market-research cycle #11: find the next profitable app to build; validate or kill the 2026-08-16 GroomDay recommendation.",
+  "completed": [
+    "Confirmed Astro MCP is back online after weeks of blackout; established that get_keyword_suggestions works on ARBITRARY competitor App IDs, which makes demand measurable for any niche",
+    "Ran GroomDay Gate 1 (Astro pop >= 15): passes by one point (dog grooming pop 15/diff 23, moego pop 28/diff 13)",
+    "REJECTED GroomDay anyway, 7.5 -> 5.8: wedge already occupied by Teddy (grooming-specific, built for 1-5 person independents, ships the full proposed feature list incl. AI receptionist); MoeGo's real price is $239/mo not $49-159; 2 of 3 new App Store entrants shipped in the last 5 weeks",
+    "RECLASSIFIED BarCount 7.0 -> 6.2: closed 08-13's explicit open question by measuring demand at pop 9-12; not an App Store product, phone-sold SaaS only, queues behind TicketProof",
+    "Fresh flood-detector sweep of 14 clusters: zero survivors",
+    "Caught tree service as a demand mirage - textbook donut hole on the flood detector, killed by Astro (all keyword suggestions are homonyms of 'Arbor', a school information system)",
+    "Portfolio audit: 23 live apps, 15 total ratings (one net rating in 11 days); found new brand-clone regression (Unplug has fallen out of the top 4 for its own product name)",
+    "Verified the CrewDay Safety Pack (08-13 #1, score 8.0) is STILL NOT BUILT - no safety/toolbox/JHA source in the repo",
+    "Wrote market-research/2026-08-17.md and updated next-saas-opportunities.md",
+    "Made probe.py self-dating so future cycles don't need the hardcoded date patched"
+  ],
+  "partial": [],
+  "pending": [
+    "Ratings-authority program (SKStoreReviewController) - #1 for the third consecutive cycle, still not started",
+    "CrewDay Safety Pack build (4-6 days, score 8.0, two cycles stale)",
+    "LeanFast rename - specified in four cycles now, live app still 'LeanFast-Fasting & Weight Loss'",
+    "CrewDay/TicketProof phone calls - CrewDay has been live 5 days, channel thesis now testable"
+  ],
+  "blocked": [
+    "WebFetch permission-denied in scheduled runs, so MoeGo's $239/mo figure comes from search-result summaries and needs direct confirmation before use in any pitch",
+    "Session ledger POST /api/sessions still returns 503 (SESSION_LEDGER_TOKEN + SUPABASE_SERVICE_ROLE_KEY unset in Vercel - Max only)"
+  ],
+  "decisions": [
+    "11th consecutive no-build cycle; the 180-day freeze from 2026-08-02 holds",
+    "Added a fifth rejection test to the research method: 'is the wedge already occupied?' - off-store competitors appear in neither half of the flood-detector/Astro method and killed both GroomDay and the medbill auditor",
+    "Never ship a recommendation on the competition half alone - proven this cycle by tree service",
+    "The 08-03 guidance to lengthen trials to 17-32 days should be revisited, not applied: RevenueCat 2026 reports trials shortened market-wide"
+  ],
+  "files_changed": [
+    "vertexlabsolutions/market-research/2026-08-17.md (new)",
+    "vertexlabsolutions/market-research/probe.py (self-dating)",
+    "next-saas-opportunities.md (2026-08-17 entry)",
+    "memory/project_idea_research_2026_08_17.md (new)",
+    "memory/reference_aso_flood_detector.md (method update)",
+    "memory/MEMORY.md (index)"
+  ],
+  "tests_run": [],
+  "next_action": "Build the CrewDay Safety Pack (score 8.0) and run the ratings-authority program; both are ahead of any new app build.",
+  "next_prompt": "Build the CrewDay Safety Pack into CrewDay (App 6790033899): toolbox talks + JHA + signed daily safety sign-in, reusing workspace/safetykit-ios. No new SKU. Ship topics as templates with a 'not legal/OSHA advice' disclaimer. Spec is in market-research/2026-08-13.md Finding 5."
+}
