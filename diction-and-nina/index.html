@@ -585,7 +585,9 @@ const AudioSys = (() => {
 
   const SFX = {
     jump()    { blip(300, 520, 0.09, 'square', 0.18); },
-    coin()    { blip(880, 1320, 0.09, 'square', 0.22); setTimeout(() => blip(1320, 1760, 0.1, 'square', 0.18), 70); },
+    coin(up)  { const k = Math.pow(2, (up || 0) / 12);
+                blip(880 * k, 1320 * k, 0.09, 'square', 0.22);
+                setTimeout(() => blip(1320 * k, 1760 * k, 0.1, 'square', 0.18), 70); },
     page()    { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => blip(f, f, 0.35, 'triangle', 0.3), i * 110)); },
     sticker() { [659, 880].forEach((f, i) => setTimeout(() => blip(f, f * 1.2, 0.15, 'triangle', 0.25), i * 90)); },
     reveal()  { blip(400, 1600, 0.5, 'sine', 0.2); },
@@ -666,7 +668,8 @@ const AudioSys = (() => {
       if (sfxGain) sfxGain.gain.value = vols.sfx;
       try { localStorage.setItem('dn-vols', JSON.stringify(vols)); } catch (e) {}
     },
-    sfx(name) { if (started && SFX[name]) SFX[name](); },
+    /* `up` shifts a sound in semitones, so a run of them can climb. */
+    sfx(name, up) { if (started && SFX[name]) SFX[name](up || 0); },
   };
 })();
 
@@ -8174,7 +8177,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v114 · A place at the fire for everyone asked";
+const GAME_VERSION = "v115 · Every coin worth chasing";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -8187,6 +8190,9 @@ const G = {
   trial: null,
   fireworks: false,
   particles: [], ambient: [],
+  floats: [],                // little numbers that rise off a thing and fade
+  chain: { n: 0, t: -99 },   // how many things picked up on the run
+  shake: 0,                  // a knock to the camera, dying away
   onOverlayClose: null,   // something a panel has to do on the way out
   afterTalk: null,        // what the hero says once an NPC has had their say
   rest: null,                // set while somebody is sitting by a fire
@@ -8999,9 +9005,15 @@ function boostLogic(dt, want1, want2, want3) {
   const a1 = can && want1, a2 = can && want2, a3 = can && want3;
   if (a1 || a2 || a3) {
     P.boost -= dt;
+    // a little dust off the heels, so a dash looks like speed and not a glide
+    if (P.moving && Math.random() < dt * 26) {
+      G.particles.push({ x: P.x + (Math.random() - 0.5) * 12, y: P.y - 2,
+        vx: -P.facing * (0.4 + Math.random()), vy: -0.5 - Math.random() * 0.6,
+        life: 0.4, max: 0.4, color: '#fff3d6', r: 3 + Math.random() * 3, grav: 0.01 });
+    }
     if (P.boost <= 0) {
       P.boost = 0; P.boostCd = BOOST_CD;
-      AudioSys.sfx('poof');
+      AudioSys.sfx('poof'); shake(4);
       poof(P.x, P.y - 6, '#ff7a2f', 8);
       toast('\u{1F680} Jet Boots overheated! Cooling down\u2026');
     }
@@ -9092,7 +9104,7 @@ function actorHazards(A) {
     A.inv = 1.2;
     const hk = isP3 ? 'hearts3' : isP2 ? 'hearts2' : 'hearts';
     save[hk]--;
-    AudioSys.sfx('hurt');
+    AudioSys.sfx('hurt'); shake(5.5);
     setEmote(A, 'hurt', 1.8);
     poof(A.x, A.y - 20, '#1c1c1c');
     const who = charName(A.char);
@@ -9146,6 +9158,21 @@ function actorHazards(A) {
   }
 }
 
+/* Anything loose leans towards whoever is nearest, and the closer they get the
+   harder it leans, so the last stretch is a snap rather than a walk. Worked out
+   fresh each frame from where everybody is standing — nothing to keep, nothing
+   to get out of step with the tile it belongs to. */
+const MAGNET = 96;
+function magnetPull(ix, iy) {
+  let best = null;
+  for (const A of playersHere()) {
+    const d = Math.hypot(ix - A.x, iy - (A.y - 10));
+    if (d < MAGNET && (!best || d < best.d)) best = { d, x: A.x, y: A.y - 10 };
+  }
+  if (!best) return null;
+  const k = Math.pow(1 - best.d / MAGNET, 2.2);
+  return { dx: (best.x - ix) * k * 0.9, dy: (best.y - iy) * k * 0.9 };
+}
 function actorPickups(A) {
   const c = Math.floor(A.x / TILE), r = Math.floor((A.y - 6) / TILE);
   for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) {
@@ -9153,7 +9180,8 @@ function actorPickups(A) {
     const ch = tileAt(cc, rr2);
     if ('*osbgW'.indexOf(ch) === -1) continue;
     const ix = (cc + 0.5) * TILE, iy = (rr2 + 0.5) * TILE;
-    if (Math.hypot(ix - A.x, iy - (A.y - 10)) < 36) collectAt(cc, rr2);
+    // it has already flown most of the way in by the time this catches it
+    if (Math.hypot(ix - A.x, iy - (A.y - 10)) < 46) collectAt(cc, rr2);
   }
 }
 
@@ -9546,6 +9574,8 @@ function collectAt(c, r) {
     AudioSys.sfx('page');
     SLOTS().forEach(a => setEmote(a, 'happy', 2.2)); // the whole family beams
     burst((c + 0.5) * TILE, (r + 0.5) * TILE, '#ffd12e', 22);
+    popText((c + 0.5) * TILE, (r + 0.5) * TILE - 20, '✨ PAGE', '#ffd12e', true);
+    shake(6);
     toast(`📖 Golden Page found! (${save.pages}/${TOTAL_PAGES})`);
     const justUnlocked = ['peak', 'river', 'caves', 'plaza']
       .find(a => AREA_UNLOCK[a] === save.pages && !save.flags['unlockSeen_' + a]);
@@ -9556,14 +9586,28 @@ function collectAt(c, r) {
           justUnlocked ? () => queueUnlockMovie(justUnlocked) : undefined);
     } else if (justUnlocked) queueUnlockMovie(justUnlocked);
   } else if (ch === 'o') {
+    const ix = (c + 0.5) * TILE, iy = (r + 0.5) * TILE;
     save.coins++;
     if (save.daily && G.levelId === save.daily.lucky) save.coins++; // lucky land: double coins
-    AudioSys.sfx('coin'); sparkle((c + 0.5) * TILE, (r + 0.5) * TILE, '#ffd12e');
+    /* Keep going without stopping and the note climbs with you. Every fifth one
+       is worth a handful more and lands with a bit of weight. */
+    const n = chainBump();
+    AudioSys.sfx('coin', Math.min(14, (n - 1) * 1.5));
+    sparkle(ix, iy, '#ffd12e');
+    if (n >= 3) popText(ix, iy - 14, '\u00d7' + n, '#ffd12e');
+    if (n > 0 && n % 5 === 0) {
+      const bonus = 2 + Math.floor(n / 5);
+      save.coins += bonus;
+      burst(ix, iy - 10, '#ffd12e', 14);
+      popText(ix, iy - 34, '+' + bonus, '#fff3b8', true);
+      shake(3.2);
+      AudioSys.sfx('sticker');
+    }
     dailyProg('coins', 1);
   }
-  else if (ch === 's') { save.stickers++; AudioSys.sfx('sticker'); burst((c + 0.5) * TILE, (r + 0.5) * TILE, '#ff7ab8', 12); toast(`⭐ Sticker collected! (${save.stickers}/${TOTAL_STICKERS})`); }
-  else if (ch === 'b') { save.bookmarks++; AudioSys.sfx('coin'); toast(`🔖 Found one of Benny's bookmarks! (${save.bookmarks}/3)`); }
-  else if (ch === 'g') { save.gears++; AudioSys.sfx('coin'); toast(`⚙️ Found a spare gear for Penny! (${save.gears}/3)`); }
+  else if (ch === 's') { save.stickers++; AudioSys.sfx('sticker'); burst((c + 0.5) * TILE, (r + 0.5) * TILE, '#ff7ab8', 12); shake(4); popText((c + 0.5) * TILE, (r + 0.5) * TILE - 18, '⭐', '#ff7ab8', true); toast(`⭐ Sticker collected! (${save.stickers}/${TOTAL_STICKERS})`); }
+  else if (ch === 'b') { save.bookmarks++; AudioSys.sfx('coin'); popText((c + 0.5) * TILE, (r + 0.5) * TILE - 18, `🔖 ${save.bookmarks}/3`, '#ffd12e'); toast(`🔖 Found one of Benny's bookmarks! (${save.bookmarks}/3)`); }
+  else if (ch === 'g') { save.gears++; AudioSys.sfx('coin'); popText((c + 0.5) * TILE, (r + 0.5) * TILE - 18, `⚙️ ${save.gears}/3`, '#cfe4ff'); toast(`⚙️ Found a spare gear for Penny! (${save.gears}/3)`); }
   else if (ch === 'W') {
     const word = G.level.scrapWord || '';
     save.scraps[G.levelId] = (save.scraps[G.levelId] || 0) + 1;
@@ -13141,6 +13185,40 @@ function inAnyView(x, y, m) {
 }
 
 /* ---------------- particles ---------------- */
+/* ============ THE FEEL OF PICKING SOMETHING UP ============
+   A coin that vanishes with a noise is a coin that has been accounted for. A
+   coin that leans towards you, snaps in, throws a number off the top of itself
+   and pushes the sound up a step is a coin you want another of. None of this
+   is on the screen when nothing is happening. */
+
+/* A number that rises off a thing and fades. Drawn in the world, so it stays
+   with the spot it came from rather than floating about the page. */
+function popText(x, y, text, color, big) {
+  G.floats.push({ x, y, text: String(text), color: color || '#fffcf2',
+    life: 0.95, max: 0.95, big: !!big, rise: big ? 34 : 26 });
+}
+/* A knock to the camera. Kept small on purpose: a page-turning game that jolts
+   like a shooter reads as a fault rather than a thrill. */
+function shake(mag) { G.shake = Math.min(7, Math.max(G.shake, mag)); }
+/* How many things you have picked up without pausing. Keep going and the note
+   climbs; stop for a couple of seconds and it starts again at one. */
+const CHAIN_HOLD = 2.2;
+function chainBump() {
+  if (G.t - G.chain.t > CHAIN_HOLD) { G.chain.n = 0; G.chain.crowed = false; }
+  G.chain.n++; G.chain.t = G.t;
+  const best = save.bestChain || 0;
+  if (G.chain.n > best) {
+    save.bestChain = G.chain.n;
+    /* And it says so, once, the moment you pass your own record — the whole
+       point of a number you can beat is being told you have beaten it. Not
+       from a standing start, or it would crow at every coin of the first run. */
+    if (best >= 4 && !G.chain.crowed) {
+      G.chain.crowed = true;
+      toast(`\u{1F525} Best run yet \u2014 ${G.chain.n} in a row!`);
+    }
+  }
+  return G.chain.n;
+}
 function poof(x, y, color, n = 12) {
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 2.5;
@@ -13951,6 +14029,12 @@ function updateParticles(dt) {
     p.life -= dt; p.x += p.vx; p.y += p.vy; p.vy += p.grav * 60 * dt;
     if (p.life <= 0) G.particles.splice(i, 1);
   }
+  for (let i = G.floats.length - 1; i >= 0; i--) {
+    const f = G.floats[i];
+    f.life -= dt;
+    if (f.life <= 0) G.floats.splice(i, 1);
+  }
+  if (G.shake > 0) G.shake = Math.max(0, G.shake - dt * 26);
 }
 
 /* ---------------- daily adventures ---------------- */
@@ -14280,7 +14364,10 @@ function renderWorldView(v) {
   } else {
     bctx.translate(v.vpX, 0);
     bctx.scale(S, S);
-    bctx.translate(-Math.round(camX), -Math.round(camY));
+    // a knock, when something lands: small, and over in a fifth of a second
+    const sk = G.shake > 0.05
+      ? [(Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake] : [0, 0];
+    bctx.translate(-Math.round(camX) + sk[0], -Math.round(camY) + sk[1]);
   }
 
   const nb = (c, r) => (dc, dr) => tileRaw(c + dc, r + dr);
@@ -14365,8 +14452,10 @@ function renderWorldView(v) {
     const letter = ch === 'W'
       ? (G.level.scrapWord || '????')[G.scrapTiles.indexOf(c + ',' + r)] : undefined;
     const ic = c, ir = r, ich = ch;
-    draws.push({ x: (c + 0.5) * TILE, y: (r + 0.98) * TILE,
-      fn: () => drawItem(bctx, ich, ic * TILE, ir * TILE, G.t, letter) });
+    const pull = magnetPull((c + 0.5) * TILE, (r + 0.5) * TILE);
+    draws.push({ x: (c + 0.5) * TILE + (pull ? pull.dx : 0), y: (r + 0.98) * TILE,
+      fn: () => drawItem(bctx, ich, ic * TILE + (pull ? pull.dx : 0),
+        ir * TILE + (pull ? pull.dy : 0), G.t, letter) });
   }
 
   // ---- today's buried treasure (daily adventure) ----
@@ -14555,6 +14644,20 @@ function renderWorldView(v) {
       bctx.globalAlpha = Math.max(0, p.life / p.max);
       oval(bctx, p.x, p.y, p.r, p.r, p.color);
     }
+    /* and the numbers, rising off whatever threw them and fading as they go.
+       Outlined, because they cross grass, water and a bonfire. */
+    for (const f of G.floats) {
+      const k = 1 - f.life / f.max;
+      bctx.globalAlpha = Math.max(0, Math.min(1, (f.life / f.max) * 1.8));
+      bctx.font = `bold ${f.big ? 22 : 16}px system-ui, sans-serif`;
+      bctx.textAlign = 'center';
+      bctx.lineWidth = 4; bctx.lineJoin = 'round'; bctx.strokeStyle = INK;
+      const fy = f.y - f.rise * (1 - Math.pow(1 - k, 2));
+      bctx.strokeText(f.text, f.x, fy);
+      bctx.fillStyle = f.color;
+      bctx.fillText(f.text, f.x, fy);
+    }
+    bctx.textAlign = 'left';
     bctx.globalAlpha = 1;
     // ambient drift (leaves / snow / fireflies / confetti) within this view
     drawAmbient();
@@ -16115,6 +16218,25 @@ window.DN = {
   landPaint: (x, y, w, h, col, tol) => (R3 && R3.landPaint ? R3.landPaint(x, y, w, h, col, tol) : null),
   // everybody standing about in this land, as the view running has them
   cast: () => (VIEW3D ? (R3 && R3.cast ? R3.cast() : []) : (G.cast || []).slice()),
+  /* How the game feels this instant: what is on a run, what is written in the
+     air above it, and whether the camera is still ringing. */
+  feel: () => ({ chain: G.chain.n, since: Math.round((G.t - G.chain.t) * 100) / 100,
+    best: save.bestChain || 0, shake: Math.round(G.shake * 100) / 100,
+    floats: G.floats.map(f => ({ text: f.text, x: Math.round(f.x), y: Math.round(f.y), big: !!f.big })),
+    dust: G.particles.length }),
+  // give the camera a knock, so a test can watch the frame move
+  knock: (m) => { shake(m || 5); return G.shake; },
+  // and how hard a loose thing at this spot is being pulled towards somebody
+  magnetAt: (x, y) => { const m = magnetPull(x, y); return m ? { dx: Math.round(m.dx * 10) / 10, dy: Math.round(m.dy * 10) / 10 } : null; },
+  // where the loose things in this land are, so a test can go and get one
+  loose: () => { const out = [];
+    for (let r = 0; r < G.H; r++) for (let c = 0; c < G.W; c++) {
+      const ch = G.grid[r][c];
+      if ('*osbgW'.indexOf(ch) === -1) continue;
+      if (has(save.collected, key(G.levelId, c, r))) continue;
+      out.push({ ch, col: c, row: r, x: (c + 0.5) * TILE, y: (r + 0.5) * TILE });
+    }
+    return out; },
   // how much of a patch is a given colour, give or take
   patchMatch(x, y, w, h, col, tol) {
     let d;
