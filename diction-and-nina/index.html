@@ -8177,7 +8177,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v115 · Every coin worth chasing";
+const GAME_VERSION = "v116 · The coins find their way back";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9562,6 +9562,46 @@ function doAbility(char, ox, oy) {
   }
 }
 
+/* Coins come back.
+
+   A land you had been through once was a land with nothing left in it — every
+   coin taken for good, and no reason to walk that way again. They are only
+   borrowed now: a few minutes after you pick one up it turns up where it was,
+   with a little shine to say so. Only coins. A Golden Page, a sticker, one of
+   Benny's bookmarks — those are counted towards something and would come back
+   as a number that no longer means anything.
+
+   Nothing comes back under your feet, though. Stand on the spot and it waits
+   until you have wandered off, so a run cannot be farmed by standing still.
+
+   Timed by the clock rather than by play, so a land left overnight is full
+   again in the morning. */
+const COIN_BACK = 165000;      // milliseconds — a few minutes' walk away
+const COIN_CLEAR = 70;         // and not while somebody is standing over it
+function respawnCoins() {
+  if (!save.coinAt) return;
+  const now = Date.now();
+  let changed = false;
+  for (const k in save.coinAt) {
+    if (now - save.coinAt[k] < COIN_BACK) continue;
+    const cut = k.indexOf(':');                      // keys read "land:col,row"
+    const lvl = k.slice(0, cut);
+    const cr = k.slice(cut + 1).split(',');
+    const c = +cr[0], r = +cr[1];
+    if (!isFinite(c) || !isFinite(r)) { delete save.coinAt[k]; continue; }
+    if (lvl === G.levelId) {
+      const x = (c + 0.5) * TILE, y = (r + 0.5) * TILE;
+      if (SLOTS().some(a => a.lvl === lvl && Math.hypot(a.x - x, a.y - y) < COIN_CLEAR)) continue;
+      sparkle(x, y, '#ffd12e');          // a shine, so it reads as arriving
+    }
+    delete save.coinAt[k];
+    const i = save.collected.indexOf(k);
+    if (i !== -1) save.collected.splice(i, 1);
+    changed = true;
+  }
+  if (changed) persist();
+}
+
 /* ---------------- pickups ---------------- */
 function collectAt(c, r) {
   const ch = tileAt(c, r);
@@ -9569,6 +9609,8 @@ function collectAt(c, r) {
   const k = key(G.levelId, c, r);
   if (has(save.collected, k)) return;
   save.collected.push(k);
+  // a coin is only borrowed: note the hour and it will find its way back
+  if (ch === 'o') (save.coinAt || (save.coinAt = {}))[k] = Date.now();
   if (ch === '*') {
     save.pages++;
     AudioSys.sfx('page');
@@ -16006,6 +16048,11 @@ function frameInner(ts) {
     }
     if (G.state === 'play') withWorld(P.lvl, () => { updateRest(dt); updateSleep(dt); updateRisers(); });
     // particles and weather live in each land, so they keep ticking in both views
+    G.coinTick = (G.coinTick || 0) + dt;
+    if (G.coinTick > 1) {
+      G.coinTick = 0;
+      activeWorlds().forEach(id => withWorld(id, () => respawnCoins()));
+    }
     activeWorlds().forEach(id => withWorld(id, () => {
       updateParticles(dt);
       if (G.level) updateAmbient(dt);
@@ -16224,6 +16271,10 @@ window.DN = {
     best: save.bestChain || 0, shake: Math.round(G.shake * 100) / 100,
     floats: G.floats.map(f => ({ text: f.text, x: Math.round(f.x), y: Math.round(f.y), big: !!f.big })),
     dust: G.particles.length }),
+  // wind the clock on every borrowed coin, so a test need not wait minutes
+  coinsBack: (ms) => { const t = Date.now() - (ms === undefined ? COIN_BACK : ms);
+    for (const k in (save.coinAt || {})) save.coinAt[k] = t;
+    return Object.keys(save.coinAt || {}).length; },
   // give the camera a knock, so a test can watch the frame move
   knock: (m) => { shake(m || 5); return G.shake; },
   // and how hard a loose thing at this spot is being pulled towards somebody
