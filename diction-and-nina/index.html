@@ -8177,7 +8177,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v116 · The coins find their way back";
+const GAME_VERSION = "v117 · Nobody gets dragged along";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9412,22 +9412,38 @@ function resetScribble() {
    their character straight back. */
 const HANDS_OFF = 0.9;   // a second of nothing, so pausing to look does not drag you
 let handsOff = [0, 0, 0];
+/* Walks A along behind Diction. Says whether it took the character over, so
+   the caller knows whether they still need moving on their own keys. */
 function tagAlong(A, back) {
   const dic = actorOf('diction');
-  if (A === dic || A.lvl !== dic.lvl) return;
-  if (A.inBed || A.bed || A.sitting) return;         // asleep or sat down; leave them be
+  if (A === dic || A.lvl !== dic.lvl) return false;
+  if (A.inBed || A.bed || A.sitting) return false;   // asleep or sat down; leave them be
   const target = trailPointBack(trailP, back, { x: dic.x, y: dic.y });
   const dx = target.x - A.x, dy = target.y - A.y, d = Math.hypot(dx, dy);
   const room = Math.max(0, Math.hypot(dic.x - A.x, dic.y - A.y) - 30);
   const step = followStep(A, d, room);
   A.moving = step > 0.4;
-  if (!A.moving) return;
+  if (!A.moving) { A.walk = 0; return true; }
   const nx = A.x + dx / d * step, ny = A.y + dy / d * step;
   if (!boxBlocked(nx, A.y)) A.x = nx;
   if (!boxBlocked(A.x, ny)) A.y = ny;
-  A.walk += step * 0.16;
+  A.walk += step * 0.075;   // the same turn of the legs per pace as everybody else
   if (Math.abs(dx) > 0.5) A.facing = dx > 0 ? 1 : -1;
-  A.back = dy < 0 && Math.abs(dy) >= Math.abs(dx);
+  A.back = backFacing(A, dx, dy);
+  return true;
+}
+/* A player with a hand on any of their own keys still has their character.
+   Only the four walking keys counted, so pressing talk, or a power, or your
+   own map key, left you standing there being reeled in anyway. */
+function handsBusy(slot) {
+  const p = padFor(slot), g = GP[slot] || {}, held = gpHeld[slot] || {};
+  if (g.left || g.right || g.up || g.down || g.dash) return true;
+  for (const n in held) if (held[n]) return true;
+  for (const k of p.move) if (raw[k]) return true;
+  for (const k of [p.dash, p.ability, p.interact, p.swap, p.map]) {
+    if (k && raw[k.length === 1 ? k.toLowerCase() : k]) return true;
+  }
+  return false;
 }
 function updateCoop(dt) {
   /* Each player walks on whichever set of keys they chose, so the assignment
@@ -9446,6 +9462,21 @@ function updateCoop(dt) {
     !!((keys.dash || GP[0].dash) && (d1x || d1y)),
     !!((keys.dash2 || GP[1].dash) && (d2x || d2y)),
     !!(p3 && (keys.dash3 || GP[2].dash) && (d3x || d3y)));
+  /* Who is coming along behind Diction, worked out before anybody moves.
+     It used to be settled afterwards, and a character walking on somebody
+     else's legs was handed to moveActor with no keys down first — which sets
+     the walk cycle back to nothing every single frame. tagAlong's nudge then
+     started it from nothing again, so the stride never got past its first
+     step: they slid across the ground with their feet flat on the floor,
+     which is exactly what it looked like. */
+  const towed = [false, false, false];
+  if (isCoop3()) {
+    [[1, !!(d2x || d2y)], [2, p3 && !!(d3x || d3y)]].forEach(([slot, driven]) => {
+      if (slot === 2 && !p3) return;
+      handsOff[slot] = (driven || handsBusy(slot)) ? 0 : handsOff[slot] + dt;
+      towed[slot] = handsOff[slot] > HANDS_OFF;
+    });
+  } else { handsOff = [0, 0, 0]; }
   // each player walks inside their own land
   withWorld(P.lvl, () => {
     moveActor(P, d1x, d1y, dash1);
@@ -9453,23 +9484,15 @@ function updateCoop(dt) {
     actorHazards(P); actorPickups(P);
   });
   withWorld(FOLLOW.lvl, () => {
-    moveActor(FOLLOW, d2x, d2y, dash2);
+    if (!(towed[1] && tagAlong(FOLLOW, 44))) moveActor(FOLLOW, d2x, d2y, dash2);
     if (FOLLOW.inv > 0) FOLLOW.inv -= dt;
     actorHazards(FOLLOW); actorPickups(FOLLOW);
   });
   if (p3) withWorld(LIMEY.lvl, () => {
-    moveActor(LIMEY, d3x, d3y, dash3);
+    if (!(towed[2] && tagAlong(LIMEY, 82))) moveActor(LIMEY, d3x, d3y, dash3);
     if (LIMEY.inv > 0) LIMEY.inv -= dt;
     actorHazards(LIMEY); actorPickups(LIMEY);
   });
-  /* and whoever is not being steered comes along behind Diction */
-  if (isCoop3()) {
-    [[FOLLOW, 1, d2x || d2y, 44], [LIMEY, 2, d3x || d3y, 82]].forEach(([A, slot, driven, back]) => {
-      if (A === LIMEY && !p3) return;
-      handsOff[slot] = driven ? 0 : handsOff[slot] + dt;
-      if (handsOff[slot] > HANDS_OFF) withWorld(A.lvl, () => tagAlong(A, back));
-    });
-  } else { handsOff = [0, 0, 0]; }
   const anyMoving = P.moving || FOLLOW.moving || (p3 && LIMEY.moving);
   if (anyMoving) { G.tutMove = (G.tutMove || 0) + 4; if (G.tutMove > 220) markTut('move'); }
   if (anyMoving && G.t - lastStep > 0.27) { lastStep = G.t; AudioSys.sfx('step'); }
@@ -16201,6 +16224,10 @@ window.DN = {
       x: (a.x - Math.round(v.camX)) * S + v.vpX, y: (a.y - upPx - Math.round(v.camY)) * S }];
   },
   boostAt(who) { return DN.screenOf(who === 2 ? FOLLOW : P, BOOST_UP); },
+  /* Where one of the family lands on the frame — asked with the actor itself,
+     so in a split screen it is their own pane and their own camera, not
+     player one's. */
+  slotScreen: (i, upPx) => DN.screenOf(SLOTS()[i] || P, upPx || 0),
   // and where a given prop is, so a test can look only at the patch it cares about
   decoAt(type, upPx) {
     const d = (G.level.decos || []).find(x => x.type === type);
@@ -16277,6 +16304,13 @@ window.DN = {
     return Object.keys(save.coinAt || {}).length; },
   // give the camera a knock, so a test can watch the frame move
   knock: (m) => { shake(m || 5); return G.shake; },
+  /* Everybody in the family, as the sprite code sees them: where they are,
+     whether the game calls them moving, and how far round their walk cycle
+     has turned. A stride that never turns is a slide. */
+  gait: () => SLOTS().map(a => ({ char: a.char, x: Math.round(a.x * 10) / 10, y: Math.round(a.y * 10) / 10,
+    moving: !!a.moving, walk: Math.round(a.walk * 1000) / 1000, facing: a.facing })),
+  // how long each player has had their hands off their own keys
+  idle: () => handsOff.slice(),
   // and how hard a loose thing at this spot is being pulled towards somebody
   magnetAt: (x, y) => { const m = magnetPull(x, y); return m ? { dx: Math.round(m.dx * 10) / 10, dy: Math.round(m.dy * 10) / 10 } : null; },
   // where the loose things in this land are, so a test can go and get one
