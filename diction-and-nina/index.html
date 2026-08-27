@@ -16,10 +16,13 @@ html,body {
   position:absolute; left:50%; top:50%;
   width:960px; height:540px;
   transform-origin:center center;
+  /* a page lying on a desk, not a hole cut in the dark */
+  border-radius:12px;
+  box-shadow:0 22px 64px rgba(0,0,0,.55), 0 2px 0 rgba(255,250,235,.09);
 }
-canvas#game { display:block; width:100%; height:100%; background:#9adcf0; border-radius:10px; image-rendering:pixelated; }
+canvas#game { display:block; width:100%; height:100%; background:#9adcf0; border-radius:12px; image-rendering:pixelated; }
 canvas#game.gl-on { background:transparent; }
-canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-radius:10px; image-rendering:pixelated; }
+canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-radius:12px; image-rendering:pixelated; }
 .hidden { display:none !important; }
 
 /* ------- HUD ------- */
@@ -49,9 +52,11 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
 }
 
 /* ------- Dialogue ------- */
+/* The things you read off come off the same press as the picture behind them:
+   the page's own grain, handed over at boot as --paper. */
 #dialogue {
   position:absolute; left:24px; right:24px; bottom:20px;
-  background:#fffcf2; border:4px solid #14110f; border-radius:16px;
+  background:#fffcf2 var(--paper, none) repeat; border:4px solid #14110f; border-radius:16px;
   padding:12px 16px; display:flex; gap:14px; align-items:flex-start;
   box-shadow:0 5px 0 rgba(0,0,0,.4); min-height:120px;
   cursor:pointer;
@@ -88,7 +93,7 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
   border-radius:10px;
 }
 #overlay-panel {
-  background:#fffcf2; border:4px solid #14110f; border-radius:18px;
+  background:#fffcf2 var(--paper, none) repeat; border:4px solid #14110f; border-radius:18px;
   padding:22px 26px; max-width:820px; width:86%; max-height:88%;
   overflow:auto; box-shadow:0 8px 0 rgba(0,0,0,.45); color:#14110f;
 }
@@ -182,6 +187,7 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
    see-through so the land carries on behind it. */
 #tc-rack {
   position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  transition:opacity .2s ease;
   display:flex; flex-direction:column; align-items:flex-start; gap:6px;
   /* only the buttons themselves catch a click — the gaps between them are
      still world you can tap to walk to */
@@ -217,6 +223,9 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
 .tc-p2 .tc-menu .tc-key { color:#a3186b; }
 .tc-p3 .tc-menu { background:rgba(255,241,224,.66); }
 .tc-p3 .tc-menu .tc-key { color:#a8620c; }
+/* somebody is standing behind it — get out of their light */
+#tc-rack.tc-shy { opacity:.26; }
+@media (prefers-reduced-motion: reduce) { #tc-rack { transition:none; } }
 
 .ic { width:1.05em; height:1.05em; vertical-align:-0.16em; display:inline-block; }
 
@@ -2657,7 +2666,33 @@ function drawNPCSprite(ctx, id, x, y, t, opts) {
       // stubby arms flail while hopping
       const fl = moving ? Math.sin(walk) * 6 : 0;
       limb(ctx, -10, -8, -14, -fl); limb(ctx, 10, -8, 14, fl);
-      shape(ctx, BODY, () => { ctx.beginPath(); ctx.arc(0, -22, 22, 0, Math.PI * 2); });
+      /* A blot of ink, not a hole punched in the page. He was a perfect
+         circle of flat black — the one shape spilled ink never makes, and the
+         only thing in the game with no light on it at all. So his edge wobbles
+         the way ink does when it settles, the paper drinks a little of him in
+         around it, and the wet of him catches the light. */
+      const blot = (rad) => {
+        ctx.beginPath();
+        for (let i = 0; i <= 44; i++) {
+          const a = i / 44 * Math.PI * 2;
+          const w = 1 + Math.sin(a * 3 + 0.7) * 0.055 + Math.sin(a * 5 - 1.9) * 0.038
+            + Math.sin(a * 7 + 2.6) * 0.022;
+          const bx = Math.cos(a) * rad * w, by = -22 + Math.sin(a) * rad * w * 0.98;
+          if (i) ctx.lineTo(bx, by); else ctx.moveTo(bx, by);
+        }
+        ctx.closePath();
+      };
+      ctx.save();
+      ctx.globalAlpha = 0.15; ctx.fillStyle = BODY;
+      blot(25.5); ctx.fill();                       // the bleed into the paper
+      ctx.restore();
+      shape(ctx, BODY, () => blot(22));
+      ctx.save();                                   // and the shine off wet ink
+      ctx.globalAlpha = 0.17; ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.ellipse(-7.5, -31, 7.4, 4.4, -0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.09;
+      ctx.beginPath(); ctx.ellipse(5, -13, 9.5, 4.6, 0.22, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
       const emS = opts && opts.emote;
       if (back) { /* turned away — no face on the back of a blot */ }
       else if (emS) emoteEyes(ctx, facing * 3, -24, 14, emS);
@@ -8177,7 +8212,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v117 · Nobody gets dragged along";
+const GAME_VERSION = "v118 · Printed on proper paper";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -14363,6 +14398,45 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2600);
 }
+/* The rack of buttons runs down the left of the picture, and the left of the
+   picture is somewhere you can walk. Stand there and you were reading yourself
+   through six panels of chrome. So when one of the family walks under it, the
+   rack steps back and lets them be seen — and comes forward again the moment
+   they are past. */
+const RACK_ROOM = 22;   // a body's width of margin around it
+/* Where the rack sits on the picture, in the picture's own pixels. Asked of
+   the frame rather than the stylesheet, because the whole game is scaled to
+   the window and the rack is centred with a transform — offsetTop knows about
+   neither. */
+function rackBox() {
+  const rack = document.getElementById('tc-rack');
+  if (!rack) return null;
+  const g = canvas.getBoundingClientRect();
+  if (!g.width) return null;
+  const r = rack.getBoundingClientRect();
+  const k = VW / g.width;
+  return { x: (r.left - g.left) * k, y: (r.top - g.top) * k, w: r.width * k, h: r.height * k };
+}
+function rackDodge() {
+  const rack = document.getElementById('tc-rack');
+  if (!rack) return;
+  let under = false;
+  const box = rackBox();
+  if (box && G.state === 'play' && showButtons && !rack.classList.contains('hidden')) {
+    const rx = box.x - RACK_ROOM, ry = box.y - RACK_ROOM;
+    const rw = box.w + RACK_ROOM * 2, rh = box.h + RACK_ROOM * 2;
+    for (const A of SLOTS()) {
+      if (A === LIMEY && !save.flags.limeyJoined) continue;
+      const spots = DN.screenOf(A, 0) || [];
+      for (const at of spots) {
+        // their feet are the anchor; a head reaches about sixty up from them
+        if (at.x > rx && at.x < rx + rw && at.y > ry - 60 && at.y < ry + rh) { under = true; break; }
+      }
+      if (under) break;
+    }
+  }
+  rack.classList.toggle('tc-shy', under);
+}
 function updateHint() {
   const el = document.getElementById('hud-hint');
   const objEl = document.getElementById('hud-objective');
@@ -14976,6 +15050,87 @@ function paintAtmosphere(c2, W, H) {
   }));
   c2.drawImage(vignette(), 0, 0, W, H);
   restWash(c2, W, H);
+}
+
+/* ---------------- the sheet it is all printed on ----------------
+   The ground was laid on paper and drawn in ink, and then the picture stopped
+   there. The sky above it, the air between the trees, the people standing in
+   it were all perfectly smooth — which is the one thing paper never is. So the
+   sheet goes over the whole frame instead: the grain of the stock, a few long
+   fibres caught in it, and the soft edge where a printed picture gives way to
+   the margin of the page. Fixed to the screen, not to the world, because the
+   page does not move — the picture on it does.
+
+   It goes on last of all, over both views, so the round world and the flat one
+   come off the same press. */
+let sheetCache = null;
+function pageSheet(W, H) {
+  if (sheetCache && sheetCache.width === W && sheetCache.height === H) return sheetCache;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c2 = cv.getContext('2d');
+  const pat = paperPattern(c2);
+  // the tooth of the stock, not television static: the same grain the ground
+  // is laid on, at a little over half strength so it reads as paper
+  if (pat) { c2.save(); c2.globalAlpha = 0.55; c2.fillStyle = pat; c2.fillRect(0, 0, W, H); c2.restore(); }
+  // a few long fibres, the way a sheet of cartridge paper has
+  let s = 7717;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  c2.lineCap = 'round';
+  for (let i = 0; i < 34; i++) {
+    const x = rnd() * W, y = rnd() * H, a = (rnd() - 0.5) * 0.8, len = 16 + rnd() * 52;
+    c2.strokeStyle = `rgba(${PAPER_INK},${(0.028 + rnd() * 0.04).toFixed(3)})`;
+    c2.lineWidth = 0.7 + rnd() * 0.9;
+    c2.beginPath(); c2.moveTo(x, y); c2.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); c2.stroke();
+  }
+  // the margin: a printed picture soaks away at the edge of its page
+  const M = Math.round(Math.min(W, H) * 0.055);
+  const band = (x, y, w, h, gx0, gy0, gx1, gy1) => {
+    const g = c2.createLinearGradient(gx0, gy0, gx1, gy1);
+    g.addColorStop(0, 'rgba(46,28,16,.20)');
+    g.addColorStop(0.42, 'rgba(46,28,16,.06)');
+    g.addColorStop(1, 'rgba(46,28,16,0)');
+    c2.fillStyle = g; c2.fillRect(x, y, w, h);
+  };
+  band(0, 0, W, M, 0, 0, 0, M);
+  band(0, H - M, W, M, 0, H, 0, H - M);
+  band(0, 0, M, H, 0, 0, M, 0);
+  band(W - M, 0, M, H, W, 0, W - M, 0);
+  sheetCache = cv;
+  return cv;
+}
+/* And the same stock for the things you read off. The dialogue box and the
+   panels were flat white rectangles laid over a world printed on paper, which
+   made them look like a browser had wandered into a picture book. This hands
+   the page's own grain to the stylesheet, so the words come off the same
+   press as the picture behind them. */
+function paperTileURI() {
+  const n = 128;
+  const cv = document.createElement('canvas');
+  cv.width = n; cv.height = n;
+  const c2 = cv.getContext('2d');
+  c2.fillStyle = '#fffcf2'; c2.fillRect(0, 0, n, n);
+  const pat = paperPattern(c2);
+  if (pat) { c2.save(); c2.globalAlpha = 0.5; c2.fillStyle = pat; c2.fillRect(0, 0, n, n); c2.restore(); }
+  let s2 = 41213;
+  const rnd = () => ((s2 = (s2 * 1664525 + 1013904223) >>> 0) / 4294967296);
+  c2.lineCap = 'round';
+  for (let i = 0; i < 7; i++) {                    // a fibre or two in the sheet
+    const x = rnd() * n, y = rnd() * n, a = (rnd() - 0.5) * 0.9, len = 10 + rnd() * 26;
+    c2.strokeStyle = `rgba(${PAPER_INK},${(0.03 + rnd() * 0.035).toFixed(3)})`;
+    c2.lineWidth = 0.7;
+    c2.beginPath(); c2.moveTo(x, y); c2.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); c2.stroke();
+  }
+  try { return cv.toDataURL('image/png'); } catch (e) { return null; }
+}
+function dressThePage() {
+  const uri = paperTileURI();
+  if (uri) document.documentElement.style.setProperty('--paper', `url(${uri})`);
+}
+let pageOff = false;   // test seam: the frame with no sheet over it
+function pagePass(c2, W, H) {
+  if (pageOff) return;
+  c2.drawImage(pageSheet(W, H), 0, 0, W, H);
 }
 
 let vignetteCache = null;
@@ -16041,11 +16196,12 @@ function frameInner(ts) {
   if (G.state === 'title') {
     setGL(false);
     renderTitle();
+    pagePass(ctx, VW, VH);
   } else if (G.state === 'movie' && G.movie) {
     setGL(false);
     if (!G.movieHold) G.movie.t += dt;
     if (G.movie.t >= G.movie.def.dur) endMovie();
-    else renderMovie();
+    else { renderMovie(); pagePass(ctx, VW, VH); }
   } else {
     if (G.state === 'play' && isGuest()) {
       // a visitor only walks; the host's game owns everything else
@@ -16120,10 +16276,12 @@ function frameInner(ts) {
       setGL(false);
       render();
     }
+    pagePass(ctx, VW, VH);   // and the whole of it is printed on one sheet
     netPump(overlayOpen() || dlgActive() || cardViewOpen());
     pumpCardQueue();
     drawCardOverlay(dt);   // straight onto the visible canvas, so it stays crisp
     dlgTick();
+    rackDodge();
     updateHint();
     updateTutorialBanner();
   }
@@ -16228,6 +16386,80 @@ window.DN = {
      so in a split screen it is their own pane and their own camera, not
      player one's. */
   slotScreen: (i, upPx) => DN.screenOf(SLOTS()[i] || P, upPx || 0),
+  /* What is actually on the frame the player is looking at — the visible
+     canvas, sheet and all, not the buffer underneath it. How many different
+     shades a patch is made of, and how far they wander from the average. Paper
+     has grain; a flat fill does not. */
+  framePaper(x, y, w, h) {
+    let d;
+    try { d = ctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
+    const seen = {};
+    let n = 0, sum = 0, sq = 0, lo = 1e9, hi = -1e9;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 8) continue;
+      seen[d[i] + ',' + d[i + 1] + ',' + d[i + 2]] = 1;
+      const v = (d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11);
+      n++; sum += v; sq += v * v;
+      if (v < lo) lo = v; if (v > hi) hi = v;
+    }
+    if (!n) return null;
+    const mean = sum / n;
+    return { distinct: Object.keys(seen).length, n,
+      mean: Math.round(mean * 100) / 100,
+      lo: Math.round(lo * 10) / 10, hi: Math.round(hi * 10) / 10,
+      sd: Math.round(Math.sqrt(Math.max(0, sq / n - mean * mean)) * 100) / 100 };
+  },
+  // test seam: the same frame with no sheet laid over it
+  sheet(on) { pageOff = on === false; sheetCache = null; return !pageOff; },
+  /* And the sheet itself, where it is drawn rather than where it lands. The
+     round view paints onto a clear canvas over the 3D world, so a mean read
+     back off the frame there is a mean of whatever happens to be opaque —
+     this asks the paper directly. Returns how much of the window the sheet
+     covers, on average, out of one. */
+  sheetInk(x, y, w, h) {
+    const cv = pageSheet(VW, VH);
+    let d;
+    try { d = cv.getContext('2d').getImageData(x, y, w, h).data; } catch (e) { return null; }
+    let a = 0;
+    for (let i = 3; i < d.length; i += 4) a += d[i];
+    return Math.round((a / (d.length / 4) / 255) * 10000) / 10000;
+  },
+  // and whether the rack of buttons has stepped out of somebody's way
+  rack() { const r = document.getElementById('tc-rack');
+    if (!r) return null;
+    return Object.assign({ shy: r.classList.contains('tc-shy'),
+      opacity: +getComputedStyle(r).opacity }, rackBox() || {}); },
+  // where Scribble is on the frame, so a test can look at the shape of him
+  scribAt: (upPx) => DN.screenOf(SCRIB, upPx || 0),
+  /* The outline of something dark on the page, measured from its middle
+     outwards: how far the dark reaches at a ring of angles, and what shade the
+     paper is just past it. A hole punched in the page stops dead at its edge;
+     ink soaks in. */
+  silhouette(cx, cy, maxR, n, past) {
+    const R = Math.round(maxR);
+    let d;
+    try { d = ctx.getImageData(Math.round(cx) - R, Math.round(cy) - R, R * 2, R * 2).data; } catch (e) { return null; }
+    const at = (x, y) => {
+      const px2 = x + R, py2 = y + R;
+      if (px2 < 0 || py2 < 0 || px2 >= R * 2 || py2 >= R * 2) return null;
+      const i = (py2 * R * 2 + px2) * 4;
+      if (d[i + 3] < 40) return null;
+      return d[i] * 0.3 + d[i + 1] * 0.59 + d[i + 2] * 0.11;
+    };
+    const edge = [], beyond = [];
+    for (let k = 0; k < n; k++) {
+      const a = k / n * Math.PI * 2, cs = Math.cos(a), sn = Math.sin(a);
+      let last = 0;
+      for (let r = 2; r < R; r++) {
+        const v = at(Math.round(cs * r), Math.round(sn * r));
+        if (v !== null && v < 96) last = r;
+      }
+      edge.push(last);
+      const v2 = at(Math.round(cs * (last + (past || 4))), Math.round(sn * (last + (past || 4))));
+      beyond.push(v2 === null ? -1 : Math.round(v2 * 10) / 10);
+    }
+    return { edge, beyond };
+  },
   // and where a given prop is, so a test can look only at the patch it cares about
   decoAt(type, upPx) {
     const d = (G.level.decos || []).find(x => x.type === type);
@@ -16632,6 +16864,7 @@ document.querySelectorAll('[data-ic]').forEach(el => {
 document.querySelectorAll('#hud .hud-chip, #touch .tc-btn').forEach(el => {
   if (!el.querySelector('canvas')) el.innerHTML = iconize(el.innerHTML);
 });
+dressThePage();   // the stylesheet gets the page's own grain
 save = loadSave() || freshSave();
 rebuildKeymap();   // whatever this save's players chose to drive with
 buildControls();
