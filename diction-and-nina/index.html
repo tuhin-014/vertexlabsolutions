@@ -8298,7 +8298,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v121 · Scribble as he was";
+const GAME_VERSION = "v122 · Nobody reels you in";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9383,15 +9383,26 @@ let trailN = [], trailL = []; // Nina's footsteps (Limey follows), Limey's (Scri
 let trailP = [];
 /* Diction's own footsteps, whichever slot he is standing in. */
 function trailD() { return trailP; }
-function updateScribble() {
-  if (!save.flags.scribbleFriend) return;
-  if (riseWalk(SCRIB) || bedWalk(SCRIB) || seatWalk(SCRIB)) return;
+/* Where Diction has walked. Two things follow him down it — Scribble, once he
+   is a friend, and in three-player whichever of the family nobody is steering
+   — and it used to be written down inside Scribble's own update, behind the
+   line that returns early until you have befriended him. So in every save
+   before that meeting the trail did not exist: the tag-along had no path to
+   walk down, fell back every single frame, and the two nobody was driving set
+   off at Diction instead of falling in behind him. It belongs to the game, not
+   to Scribble. */
+function markTrail() {
   const dic = actorOf('diction');
   const last = trailP[trailP.length - 1];
   if (!last || Math.hypot(dic.x - last.x, dic.y - last.y) > 2) {
     trailP.push({ x: dic.x, y: dic.y });
     if (trailP.length > 90) trailP.shift();
   }
+}
+function updateScribble() {
+  if (!save.flags.scribbleFriend) return;
+  if (riseWalk(SCRIB) || bedWalk(SCRIB) || seatWalk(SCRIB)) return;
+  const dic = actorOf('diction');
   /* Normally Scribble brings up the rear of the line: Nina behind Diction,
      Limey behind Nina, Scribble behind Limey. With three players there is no
      line — everybody has a driver and they go where they like — so the one
@@ -9554,19 +9565,21 @@ function tagAlong(A, back) {
   const dic = actorOf('diction');
   if (A === dic || A.lvl !== dic.lvl) return false;
   if (A.inBed || A.bed || A.sitting) return false;   // asleep or sat down; leave them be
-  /* Where to stand when there is no trail to walk down — which is how every
-     land starts and how every warp leaves things. It used to fall back to
-     Diction himself, so a character nobody was steering set off across the
-     square with nobody touching a key and pulled up against him: the one
-     follower in the game whose fallback was somebody else's feet rather than
-     its own. Stand off behind him instead, and if there is no room back there,
-     stay where you are. */
-  const f = dic.facing || 1;
-  const spot = boxBlocked(dic.x - f * back, dic.y) ? { x: A.x, y: A.y }
-    : { x: dic.x - f * back, y: dic.y };
-  const target = trailPointBack(trailP, back, spot);
+  /* With no trail to walk down there is nothing to follow, so stand where you
+     are. It used to fall back to Diction himself, and a character nobody was
+     steering would set off across the square with nobody touching a key and
+     pull up against him. Standing off behind him instead was no better: behind
+     is measured from the way he happens to be facing, so half the time the
+     spot was on the far side of him and they walked through him to reach it. */
+  const target = trailPointBack(trailP, back, { x: A.x, y: A.y });
   const dx = target.x - A.x, dy = target.y - A.y, d = Math.hypot(dx, dy);
-  const room = Math.max(0, Math.hypot(dic.x - A.x, dic.y - A.y) - 30);
+  /* Never closer than where they belong. The spot `back` along the trail is
+     back in *time*, not in space — so if Diction has walked past somebody, the
+     place they are meant to fall in behind him is on the far side of him, and
+     they would set off through him to reach it. Somebody already standing a
+     walking distance away is where they should be: the tow is for closing a
+     gap that has grown too big, and never for pulling anybody in. */
+  const room = Math.max(0, Math.hypot(dic.x - A.x, dic.y - A.y) - back);
   const step = followStep(A, d, room);
   A.moving = step > 0.4;
   if (!A.moving) { A.walk = 0; return true; }
@@ -16436,6 +16449,7 @@ function frameInner(ts) {
       withWorld(SCRIB.lvl, () => updateScribble());
       // every land with somebody in it keeps living
       updateDetector(dt);
+      withWorld(actorOf('diction').lvl, () => markTrail());   // the path the family walks down
       livenUp(dt);          // where everybody is looking, and how they lean
       activeWorlds().forEach(id => withWorld(id, () => {
         updateNPCs(dt);
@@ -16653,6 +16667,7 @@ window.DN = {
       opacity: +getComputedStyle(r).opacity }, rackBox() || {}); },
   /* What each of the family is attending to and how far over they are
      leaning, as the art layer is about to read it. */
+  trail: () => trailP.length,
   liveliness: () => SLOTS().map(A => ({ char: A.char, moving: !!A.moving, facing: A.facing,
     look: A.look ? { x: Math.round(A.look.x * 1000) / 1000, y: Math.round(A.look.y * 1000) / 1000 } : null,
     lean: Math.round((A.lean || 0) * 10000) / 10000 })),
