@@ -1646,7 +1646,7 @@ const SKINS = {
   ],
   // unlocked in the shop & wardrobe only after Scribble becomes your friend
   scribble: [
-    { id: 'classic', name: 'Classic Ink', price: 0, k: '#262626' },
+    { id: 'classic', name: 'Classic Ink', price: 0, k: '#3a3550' },
     { id: 'blueberry', name: 'Blueberry Ink', price: 15, k: '#2b3f8f' },
     { id: 'plum', name: 'Plum Splat', price: 15, k: '#6a2f8f' },
     { id: 'seaweed', name: 'Seaweed Squiggle', price: 20, k: '#1f5c40' },
@@ -2454,7 +2454,7 @@ function drawFamilyPhoto(ctx, w, h, t) {
    drawn with, because it suits them and it was asked for: Limey is the little
    one and bounces along after his brother and sister, and Scribble is a blob
    of ink with no legs to take turns with in the first place. */
-const HOPPERS = ['limey', 'scribble'];
+const HOPPERS = ['limey'];
 function drawNPCSprite(ctx, id, x, y, t, opts) {
   const em = (opts && opts.emote) || null;   // the mood everybody's face is in
   looking(opts && opts.look);                // and where they are attending
@@ -2738,61 +2738,69 @@ function drawNPCSprite(ctx, id, x, y, t, opts) {
       break;
     }
     case 'scribble': {
-      // simple round ink creature — dark eyes, no whites, no shine
-      const BODY = (opts && opts.skin && opts.skin.k) || '#262626';
-      const moving = !!(opts && opts.moving);
-      const walk = (opts && opts.walk) || 0;
-      const facing = (opts && opts.facing) || 1;
-      const back = !!(opts && opts.back);
-      // moving: bouncy ink hop with squash-and-stretch; idle: gentle breathing
-      const sitS = !!(opts && opts.sit);
-      const hop = moving ? Math.abs(Math.sin(walk)) * 8 : 0;
-      const squish = (moving ? 1 + Math.cos(walk * 2) * 0.14 : 1 + Math.sin(t * 3) * 0.05)
-        * (sitS ? 0.9 : 1);          // an ink blob sits by settling wider and lower
-      const lean = moving ? facing * Math.sin(walk) * 0.1 : 0;
-      // ground shadow shrinks as he hops
-      softShadow(ctx, 0, 2, (16 - hop * 0.5) * 1.25, (5 - hop * 0.2) * 1.25);
-      ctx.translate(0, -hop);
-      ctx.rotate(lean);
-      ctx.scale(1 / Math.sqrt(squish), squish);
-      oval(ctx, -22, -8, 5, 7, BODY); oval(ctx, 22, -12, 4, 6, BODY);
-      oval(ctx, -14, -40, 4, 5, BODY); oval(ctx, 16, -38, 5, 6, BODY);
-      oval(ctx, 0, 2, 6, 4, BODY);
-      // stubby arms flail while hopping
-      const fl = moving ? Math.sin(walk) * 6 : 0;
-      limb(ctx, -10, -8, -14, -fl); limb(ctx, 10, -8, 14, fl);
-      /* A blot of ink, not a hole punched in the page. He was a perfect
-         circle of flat black — the one shape spilled ink never makes, and the
-         only thing in the game with no light on it at all. So his edge wobbles
-         the way ink does when it settles, the paper drinks a little of him in
-         around it, and the wet of him catches the light. */
-      const blot = (rad) => {
+      /* A little ink creature, built the way everybody else in this game is
+         built. He used to be one round blot of near-black with two dots in it
+         and four stubs round the edge — at a glance a hole in the page rather
+         than somebody standing on it. So: legs that walk, a body, arms that
+         swing against them, and a head with a face you can read, in an ink
+         dark enough to still be ink and light enough to see him by. The two
+         things worth keeping are the scribbled edge, so he is drawn rather
+         than stamped, and the curl of pen coming off the top of his head. */
+      const BODY = (opts && opts.skin && opts.skin.k) || '#3a3550';
+      const scF = (opts && opts.facing) || 1;
+      const scBack = !!(opts && opts.back);
+      const HEADY = -50, HR = 15;
+      // his outline wanders the way a line of ink does, rather than a compass
+      const blot = (rad, cy, wob) => {
         ctx.beginPath();
-        for (let i = 0; i <= 44; i++) {
-          const a = i / 44 * Math.PI * 2;
-          const w = 1 + Math.sin(a * 3 + 0.7) * 0.055 + Math.sin(a * 5 - 1.9) * 0.038
-            + Math.sin(a * 7 + 2.6) * 0.022;
-          const bx = Math.cos(a) * rad * w, by = -22 + Math.sin(a) * rad * w * 0.98;
-          if (i) ctx.lineTo(bx, by); else ctx.moveTo(bx, by);
+        for (let i2 = 0; i2 <= 40; i2++) {
+          const a = i2 / 40 * Math.PI * 2;
+          const w = 1 + Math.sin(a * 3 + 0.7) * (wob || 0.05) + Math.sin(a * 5 - 1.9) * (wob || 0.05) * 0.6;
+          const bx = Math.cos(a) * rad * w, by = cy + Math.sin(a) * rad * w * 0.95;
+          if (i2) ctx.lineTo(bx, by); else ctx.moveTo(bx, by);
         }
         ctx.closePath();
       };
+      walkLeg(ctx, g, -1, -5, -14, 4.5); walkLeg(ctx, g, 1, 5, -14, 4.5);
+      walkArm(ctx, g, -1, -9, -28, -14, -18, 4);
+      walkArm(ctx, g, 1, 9, -28, 14, -18, 4);
+      shape(ctx, BODY, () => rr(ctx, -10, -34 + g.bob, 20, 21, 8));
+      // the paper drinks a little of him in around the head
       ctx.save();
-      ctx.globalAlpha = 0.15; ctx.fillStyle = BODY;
-      blot(25.5); ctx.fill();                       // the bleed into the paper
+      ctx.globalAlpha = 0.13; ctx.fillStyle = BODY;
+      blot(HR + 3.5, HEADY + g.bob); ctx.fill();
       ctx.restore();
-      shape(ctx, BODY, () => blot(22));
-      ctx.save();                                   // and the shine off wet ink
-      ctx.globalAlpha = 0.17; ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.ellipse(-7.5, -31, 7.4, 4.4, -0.5, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.09;
-      ctx.beginPath(); ctx.ellipse(5, -13, 9.5, 4.6, 0.22, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-      const emS = opts && opts.emote;
-      if (back) { /* turned away — no face on the back of a blot */ }
-      else if (emS) emoteEyes(ctx, facing * 3, -24, 14, emS);
-      else eyes(ctx, facing * 3, -24, 14, 3.6, 6, INK);
-      if (opts && opts.hat) drawHat(ctx, opts.hat, 0, -43);
+      shape(ctx, BODY, () => blot(HR, HEADY + g.bob));
+      // the pen that drew him, still curling off the top
+      px(ctx); ctx.strokeStyle = BODY; ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-1, HEADY - HR + 2 + g.bob);
+      ctx.bezierCurveTo(-2, HEADY - HR - 9 + g.bob, 9, HEADY - HR - 10 + g.bob, 7, HEADY - HR - 2 + g.bob);
+      ctx.stroke();
+      ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(-1, HEADY - HR + 2 + g.bob);
+      ctx.bezierCurveTo(-2, HEADY - HR - 9 + g.bob, 9, HEADY - HR - 10 + g.bob, 7, HEADY - HR - 2 + g.bob);
+      ctx.stroke();
+      if (!scBack) {
+        const fy = HEADY + g.bob, cxE = scF * 2;
+        if (em) {
+          emoteEyes(ctx, cxE, fy - 2, 13, em, '#fdf6e3', 4.6);
+        } else {
+          // eyes you can see on a dark face: a light of his own, with the ink
+          // of him for a pupil, and the pupil goes where he is looking
+          [-1, 1].forEach((sd) => {
+            const ex = cxE + sd * 6.5;
+            oval(ctx, ex, fy - 2, 4.4, 5.6, '#fdf6e3');
+            oval(ctx, ex + LOOK.x * 2.1, fy - 2 + LOOK.y * 1.9, 2.5, 3.2, INK);
+            oval(ctx, ex + LOOK.x * 2.1 - 0.9, fy - 4.4 + LOOK.y * 1.9, 0.9, 1.1, '#fdf6e3');
+          });
+          // and a small pleased mouth
+          ctx.strokeStyle = '#fdf6e3'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+          ctx.beginPath(); ctx.arc(cxE, fy + 5, 4.2, 0.35, Math.PI - 0.35); ctx.stroke();
+        }
+      }
+      if (opts && opts.hat) drawHat(ctx, opts.hat, 0, HEADY - HR - 1 + g.bob);
       break;
     }
   }
@@ -7428,8 +7436,13 @@ window.R3Factory = function (env) {
     const sv = getSave();
     const ud = grp.userData;
     const cat = catInArms && catInArms(actor);
-    // a purring cat keeps moving even when the person holding her does not
-    const key2 = actor.moving || emote || cat ? G.t : (G.t * 10 | 0);
+    /* Their sheets used to be repainted ten times a second while they stood
+       about, which is what you get away with when standing about means a
+       breath in and out — and not once they blink, glance at what you are
+       doing and turn their eyes to follow it. The people you are watching are
+       repainted every frame; the villagers in the background, of whom there
+       can be a dozen, keep a rate of their own below. */
+    const key2 = G.t;
     /* In bed they are lying down, so they are neither sitting nor standing:
        the art is drawn upright and the whole cutout is turned onto its back. */
     const abed = !!actor.inBed;
@@ -7461,8 +7474,9 @@ window.R3Factory = function (env) {
     const abed2 = !!(anim && anim.inBed);
     layDown(s, abed2);
     s.position.set(U(x), abed2 ? BLANKET_TOP : 0, U(y));
-    // a purring cat keeps moving even when the person holding her does not
-    const key2 = (anim && (anim.moving || anim.bored || anim.emote || anim.hold)) ? t : (t * 10 | 0);
+    // repainted every frame like the rest of the family — they breathe, blink
+    // and look about whether they are walking or not
+    const key2 = t;
     const sit2 = !!(anim && anim.sit) && !abed2;
     const hold2 = !!(anim && anim.hold);
     if (s.userData.lastAbed !== abed2) { s.userData.lastAbed = abed2; s.userData.lastKey = null; }
@@ -7516,12 +7530,17 @@ window.R3Factory = function (env) {
     return pt ? [pt.x * TILE, pt.z * TILE] : [P.x, P.y];
   };
 
+  const NPC_FPS = 24;
   function updateCamera(cam, actor, aspect) {
     cam.aspect = aspect; cam.updateProjectionMatrix();
     const tx = U(actor.x), tz = U(actor.y);
     const off = R.camOff || { h: 4.6, b: 5.4 };
     const want = new THREE.Vector3(tx, off.h, tz + off.b);
-    cam.position.lerp(want, 0.12);
+    /* A flat tenth of the way there each frame is a different speed on every
+       frame, since no two frames are the same length — so the camera crept on
+       the short ones and lurched on the long ones while the person it follows
+       walked perfectly evenly. Same easing, expressed per second. */
+    cam.position.lerp(want, 1 - Math.pow(1 - 0.12, Math.max(0, G.dt) * 60));
     cam.lookAt(cam.position.x, 0.5, cam.position.z - 5.2);
   }
 
@@ -7669,8 +7688,11 @@ window.R3Factory = function (env) {
       a.needsUpdate = true;
     }
     // cutouts follow their wandering actors; walkers repaint every frame
-    const npcTick = (G.t * 8 | 0) !== (L.npcT | 0);
-    if (npcTick) L.npcT = G.t * 8 | 0;
+    // the background villagers: often a dozen of them, so they get a rate of
+    // their own — fast enough that a glance reads as a glance, cheap enough
+    // that a square full of people still runs
+    const npcTick = (G.t * NPC_FPS | 0) !== (L.npcT | 0);
+    if (npcTick) L.npcT = G.t * NPC_FPS | 0;
     for (const id in L.npcs) {
       const fig = L.npcs[id];
       const a = npcAnim ? npcAnim(id) : null;
@@ -8310,11 +8332,12 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v119 · They look at things now";
+const GAME_VERSION = "v120 · Smoother, and Scribble grew arms";
 
 /* ---------------- state ---------------- */
 const G = {
   state: 'title',            // title | play | cutscene
+  dt: 1 / 60,                // how long the frame being drawn is, in seconds
   levelId: null, level: null, grid: null, W: 0, H: 0,
   billboards: [],            // static y-sorted sprites from tiles
   treeBillboard: new Set(),  // 'c,r' keys of trees drawn as billboards
@@ -8380,8 +8403,22 @@ function trailPointBack(trail, dist, fallback) {
   }
   return trail[0];
 }
+/* ---- easing that does not depend on how fast the machine is --------------
+   Every easing in the game moved a fixed fraction of the way each frame — a
+   camera a tenth of the way to where it should be, a follower a third of the
+   way up to speed. That is a different speed on every machine, and worse, a
+   different speed on every *frame* of the same machine: frames are never
+   exactly the same length, so a camera easing by a flat tenth of the gap
+   travels a little further on a long frame than a short one, and the picture
+   judders even while the thing it is following moves perfectly evenly.
+
+   This is the same easing expressed per second instead. At sixty frames a
+   second it is exactly the old number, so nothing about the feel changes;
+   anywhere else — and on every long frame — it is now the same motion in the
+   same time. */
+function ease(k, dt) { return 1 - Math.pow(1 - k, Math.max(0, dt === undefined ? G.dt : dt) * 60); }
 function easedStep(A, want) { // ease speed changes so the walk cycle stays even
-  A.spd = (A.spd || 0) + (want - (A.spd || 0)) * 0.3;
+  A.spd = (A.spd || 0) + (want - (A.spd || 0)) * ease(0.3);
   if (A.spd < 0.05) A.spd = 0;
   return A.spd;
 }
@@ -8447,7 +8484,7 @@ function updateFollower() {
     if (!boxBlocked(nx, FOLLOW.y)) { FOLLOW.x = nx; moved = true; }
     if (!boxBlocked(FOLLOW.x, ny)) { FOLLOW.y = ny; moved = true; }
     // wedged on a corner: after a moment, poof onto the walked path
-    FOLLOW.stuckT = moved ? 0 : (FOLLOW.stuckT || 0) + 1 / 60;
+    FOLLOW.stuckT = moved ? 0 : (FOLLOW.stuckT || 0) + G.dt;
     if (FOLLOW.stuckT > 0.5) {
       poof(FOLLOW.x, FOLLOW.y - 16, '#cfd6dd', 6);
       if (!boxBlocked(target.x, target.y)) { FOLLOW.x = target.x; FOLLOW.y = target.y; }
@@ -9418,7 +9455,7 @@ function updateScribble() {
     let movedS = false;
     if (!boxBlocked(nx, SCRIB.y)) { SCRIB.x = nx; movedS = true; }
     if (!boxBlocked(SCRIB.x, ny)) { SCRIB.y = ny; movedS = true; }
-    SCRIB.stuckT = movedS ? 0 : (SCRIB.stuckT || 0) + 1 / 60;
+    SCRIB.stuckT = movedS ? 0 : (SCRIB.stuckT || 0) + G.dt;
     if (SCRIB.stuckT > 0.5) {
       poof(SCRIB.x, SCRIB.y - 14, '#3a3a3a', 6);
       if (!boxBlocked(target.x, target.y)) { SCRIB.x = target.x; SCRIB.y = target.y; }
@@ -9511,7 +9548,7 @@ function updateLimey(dt) {
     let moved = false;
     if (!boxBlocked(nx, LIMEY.y)) { LIMEY.x = nx; moved = true; }
     if (!boxBlocked(LIMEY.x, ny)) { LIMEY.y = ny; moved = true; }
-    LIMEY.stuckT = moved ? 0 : (LIMEY.stuckT || 0) + 1 / 60;
+    LIMEY.stuckT = moved ? 0 : (LIMEY.stuckT || 0) + G.dt;
     if (LIMEY.stuckT > 0.5) {
       poof(LIMEY.x, LIMEY.y - 14, '#f28a1c', 6);
       if (!boxBlocked(target.x, target.y)) { LIMEY.x = target.x; LIMEY.y = target.y; }
@@ -9551,7 +9588,17 @@ function tagAlong(A, back) {
   const dic = actorOf('diction');
   if (A === dic || A.lvl !== dic.lvl) return false;
   if (A.inBed || A.bed || A.sitting) return false;   // asleep or sat down; leave them be
-  const target = trailPointBack(trailP, back, { x: dic.x, y: dic.y });
+  /* Where to stand when there is no trail to walk down — which is how every
+     land starts and how every warp leaves things. It used to fall back to
+     Diction himself, so a character nobody was steering set off across the
+     square with nobody touching a key and pulled up against him: the one
+     follower in the game whose fallback was somebody else's feet rather than
+     its own. Stand off behind him instead, and if there is no room back there,
+     stay where you are. */
+  const f = dic.facing || 1;
+  const spot = boxBlocked(dic.x - f * back, dic.y) ? { x: A.x, y: A.y }
+    : { x: dic.x - f * back, y: dic.y };
+  const target = trailPointBack(trailP, back, spot);
   const dx = target.x - A.x, dy = target.y - A.y, d = Math.hypot(dx, dy);
   const room = Math.max(0, Math.hypot(dic.x - A.x, dic.y - A.y) - 30);
   const step = followStep(A, d, room);
@@ -16389,6 +16436,7 @@ function frameInner(ts) {
   const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
   lastTs = ts;
   G.t += dt;
+  G.dt = dt;   // how long this frame was, for everything that eases
 
   pollPads();
   /* Stand aside for anything the player is reading or choosing from. The rack
@@ -16450,19 +16498,20 @@ function frameInner(ts) {
     const vw = isCoop3() ? (BUF_W / 3) / S : isCoop() ? (BUF_W / 2) / S : VIEW_W;
     const t1x = clampAxis(P.x - vw / 2, G.W * TILE, vw);
     const t1y = clampAxis(P.y - VIEW_H / 2 - 20, G.H * TILE, VIEW_H);
-    G.camX += (t1x - G.camX) * 0.12;
-    G.camY += (t1y - G.camY) * 0.12;
+    const camK = ease(0.12, dt);
+    G.camX += (t1x - G.camX) * camK;
+    G.camY += (t1y - G.camY) * camK;
     if (isCoop()) {
       const t2x = clampAxis(FOLLOW.x - vw / 2, G.W * TILE, vw);
       const t2y = clampAxis(FOLLOW.y - VIEW_H / 2 - 20, G.H * TILE, VIEW_H);
-      G.cam2X += (t2x - G.cam2X) * 0.12;
-      G.cam2Y += (t2y - G.cam2Y) * 0.12;
+      G.cam2X += (t2x - G.cam2X) * camK;
+      G.cam2Y += (t2y - G.cam2Y) * camK;
     }
     if (isCoop3()) {
       const t3x = clampAxis(LIMEY.x - vw / 2, G.W * TILE, vw);
       const t3y = clampAxis(LIMEY.y - VIEW_H / 2 - 20, G.H * TILE, VIEW_H);
-      G.cam3X += (t3x - G.cam3X) * 0.12;
-      G.cam3Y += (t3y - G.cam3Y) * 0.12;
+      G.cam3X += (t3x - G.cam3X) * camK;
+      G.cam3Y += (t3y - G.cam3Y) * camK;
     }
     if (r3on()) {
       // 3D world below, transparent 2D canvas on top for DOM-free overlays
@@ -16641,6 +16690,9 @@ window.DN = {
   liveliness: () => SLOTS().map(A => ({ char: A.char, moving: !!A.moving, facing: A.facing,
     look: A.look ? { x: Math.round(A.look.x * 1000) / 1000, y: Math.round(A.look.y * 1000) / 1000 } : null,
     lean: Math.round((A.lean || 0) * 10000) / 10000 })),
+  // the easing curve itself, so a test can ask whether it depends on how fast
+  // the machine happens to be running
+  easeK: (k, dt) => ease(k, dt),
   // test seam: the whole cast with no light falling on them at all
   flatLight: (on) => setFlatLight(on),
   /* test seam: hold somebody's eyes where they are put, so the same face can
