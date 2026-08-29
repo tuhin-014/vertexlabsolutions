@@ -1646,7 +1646,7 @@ const SKINS = {
   ],
   // unlocked in the shop & wardrobe only after Scribble becomes your friend
   scribble: [
-    { id: 'classic', name: 'Classic Ink', price: 0, k: '#3a3550' },
+    { id: 'classic', name: 'Classic Ink', price: 0, k: '#262626' },
     { id: 'blueberry', name: 'Blueberry Ink', price: 15, k: '#2b3f8f' },
     { id: 'plum', name: 'Plum Splat', price: 15, k: '#6a2f8f' },
     { id: 'seaweed', name: 'Seaweed Squiggle', price: 20, k: '#1f5c40' },
@@ -2454,7 +2454,7 @@ function drawFamilyPhoto(ctx, w, h, t) {
    drawn with, because it suits them and it was asked for: Limey is the little
    one and bounces along after his brother and sister, and Scribble is a blob
    of ink with no legs to take turns with in the first place. */
-const HOPPERS = ['limey'];
+const HOPPERS = ['limey', 'scribble'];
 function drawNPCSprite(ctx, id, x, y, t, opts) {
   const em = (opts && opts.emote) || null;   // the mood everybody's face is in
   looking(opts && opts.look);                // and where they are attending
@@ -2738,69 +2738,35 @@ function drawNPCSprite(ctx, id, x, y, t, opts) {
       break;
     }
     case 'scribble': {
-      /* A little ink creature, built the way everybody else in this game is
-         built. He used to be one round blot of near-black with two dots in it
-         and four stubs round the edge — at a glance a hole in the page rather
-         than somebody standing on it. So: legs that walk, a body, arms that
-         swing against them, and a head with a face you can read, in an ink
-         dark enough to still be ink and light enough to see him by. The two
-         things worth keeping are the scribbled edge, so he is drawn rather
-         than stamped, and the curl of pen coming off the top of his head. */
-      const BODY = (opts && opts.skin && opts.skin.k) || '#3a3550';
-      const scF = (opts && opts.facing) || 1;
-      const scBack = !!(opts && opts.back);
-      const HEADY = -50, HR = 15;
-      // his outline wanders the way a line of ink does, rather than a compass
-      const blot = (rad, cy, wob) => {
-        ctx.beginPath();
-        for (let i2 = 0; i2 <= 40; i2++) {
-          const a = i2 / 40 * Math.PI * 2;
-          const w = 1 + Math.sin(a * 3 + 0.7) * (wob || 0.05) + Math.sin(a * 5 - 1.9) * (wob || 0.05) * 0.6;
-          const bx = Math.cos(a) * rad * w, by = cy + Math.sin(a) * rad * w * 0.95;
-          if (i2) ctx.lineTo(bx, by); else ctx.moveTo(bx, by);
-        }
-        ctx.closePath();
-      };
-      walkLeg(ctx, g, -1, -5, -14, 4.5); walkLeg(ctx, g, 1, 5, -14, 4.5);
-      walkArm(ctx, g, -1, -9, -28, -14, -18, 4);
-      walkArm(ctx, g, 1, 9, -28, 14, -18, 4);
-      shape(ctx, BODY, () => rr(ctx, -10, -34 + g.bob, 20, 21, 8));
-      // the paper drinks a little of him in around the head
-      ctx.save();
-      ctx.globalAlpha = 0.13; ctx.fillStyle = BODY;
-      blot(HR + 3.5, HEADY + g.bob); ctx.fill();
-      ctx.restore();
-      shape(ctx, BODY, () => blot(HR, HEADY + g.bob));
-      // the pen that drew him, still curling off the top
-      px(ctx); ctx.strokeStyle = BODY; ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(-1, HEADY - HR + 2 + g.bob);
-      ctx.bezierCurveTo(-2, HEADY - HR - 9 + g.bob, 9, HEADY - HR - 10 + g.bob, 7, HEADY - HR - 2 + g.bob);
-      ctx.stroke();
-      ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(-1, HEADY - HR + 2 + g.bob);
-      ctx.bezierCurveTo(-2, HEADY - HR - 9 + g.bob, 9, HEADY - HR - 10 + g.bob, 7, HEADY - HR - 2 + g.bob);
-      ctx.stroke();
-      if (!scBack) {
-        const fy = HEADY + g.bob, cxE = scF * 2;
-        if (em) {
-          emoteEyes(ctx, cxE, fy - 2, 13, em, '#fdf6e3', 4.6);
-        } else {
-          // eyes you can see on a dark face: a light of his own, with the ink
-          // of him for a pupil, and the pupil goes where he is looking
-          [-1, 1].forEach((sd) => {
-            const ex = cxE + sd * 6.5;
-            oval(ctx, ex, fy - 2, 4.4, 5.6, '#fdf6e3');
-            oval(ctx, ex + LOOK.x * 2.1, fy - 2 + LOOK.y * 1.9, 2.5, 3.2, INK);
-            oval(ctx, ex + LOOK.x * 2.1 - 0.9, fy - 4.4 + LOOK.y * 1.9, 0.9, 1.1, '#fdf6e3');
-          });
-          // and a small pleased mouth
-          ctx.strokeStyle = '#fdf6e3'; ctx.lineWidth = 2; ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.arc(cxE, fy + 5, 4.2, 0.35, Math.PI - 0.35); ctx.stroke();
-        }
-      }
-      if (opts && opts.hat) drawHat(ctx, opts.hat, 0, HEADY - HR - 1 + g.bob);
+      // simple round ink creature — dark eyes, no whites, no shine
+      const BODY = (opts && opts.skin && opts.skin.k) || '#262626';
+      const moving = !!(opts && opts.moving);
+      const walk = (opts && opts.walk) || 0;
+      const facing = (opts && opts.facing) || 1;
+      const back = !!(opts && opts.back);
+      // moving: bouncy ink hop with squash-and-stretch; idle: gentle breathing
+      const sitS = !!(opts && opts.sit);
+      const hop = moving ? Math.abs(Math.sin(walk)) * 8 : 0;
+      const squish = (moving ? 1 + Math.cos(walk * 2) * 0.14 : 1 + Math.sin(t * 3) * 0.05)
+        * (sitS ? 0.9 : 1);          // an ink blob sits by settling wider and lower
+      const lean = moving ? facing * Math.sin(walk) * 0.1 : 0;
+      // ground shadow shrinks as he hops
+      softShadow(ctx, 0, 2, (16 - hop * 0.5) * 1.25, (5 - hop * 0.2) * 1.25);
+      ctx.translate(0, -hop);
+      ctx.rotate(lean);
+      ctx.scale(1 / Math.sqrt(squish), squish);
+      oval(ctx, -22, -8, 5, 7, BODY); oval(ctx, 22, -12, 4, 6, BODY);
+      oval(ctx, -14, -40, 4, 5, BODY); oval(ctx, 16, -38, 5, 6, BODY);
+      oval(ctx, 0, 2, 6, 4, BODY);
+      // stubby arms flail while hopping
+      const fl = moving ? Math.sin(walk) * 6 : 0;
+      limb(ctx, -10, -8, -14, -fl); limb(ctx, 10, -8, 14, fl);
+      shape(ctx, BODY, () => { ctx.beginPath(); ctx.arc(0, -22, 22, 0, Math.PI * 2); });
+      const emS = opts && opts.emote;
+      if (back) { /* turned away — no face on the back of a blot */ }
+      else if (emS) emoteEyes(ctx, facing * 3, -24, 14, emS);
+      else eyes(ctx, facing * 3, -24, 14, 3.6, 6, INK);
+      if (opts && opts.hat) drawHat(ctx, opts.hat, 0, -43);
       break;
     }
   }
@@ -8332,7 +8298,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v120 · Smoother, and Scribble grew arms";
+const GAME_VERSION = "v121 · Scribble as he was";
 
 /* ---------------- state ---------------- */
 const G = {
