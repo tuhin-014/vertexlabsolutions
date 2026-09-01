@@ -2773,6 +2773,143 @@ function drawNPCSprite(ctx, id, x, y, t, opts) {
   ctx.restore();
 }
 
+/* ---- the chalk drawing behind the fountain --------------------------------
+   Nine quiet corners of Wordsville have something hidden in them, and this one
+   has the best thing: a drawing Nina did of the three of them holding hands.
+   It was three lines of narrator text describing a picture, which is a strange
+   thing to do in a game that can simply show you the picture.
+
+   So here it is, in chalk on the fountain stone, drawn the way a child draws:
+   heads too big, arms too long, everybody grinning, the ground a wobbly line
+   under their feet. It has been rained on three winters, so the chalk is
+   patchy and the stone shows through. Everything wobbles by a seeded amount
+   rather than a random one — a drawing that shivered every frame would be a
+   drawing nobody made. */
+function chalkRnd(seed) {
+  let s2 = (seed * 1664525 + 1013904223) >>> 0;
+  return () => { s2 = (s2 * 1664525 + 1013904223) >>> 0; return s2 / 4294967296; };
+}
+function chalkLine(ctx, pts, col, w, seed) {
+  const r = chalkRnd(seed);
+  // three passes at low alpha: chalk is never one solid stroke
+  for (let pass = 0; pass < 3; pass++) {
+    ctx.strokeStyle = col;
+    ctx.globalAlpha = 0.3 - pass * 0.07;
+    ctx.lineWidth = w * (1 + pass * 0.5);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => {
+      const jx = (r() - 0.5) * 1.6, jy = (r() - 0.5) * 1.6;
+      if (i) ctx.lineTo(x + jx, y + jy); else ctx.moveTo(x + jx, y + jy);
+    });
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+function chalkRing(ctx, cx, cy, rad, col, w, seed) {
+  const pts = [];
+  for (let i = 0; i <= 22; i++) {
+    const a = i / 22 * Math.PI * 2;
+    pts.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad * 0.96]);
+  }
+  chalkLine(ctx, pts, col, w, seed);
+}
+/* One of the three, as a five-year-old draws a person: a round head with a
+   face in it, a straight-ish body, legs that do not match, and one arm out to
+   each side to hold on with. */
+function chalkKid(ctx, x, groundY, col, seed, tilt, hair) {
+  const r = chalkRnd(seed);
+  const head = 15 + r() * 3;
+  const headY = groundY - 62 - r() * 5;
+  ctx.save();
+  ctx.translate(x, 0);
+  ctx.rotate(tilt);
+  ctx.translate(-x, 0);
+  chalkRing(ctx, x, headY, head, col, 2.6, seed + 1);
+  // eyes and a grin, all slightly off
+  chalkLine(ctx, [[x - 6, headY - 4], [x - 5, headY - 1]], col, 2.6, seed + 2);
+  chalkLine(ctx, [[x + 5, headY - 4], [x + 6, headY - 1]], col, 2.6, seed + 3);
+  chalkLine(ctx, [[x - 7, headY + 5], [x - 2, headY + 9], [x + 4, headY + 9], [x + 8, headY + 4]],
+    col, 2.2, seed + 4);
+  if (hair) {   // Nina gets three chalk flicks on top, because of course she does
+    for (let i = -1; i <= 1; i++) {
+      chalkLine(ctx, [[x + i * 6, headY - head + 2], [x + i * 8, headY - head - 7]], col, 2.2, seed + 5 + i);
+    }
+  }
+  const bodyTop = headY + head + 1, bodyBot = groundY - 22 - r() * 4;
+  chalkLine(ctx, [[x, bodyTop], [x + (r() - 0.5) * 4, bodyBot]], col, 2.8, seed + 9);
+  // legs, which do not match
+  chalkLine(ctx, [[x, bodyBot], [x - 8 - r() * 4, groundY - 1]], col, 2.6, seed + 10);
+  chalkLine(ctx, [[x, bodyBot], [x + 7 + r() * 5, groundY + 1]], col, 2.6, seed + 11);
+  ctx.restore();
+  return { armY: bodyTop + 12 + r() * 4, headY, head };
+}
+/* The drawing itself, at whatever size it is given. */
+function drawDoodle(ctx, w, h, t) {
+  const sc = Math.min(w / 420, h / 300);
+  ctx.save();
+  ctx.translate((w - 420 * sc) / 2, (h - 300 * sc) / 2);
+  ctx.scale(sc, sc);
+  // the fountain stone
+  ctx.fillStyle = '#8f8b83'; ctx.fillRect(0, 0, 420, 300);
+  const r = chalkRnd(99);
+  for (let i = 0; i < 260; i++) {
+    ctx.fillStyle = `rgba(${r() < 0.5 ? '255,255,255' : '60,58,54'},${0.03 + r() * 0.07})`;
+    const bx = r() * 420, by = r() * 300, br = 1 + r() * 7;
+    ctx.beginPath(); ctx.ellipse(bx, by, br, br * 0.7, r() * 3, 0, Math.PI * 2); ctx.fill();
+  }
+  // the mortar lines of the stonework, so it is a wall and not a grey card
+  ctx.strokeStyle = 'rgba(50,48,44,.22)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  [[0, 96, 420, 90], [0, 208, 420, 214]].forEach(([x1, y1, x2, y2]) => {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  });
+  ctx.beginPath(); ctx.moveTo(150, 96); ctx.lineTo(146, 208); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(300, 90); ctx.lineTo(306, 211); ctx.stroke();
+
+  const GY = 236;
+  // the ground they are standing on, one wobbly line
+  const gpts = [];
+  for (let i = 0; i <= 14; i++) gpts.push([30 + i * 26, GY + Math.sin(i * 1.3) * 2.5]);
+  chalkLine(ctx, gpts, '#f6f2e6', 3, 41);
+  // the three of them
+  const d = chalkKid(ctx, 122, GY, '#8ee88e', 11, -0.04, false);
+  const n = chalkKid(ctx, 210, GY, '#ffa8d8', 23, 0.03, true);
+  const l = chalkKid(ctx, 296, GY, '#ffd08a', 37, -0.02, false);
+  // and the arms, joined — the whole point of the picture
+  chalkLine(ctx, [[122 - 22, d.armY + 10], [122 - 12, d.armY], [122, d.armY - 2]], '#8ee88e', 2.6, 51);
+  chalkLine(ctx, [[122, d.armY - 2], [160, d.armY + 6], [210, n.armY - 1]], '#8ee88e', 2.6, 52);
+  chalkLine(ctx, [[210, n.armY - 1], [252, n.armY + 7], [296, l.armY - 2]], '#ffa8d8', 2.6, 53);
+  chalkLine(ctx, [[296, l.armY - 2], [316, l.armY + 2], [330, l.armY + 12]], '#ffd08a', 2.6, 54);
+  // a sun in the corner, because there is always a sun in the corner
+  chalkRing(ctx, 366, 56, 17, '#ffe9a0', 2.4, 61);
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    chalkLine(ctx, [[366 + Math.cos(a) * 22, 56 + Math.sin(a) * 22],
+      [366 + Math.cos(a) * 30, 56 + Math.sin(a) * 30]], '#ffe9a0', 2.2, 62 + i);
+  }
+  // two hearts over their heads
+  const heart = (hx, hy, k, col, seed) => {
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const a = i / 24 * Math.PI * 2;
+      const hxx = 16 * Math.pow(Math.sin(a), 3);
+      const hyy = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a);
+      pts.push([hx + hxx * k, hy - hyy * k]);
+    }
+    chalkLine(ctx, pts, col, 2.2, seed);
+  };
+  heart(166, 74, 0.5, '#ffb6c9', 71);
+  heart(254, 62, 0.38, '#ffb6c9', 77);
+  // three winters of rain: the chalk has come away in places
+  const r2 = chalkRnd(7);
+  for (let i = 0; i < 34; i++) {
+    ctx.fillStyle = `rgba(143,139,131,${0.25 + r2() * 0.45})`;
+    const bx = 40 + r2() * 340, by = 40 + r2() * 210, br = 3 + r2() * 13;
+    ctx.beginPath(); ctx.ellipse(bx, by, br, br * (0.5 + r2() * 0.6), r2() * 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
 /* ============ PORTRAITS (for dialogue box) ============ */
 function drawPortrait(canvas, id, skins) {
   const ctx = canvas.getContext('2d');
@@ -8298,7 +8435,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v122 · Nobody reels you in";
+const GAME_VERSION = "v124 · Carried by the Golden Pages";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9228,6 +9365,46 @@ function moveActor(A, dx, dy, dashActive) {
   A.y = Math.max(FH, Math.min(G.H * TILE - 1, A.y));
 }
 
+/* Out of hearts. The game used to say the Golden Pages had carried you back
+   and then simply put you at the start, which is a caption where a rescue
+   ought to be — and in co-op it took away whoever had run out and left the
+   others where they stood.
+
+   Nobody gets left behind. All three are carried, together, and the whole
+   family is set down at the start of the land with their hearts back. */
+function carriedHome(A) {
+  if (G.rescuing) return;                 // one rescue at a time, however many puddles
+  G.rescuing = true;
+  const lvl = A.lvl || G.levelId;
+  save.hearts = save.hearts2 = save.hearts3 = MAX_HEARTS;
+  updateHud();
+  startCarry('rescue', () => {
+    G.rescuing = false;
+    withWorld(lvl, () => {
+      const sp = (LEVELS[lvl] || G.level).spawn;
+      const sx = (sp[0] + 0.5) * TILE, sy = (sp[1] + 1) * TILE - 6;
+      SLOTS().forEach((B) => {
+        if (B.lvl !== lvl) return;
+        B.x = sx; B.y = sy; B.inv = 1.2;
+      });
+      // and then fan out, so they are not standing in one pile
+      resetFollower(); resetLimey(); resetScribble();
+      P.x = sx; P.y = sy;
+      if (isCoop()) { FOLLOW.x = sx + 40; FOLLOW.y = sy; }
+      if (isCoop3()) { LIMEY.x = sx - 40; LIMEY.y = sy; }
+      G.lastSafe = [P.x, P.y];
+      G.lastSafe2 = [FOLLOW.x, FOLLOW.y];
+      G.lastSafe3 = [LIMEY.x, LIMEY.y];
+      G.camX = P.x - VIEW_W / 2; G.camY = P.y - VIEW_H / 2;
+      G.cam2X = FOLLOW.x - VIEW_W / 4; G.cam2Y = FOLLOW.y - VIEW_H / 2;
+      G.cam3X = LIMEY.x - VIEW_W / 2; G.cam3Y = LIMEY.y - VIEW_H / 2;
+    });
+    G.fade = 1;
+    persist(); updateHud();
+    toast('\u{1F4AB} All three of you, set down safe. Hearts full again.');
+  });
+}
+
 /* short-lived facial expressions: '><' when hurt, 'n n' when overjoyed */
 function setEmote(actor, type, dur) { actor.emote = type; actor.emoteUntil = G.t + dur; }
 function emoteOf(actor) { return actor.emoteUntil > G.t ? actor.emote : null; }
@@ -9245,27 +9422,7 @@ function actorHazards(A) {
     poof(A.x, A.y - 20, '#1c1c1c');
     const who = charName(A.char);
     if (save[hk] <= 0) {
-      save[hk] = MAX_HEARTS;
-      const sp = G.level.spawn;
-      A.x = (sp[0] + 0.5) * TILE; A.y = (sp[1] + 1) * TILE - 6;
-      if (isP3) {
-        G.lastSafe3 = [A.x, A.y];
-        G.cam3X = LIMEY.x - VIEW_W / 2; G.cam3Y = LIMEY.y - VIEW_H / 2;
-      } else if (isP2) {
-        G.lastSafe2 = [A.x, A.y];
-        G.cam2X = FOLLOW.x - VIEW_W / 4; G.cam2Y = FOLLOW.y - VIEW_H / 2;
-      } else {
-        G.lastSafe = [A.x, A.y];
-        if (!isCoop()) {
-          resetFollower();
-          G.cam2X = FOLLOW.x - VIEW_W / 4; G.cam2Y = FOLLOW.y - VIEW_H / 2;
-        }
-        G.camX = P.x - VIEW_W / 2; G.camY = P.y - VIEW_H / 2;
-      }
-      G.fade = 1;
-      toast(isCoop()
-        ? `\u{1F4AB} Too much ink! ${who} was carried back to the start\u2026`
-        : '\u{1F4AB} Too much ink! The Golden Pages carried you back\u2026');
+      carriedHome(A);
     } else {
       const safe = isP3 ? (G.lastSafe3 || G.lastSafe) : isP2 ? (G.lastSafe2 || G.lastSafe) : G.lastSafe;
       A.x = safe[0]; A.y = safe[1];
@@ -12251,7 +12408,7 @@ function openMap(who) {
       if (d < 58 && (!best || d < best.d)) best = { id, d };
     }
     if (best && areaUnlocked(best.id)) {
-      closeOverlay(); loadLevel(best.id, undefined, opener); AudioSys.sfx('door'); maybeArrival(best.id);
+      closeOverlay(); travelFromMap(best.id, opener);
     }
   });
   panelEl.querySelector('#close-map').onclick = closeOverlay;
@@ -12424,8 +12581,10 @@ function openQuests() {
     <p style="margin-top:-4px;opacity:.75"><small>${(save.secrets || []).length >= SECRETS.length
       ? 'Every quiet corner of Wordsville, found. 💛'
       : 'Nine places nobody will ever point you to. Journals, lore stones and loose talk are the only clues there are — and the air gives a little when you are close.'}</small></p>
-    <div class="panel-grid">${SECRETS.map(x => `<div class="panel-card ${secretFound(x.id) ? '' : 'locked'}">${
-      secretFound(x.id) ? '✅ ' + LEVELS[x.land].name + ' — ' + x.hint : '⬜ ' + LEVELS[x.land].name}</div>`).join('')}</div>
+    <div class="panel-grid">${SECRETS.map(x => `<div class="panel-card ${secretFound(x.id) ? '' : 'locked'}${
+      secretFound(x.id) && SECRET_SHOWS[x.id] ? ' clickable" data-see="' + x.id + '"' : '"'}>${
+      secretFound(x.id) ? '✅ ' + LEVELS[x.land].name + ' — ' + x.hint
+        + (SECRET_SHOWS[x.id] ? ' <b>(look again)</b>' : '') : '⬜ ' + LEVELS[x.land].name}</div>`).join('')}</div>
     <h3>🌟 Best Ending Checklist (${list.length - left.length}/${list.length})</h3>
     <p style="margin-top:-4px;opacity:.75"><small>${left.length
       ? 'Tick every box, then stand on the ceremony spot in Celebration Plaza.'
@@ -12433,6 +12592,10 @@ function openQuests() {
     ${completionHtml()}
     <button class="big-btn secondary" id="close-q">Close (Esc)</button>`);
   panelEl.querySelector('#open-daily').onclick = openDaily;
+  // the ones there is something to see of open it again
+  panelEl.querySelectorAll('[data-see]').forEach(el => {
+    el.onclick = () => { const f = SECRET_SHOWS[el.dataset.see]; if (f) f(); };
+  });
   panelEl.querySelector('#close-q').onclick = closeOverlay;
 }
 
@@ -12637,8 +12800,12 @@ function findSecret(id) {
   }
   persist(); updateHud();
   toast(`🔍 A secret! (${n}/${all})`);
-  say(lines);
+  // some of the nine are a thing you can look at, not only a thing to be told about
+  say(lines, SECRET_SHOWS[id] || null);
 }
+/* Secrets that are worth seeing rather than only hearing about, opened once
+   whoever found them has finished talking. */
+const SECRET_SHOWS = { doodle: () => openDoodle() };
 
 /* ---------------- secret codes ---------------- */
 const SECRET_CODES = {
@@ -14110,6 +14277,20 @@ function updateSleep(dt) {
     if (save[k] < MAX_HEARTS) { save[k]++; mended = true; sparkle(a.x, a.y - 30, '#ff8fb0'); }
   }
   if (mended) { AudioSys.sfx('sticker'); persist(); }
+}
+/* Nina's chalk drawing, behind the fountain. It used to be three lines of
+   narrator text describing a picture, in a game perfectly capable of showing
+   you the picture. Opened when you find it, and again from the quest log
+   whenever you want another look. */
+function openDoodle() {
+  openOverlay(`<h2>✏️ Behind the fountain, low down</h2>
+    <canvas id="doodle-big" width="420" height="300" style="width:100%;max-width:420px;image-rendering:pixelated;border-radius:10px;border:4px solid #14110f"></canvas>
+    <p style="margin:10px 0 2px"><b>The three of them, holding hands. Slightly wonky.</b></p>
+    <p style="margin:0"><small>Nina drew it where nobody dusts. It has survived three winters.</small></p>
+    <button class="big-btn secondary" id="close-doodle">Close (Esc)</button>`);
+  const cv = document.getElementById('doodle-big');
+  drawDoodle(cv.getContext('2d'), cv.width, cv.height, G.t);
+  panelEl.querySelector('#close-doodle').onclick = closeOverlay;
 }
 /* The one photograph in the game, big enough to look at properly. Two grown-ups
    nobody in Wordsville ever mentions, and the three of them in front. */
@@ -15820,7 +16001,233 @@ function mvLimey(c, t, x, y, opts) {
   const o = Object.assign({ facing: 1, moving: false, walk: 0, skin: skinFor('limey') }, opts || {});
   mvSprite(c, () => drawNPCSprite(c, 'limey', 0, 0, t, o), x, y, (opts && opts.s) || 0.42);
 }
+/* ---------------- carried by the Golden Pages ----------------
+   Two things in this game move you somewhere without walking there: opening
+   the map and going to another land, and running out of hearts. Both did it by
+   cutting to black and putting a line of text on the screen — one of which
+   said, in so many words, that the Golden Pages had carried you back, which
+   they had not, because nothing was drawn.
+
+   So here they are doing it. All three of the family go together, holding on
+   to each other the way they do in Nina's drawing, and the pages carry them
+   over country nobody in Wordsville could walk to: islands hanging in the air
+   with their roots trailing off them, mountains the wrong way up, an ink sea a
+   long way underneath, and open books the size of hills. It is generated from
+   a seed thrown when the trip starts, so no two crossings are over the same
+   country, and it is regenerated from that same seed every frame rather than
+   kept, which is what stops it boiling.
+
+   `carryWhy` decides what the trip is: 'travel' goes somewhere new, 'rescue'
+   brings you home with your hearts back. */
+const CARRY_CAPS = {
+  travel: [
+    { from: 0.4, to: 2.6, text: 'The Golden Pages lift the three of you off the ground…' },
+    { from: 2.6, to: 4.6, text: '…out over country no map of Wordsville has ever shown…' },
+    { from: 4.6, to: 6.2, text: '…and set you down somewhere new. Together, as always.' },
+  ],
+  rescue: [
+    { from: 0.4, to: 2.6, text: 'Too much ink! The Golden Pages sweep in and catch all three of you…' },
+    { from: 2.6, to: 4.6, text: '…and carry you up, and away, and home…' },
+    { from: 4.6, to: 6.2, text: '…and set you down safe. Nobody gets left behind.' },
+  ],
+};
+/* Going somewhere off the map. The whole family crossing the country together
+   is worth watching; one player slipping off to another land on their own is
+   not the same thing, and a full-screen crossing would stop the other two dead
+   in the middle of their own game — so in co-op they simply go. */
+function travelFromMap(to, opener) {
+  AudioSys.sfx('door');
+  loadLevel(to, undefined, opener);
+  if (!opener) startCarry('travel', () => maybeArrival(to));
+  else maybeArrival(to);
+}
+function startCarry(why, onDone) {
+  G.carrySeed = (Math.random() * 1e9) | 0;
+  G.carryWhy = why;
+  AudioSys.sfx('reveal');
+  playMovie('carry', onDone, CARRY_CAPS[why] || CARRY_CAPS.travel);
+}
+/* One page of the several dozen swirling round them, on its own little orbit. */
+function carryPage(c, t, cx, cy, i, n, rnd) {
+  const a = (i / n) * Math.PI * 2 + t * (0.7 + rnd() * 0.5) * (i % 2 ? 1 : -1);
+  const rx = 26 + rnd() * 34, ry = 11 + rnd() * 16;
+  const px2 = cx + Math.cos(a) * rx;
+  const py2 = cy + Math.sin(a) * ry - rnd() * 6;
+  const near = Math.sin(a) > 0;                    // in front of them, or behind
+  const sc = (near ? 1 : 0.72) * (0.7 + rnd() * 0.5);
+  c.save();
+  c.translate(px2, py2);
+  c.rotate(Math.sin(t * 2.4 + i) * 0.6 + a * 0.3);
+  c.scale(sc, sc);
+  c.globalAlpha = near ? 0.95 : 0.55;
+  // a page: warm gold, an ink line round it, a couple of lines of writing
+  c.fillStyle = '#ffe9a8';
+  c.beginPath(); c.moveTo(-5, -6.5); c.lineTo(5, -6); c.lineTo(4.5, 6.5); c.lineTo(-4.5, 6); c.closePath();
+  c.fill();
+  c.strokeStyle = 'rgba(120,84,20,.75)'; c.lineWidth = 0.8; c.stroke();
+  c.strokeStyle = 'rgba(120,84,20,.4)'; c.lineWidth = 0.6;
+  c.beginPath(); c.moveTo(-3, -2.5); c.lineTo(3, -2.2); c.moveTo(-3, 0.6); c.lineTo(2.4, 0.9); c.stroke();
+  c.restore();
+  c.globalAlpha = 1;
+}
 const MOVIES = {
+  /* The crossing. Everything below the family is generated from G.carrySeed, so
+     the country is different every trip and identical every frame of the same
+     trip. */
+  carry: {
+    dur: 6.2, music: null, caps: CARRY_CAPS.travel,
+    draw(c, t) {
+      const rescue = G.carryWhy === 'rescue';
+      const rnd = mulberry32((G.carrySeed || 1) >>> 0);
+      const W = 320, H = 180;
+      /* --- the sky it all hangs in --- */
+      const g = c.createLinearGradient(0, 0, 0, H);
+      if (rescue) { g.addColorStop(0, '#1a1030'); g.addColorStop(0.55, '#3b2560'); g.addColorStop(1, '#6b3f6a'); }
+      else { g.addColorStop(0, '#221a4a'); g.addColorStop(0.5, '#4a3a86'); g.addColorStop(1, '#8a6ab0'); }
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      for (let i = 0; i < 70; i++) {              // stars, drifting past very slowly
+        const sx = (rnd() * W * 1.4 - t * 3) % (W * 1.4);
+        const sy = rnd() * H * 0.72;
+        c.globalAlpha = 0.25 + rnd() * 0.6;
+        c.fillStyle = '#fff6d8';
+        c.fillRect(((sx % W) + W) % W, sy, 1, 1);
+      }
+      c.globalAlpha = 1;
+      // a moon, or whatever it is out here
+      c.fillStyle = rescue ? 'rgba(255,214,150,.9)' : 'rgba(255,246,214,.9)';
+      c.beginPath(); c.arc(258, 38, 15, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,246,214,.10)';
+      c.beginPath(); c.arc(258, 38, 27, 0, Math.PI * 2); c.fill();
+
+      /* --- the ink sea, a long way down --- */
+      c.fillStyle = rescue ? '#2a1840' : '#2f2358';
+      c.beginPath(); c.moveTo(0, H);
+      for (let x = 0; x <= W; x += 8) {
+        c.lineTo(x, H - 20 + Math.sin(x * 0.05 + t * 1.4) * 2.5 + Math.sin(x * 0.017 - t) * 2);
+      }
+      c.lineTo(W, H); c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(255,233,168,.22)'; c.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        const yy = H - 15 + i * 3;
+        c.beginPath(); c.moveTo(40 + Math.sin(t * 1.2 + i) * 20, yy); c.lineTo(120 + Math.sin(t + i) * 24, yy); c.stroke();
+      }
+
+      /* --- three bands of country nobody can walk to --- */
+      const band = (n, y0, speed, sc, alpha) => {
+        for (let i = 0; i < n; i++) {
+          const base = rnd() * 440, kind = Math.floor(rnd() * 4);
+          const w = (26 + rnd() * 40) * sc, h = (10 + rnd() * 12) * sc;
+          const yy = y0 + (rnd() - 0.5) * 26 * sc + Math.sin(t * 0.6 + i) * 2;
+          const x = (((base - t * speed) % 440) + 440) % 440 - 60;
+          c.globalAlpha = alpha;
+          // the island: a green cap, and roots trailing off the bottom of it
+          c.fillStyle = rescue ? '#5a7a52' : '#6f9a5e';
+          c.beginPath(); c.ellipse(x, yy, w, h, 0, Math.PI, 0); c.fill();
+          c.fillStyle = rescue ? '#4a3a52' : '#5a4a6a';
+          c.beginPath();
+          c.moveTo(x - w, yy); c.lineTo(x + w, yy);
+          c.lineTo(x + w * 0.2, yy + h * (2.4 + rnd() * 2.6));
+          c.closePath(); c.fill();
+          if (kind === 0) {            // a spire that goes up further than it should
+            c.fillStyle = rescue ? '#6a5a7a' : '#7d6a95';
+            c.beginPath(); c.moveTo(x - 5 * sc, yy - 1); c.lineTo(x + 5 * sc, yy - 1);
+            c.lineTo(x + rnd() * 4, yy - (26 + rnd() * 30) * sc); c.closePath(); c.fill();
+          } else if (kind === 1) {     // a tree hanging off the underside of it
+            c.fillStyle = rescue ? '#3f5a3a' : '#4f8a46';
+            c.beginPath(); c.arc(x + (rnd() - 0.5) * w, yy + h * 3.4, 7 * sc, 0, Math.PI * 2); c.fill();
+          } else if (kind === 2) {     // an open book the size of a hill
+            const bw = 13 * sc;
+            c.fillStyle = '#f6ecd2';
+            c.beginPath();
+            c.moveTo(x - bw, yy - 6 * sc); c.lineTo(x, yy - 9 * sc); c.lineTo(x + bw, yy - 6 * sc);
+            c.lineTo(x, yy - 2 * sc); c.closePath(); c.fill();
+            c.strokeStyle = 'rgba(120,84,20,.5)'; c.lineWidth = 0.8; c.stroke();
+          } else {                     // ink pouring off the edge into nothing
+            c.strokeStyle = rescue ? 'rgba(120,90,160,.5)' : 'rgba(150,120,200,.5)';
+            c.lineWidth = 2 * sc;
+            c.beginPath();
+            c.moveTo(x + w * 0.5, yy + 1);
+            c.lineTo(x + w * 0.5 + Math.sin(t * 2) * 2, yy + h * (4 + rnd() * 3));
+            c.stroke();
+          }
+        }
+        c.globalAlpha = 1;
+      };
+      band(7, 96, 8, 0.55, 0.5);       // far
+      band(5, 118, 20, 0.85, 0.75);    // middle
+      // a mountain hanging upside down out of the sky, because why not
+      for (let i = 0; i < 2; i++) {
+        const x = (((rnd() * 440 - t * 13) % 440) + 440) % 440 - 60;
+        c.globalAlpha = 0.6;
+        c.fillStyle = rescue ? '#3a2c58' : '#463a72';
+        c.beginPath(); c.moveTo(x - 34, 0); c.lineTo(x + 34, 0); c.lineTo(x + (rnd() - 0.5) * 14, 52 + rnd() * 26);
+        c.closePath(); c.fill();
+        c.globalAlpha = 1;
+      }
+      band(4, 141, 38, 1.15, 0.95);    // near
+
+      /* --- the pages themselves, streaming past --- */
+      for (let i = 0; i < 26; i++) {
+        const sp = 40 + rnd() * 90;
+        const x = (((rnd() * 400 - t * sp) % 400) + 400) % 400 - 40;
+        const y = 20 + rnd() * 140 + Math.sin(t * 2 + i) * 5;
+        c.save(); c.translate(x, y); c.rotate(Math.sin(t * 3 + i) * 0.8);
+        c.globalAlpha = 0.35 + rnd() * 0.45;
+        c.fillStyle = '#ffe9a8';
+        c.fillRect(-2.5, -3, 5, 6);
+        c.restore();
+      }
+      c.globalAlpha = 1;
+
+      /* --- and the three of them, held up in the middle of it --- */
+      const cx = 160, cy = 96 + Math.sin(t * 1.5) * 5;
+      // the light the pages are making
+      const halo = c.createRadialGradient(cx, cy - 4, 4, cx, cy - 4, 74);
+      halo.addColorStop(0, 'rgba(255,232,150,.55)');
+      halo.addColorStop(0.45, 'rgba(255,214,110,.18)');
+      halo.addColorStop(1, 'rgba(255,200,90,0)');
+      c.fillStyle = halo; c.beginPath(); c.arc(cx, cy - 4, 74, 0, Math.PI * 2); c.fill();
+      // rays turning slowly behind them
+      c.save(); c.translate(cx, cy - 6); c.rotate(t * 0.35);
+      for (let i = 0; i < 10; i++) {
+        c.rotate(Math.PI * 2 / 10);
+        c.globalAlpha = 0.10 + Math.abs(Math.sin(t * 1.3 + i)) * 0.10;
+        c.fillStyle = '#ffe9a8';
+        c.beginPath(); c.moveTo(0, 0); c.lineTo(-4, -78); c.lineTo(4, -78); c.closePath(); c.fill();
+      }
+      c.restore(); c.globalAlpha = 1;
+      // the pages behind them
+      const pr = mulberry32(((G.carrySeed || 1) ^ 0x5bf03635) >>> 0);
+      const back = [];
+      for (let i = 0; i < 22; i++) back.push(i);
+      back.forEach(i => { if (i % 2 === 0) carryPage(c, t, cx, cy - 6, i, 22, pr); });
+      // all three of them, holding on to each other
+      const bob = (k) => Math.sin(t * 2.1 + k) * 2.2;
+      const sw = t * 3;
+      mvDiction(c, t, cx - 34, cy + 12 + bob(0), { walk: sw, moving: true, facing: 1, s: 0.42 });
+      mvNina(c, t, cx, cy + 8 + bob(1.1), { walk: sw + 1, moving: true, facing: 1, s: 0.42 });
+      mvLimey(c, t, cx + 33, cy + 12 + bob(2.2), { walk: sw + 2, moving: true, facing: 1, s: 0.38 });
+      // their arms, joined, the way they are in the drawing behind the fountain
+      c.strokeStyle = '#14110f'; c.lineWidth = 2.4; c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(cx - 26, cy + 1 + bob(0)); c.lineTo(cx - 8, cy - 2 + bob(1.1));
+      c.moveTo(cx + 8, cy - 2 + bob(1.1)); c.lineTo(cx + 25, cy + 1 + bob(2.2));
+      c.stroke();
+      // and the pages in front
+      const pr2 = mulberry32(((G.carrySeed || 1) ^ 0x5bf03635) >>> 0);
+      back.forEach(i => { if (i % 2 === 1) carryPage(c, t, cx, cy - 6, i, 22, pr2); });
+      // sparkles coming off the whole business
+      for (let i = 0; i < 22; i++) {
+        const a = i * 1.7 + t * 1.1;
+        const rr2 = 30 + ((i * 13 + t * 26) % 60);
+        c.globalAlpha = Math.max(0, 1 - (rr2 - 30) / 60) * 0.9;
+        c.fillStyle = i % 3 ? '#fff3c4' : '#ffd12e';
+        const sx = cx + Math.cos(a) * rr2 * 1.25, sy = cy - 6 + Math.sin(a) * rr2 * 0.7;
+        c.fillRect(sx, sy, 1.6, 1.6);
+      }
+      c.globalAlpha = 1;
+    },
+  },
   // First steps into a new land: the heroes trek through it.
   arrive: {
     dur: 7.5, music: null, caps: [],
@@ -16867,6 +17274,16 @@ window.DN = {
     G.movie.t = t; G.movieHold = true;
   },
   movieAt(t) { if (G.movie) G.movie.t = t; },
+  // the Golden Pages carrying the family: 'travel' or 'rescue'
+  carry(why) { startCarry(why || 'travel'); return G.movie ? G.movie.id : null; },
+  // travel the way the map does it, so a test walks the same road a player does
+  mapTravel(to, who) { travelFromMap(to, who || null); return G.movie ? G.movie.id : null; },
+  carryWhy: () => G.carryWhy || null,
+  // run the hearts out, wherever somebody is standing
+  drainHearts() { save.hearts = save.hearts2 = save.hearts3 = 1; updateHud(); return save.hearts; },
+  carrySeed: () => G.carrySeed || 0,
+  movieFreezeAt(t) { if (G.movie) { G.movie.t = t; G.movieHold = true; } return !!G.movie; },
+  movieEnd() { if (G.movie) endMovie(); return !G.movie; },
   movieHide(what) { G.mvHide = what || null; },
   light: (theme) => LAND_LIGHT[theme || G.level.theme] || null,
   decoScreen: (type, h) => (R3 && R3.decoScreen ? R3.decoScreen(type, h) : null),
@@ -16982,6 +17399,7 @@ window.DN = {
   beds: () => (G.level.decos || []).filter(d => d.type === 'bed')
     .map(d => ({ who: d.who, col: d.col, row: d.row, color: d.color })),
   photo() { openPhoto(); return !!panelEl.querySelector('#photo-big'); },
+  doodle() { openDoodle(); return !!panelEl.querySelector('#doodle-big'); },
   levelMap: (land) => ((LEVELS[land || G.levelId] || {}).map || []).slice(),
   decosHere: (land) => ((LEVELS[land || G.levelId] || {}).decos || [])
     .map(d => ({ type: d.type, col: d.col, row: d.row })),
