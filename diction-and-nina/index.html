@@ -5432,13 +5432,19 @@ const Net = (() => {
 
      It is a free open relay, so it can be busy, rate-limited, or gone — which
      is exactly why a player's own can still be added, and always wins. */
+  const RELAY_USER = 'openrelayproject', RELAY_PASS = 'openrelayproject';
   const BUILTIN_RELAY = [
-    { urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-      username: 'openrelayproject', credential: 'openrelayproject' },
+    // the name the free relay has answered to for years
+    { urls: 'turn:openrelay.metered.ca:80', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turn:openrelay.metered.ca:443', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: RELAY_USER, credential: RELAY_PASS },
+    /* and the name the same machines answer to now. A free relay that has been
+       renamed, rate-limited or retired is the single most likely reason two
+       friends a long way apart cannot reach each other, so it is worth asking
+       for it by both names rather than betting the whole connection on one. */
+    { urls: 'turn:standard.relay.metered.ca:80', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turn:standard.relay.metered.ca:443', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turns:standard.relay.metered.ca:443?transport=tcp', username: RELAY_USER, credential: RELAY_PASS },
   ];
   // what is actually carrying the packets, for the check panel to say out loud
   N.relayKind = function () { return N.getRelay() ? 'own' : 'built-in'; };
@@ -5462,7 +5468,14 @@ const Net = (() => {
     return STUN.concat(r ? [r] : BUILTIN_RELAY);
   }
   N.iceServers = iceServers;
-  const GATHER_MS = 6000;   // don't wait forever if none of them can be reached
+  /* How long to wait for addresses and for a meeting point. These were sized
+     for two friends in the same country. A relay on the other side of the
+     world is a quarter of a second away before it does anything at all, and
+     over TCP on 443 — which is what a strict network leaves you — the
+     handshake to allocate a relay address can take several round trips. Six
+     seconds of gathering is a connection that gives up while the answer is
+     still in the post. */
+  const GATHER_MS = 14000;
 
   let pc = null, chan = null;
 
@@ -5762,7 +5775,7 @@ const Net = (() => {
     'wss://peerjs.92k.de/peerjs?key=peerjs&version=1.5.4',
   ];
   const HEARTBEAT_MS = 5000;
-  const SIGNAL_TIMEOUT_MS = 9000;
+  const SIGNAL_TIMEOUT_MS = 20000;
 
   let sig = null, beat = null, roomCode = null;
 
@@ -8435,7 +8448,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v125 · Carried, without stopping the game";
+const GAME_VERSION = "v126 · A longer reach";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -11548,8 +11561,10 @@ async function netCheckPanel() {
                      'The relay did not answer — very strict networks will refuse')}
     </div>
     <p style="margin-top:10px">${c.turn ? 'Everything needed is here.'
-      : c.stun ? 'Most connections will work. The relay that comes with the game is a free one and is sometimes busy — if a particular friend keeps failing, adding your own below will fix it.'
+      : c.stun ? 'Friends on the same sort of network as you will connect. A friend far away — a different country, or on mobile internet — almost certainly will not, because that needs the relay and the relay is not answering. The one that comes with the game is free and shared, so it is sometimes busy and sometimes gone. Adding your own below is the fix, and it only has to be done on <b>one</b> of the two machines.'
       : 'This network is hiding you completely — try a different wifi, or a phone hotspot.'}</p>
+    ${c.stun && !c.turn ? '<p style="margin:0 0 8px"><small>Both of you should run this check and compare. '
+      + 'If either machine says the relay is not answering, that is the one to fix.</small></p>' : ''}
     <textarea class="net-code" id="net-rep" readonly rows="7">${Net.report(c)}</textarea>
     <button class="big-btn" data-copy="net-rep">Copy this report</button>
     <button class="big-btn secondary" id="net-relay">${Net.getRelay() ? 'Change my relay' : 'Use my own relay instead'}</button>
