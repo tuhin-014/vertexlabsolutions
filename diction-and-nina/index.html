@@ -8435,7 +8435,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v124 · Carried by the Golden Pages";
+const GAME_VERSION = "v125 · Carried, without stopping the game";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -8556,6 +8556,7 @@ function resetFollower() {
   trail = [];
 }
 function updateFollower() {
+  if (carriedNow(FOLLOW)) return;
   if (riseWalk(FOLLOW) || bedWalk(FOLLOW) || seatWalk(FOLLOW)) return;
   const last = trail[trail.length - 1];
   if (!last || Math.hypot(P.x - last.x, P.y - last.y) > 2) {
@@ -9378,7 +9379,7 @@ function carriedHome(A) {
   const lvl = A.lvl || G.levelId;
   save.hearts = save.hearts2 = save.hearts3 = MAX_HEARTS;
   updateHud();
-  startCarry('rescue', () => {
+  startCarry('rescue', SLOTS().slice(), () => {
     G.rescuing = false;
     withWorld(lvl, () => {
       const sp = (LEVELS[lvl] || G.level).spawn;
@@ -9410,6 +9411,8 @@ function setEmote(actor, type, dur) { actor.emote = type; actor.emoteUntil = G.t
 function emoteOf(actor) { return actor.emoteUntil > G.t ? actor.emote : null; }
 
 function actorHazards(A) {
+  // whatever is on the floor is no business of somebody who is off it
+  if (carriedNow(A)) return;
   const c = Math.floor(A.x / TILE), r = Math.floor((A.y - 6) / TILE);
   const isP2 = isCoop() && A === FOLLOW; // in co-op each hero has their own hearts
   const isP3 = A === LIMEY;
@@ -9467,6 +9470,7 @@ function magnetPull(ix, iy) {
   return { dx: (best.x - ix) * k * 0.9, dy: (best.y - iy) * k * 0.9 };
 }
 function actorPickups(A) {
+  if (carriedNow(A)) return;
   const c = Math.floor(A.x / TILE), r = Math.floor((A.y - 6) / TILE);
   for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) {
     const cc = c + dc, rr2 = r + dr;
@@ -9479,6 +9483,7 @@ function actorPickups(A) {
 }
 
 function updatePlayer(dt) {
+  if (carriedNow(P)) return;       // feet off the floor
   if (riseWalk(P)) return;         // still climbing out of bed
   let dx = ((keys.right || GP[0].right) ? 1 : 0) - ((keys.left || GP[0].left) ? 1 : 0);
   let dy = ((keys.down || GP[0].down) ? 1 : 0) - ((keys.up || GP[0].up) ? 1 : 0);
@@ -9646,6 +9651,7 @@ function updateLimeyBored(dt) {
 }
 function updateLimey(dt) {
   if (!save.flags.limeyJoined) return;
+  if (carriedNow(LIMEY)) return;
   updateLimeyBored(dt || 1 / 60);
   if (riseWalk(LIMEY) || bedWalk(LIMEY) || seatWalk(LIMEY)) return;
   if (isCoop3()) { limeyTrail(); return; } // player 3 is driving
@@ -9795,17 +9801,19 @@ function updateCoop(dt) {
   } else { handsOff = [0, 0, 0]; }
   // each player walks inside their own land
   withWorld(P.lvl, () => {
-    moveActor(P, d1x, d1y, dash1);
+    if (!carriedNow(P)) moveActor(P, d1x, d1y, dash1);
     if (P.inv > 0) P.inv -= dt;
     actorHazards(P); actorPickups(P);
   });
   withWorld(FOLLOW.lvl, () => {
-    if (!(towed[1] && tagAlong(FOLLOW, 44))) moveActor(FOLLOW, d2x, d2y, dash2);
+    if (carriedNow(FOLLOW)) { /* off the ground */ }
+    else if (!(towed[1] && tagAlong(FOLLOW, 44))) moveActor(FOLLOW, d2x, d2y, dash2);
     if (FOLLOW.inv > 0) FOLLOW.inv -= dt;
     actorHazards(FOLLOW); actorPickups(FOLLOW);
   });
   if (p3) withWorld(LIMEY.lvl, () => {
-    if (!(towed[2] && tagAlong(LIMEY, 82))) moveActor(LIMEY, d3x, d3y, dash3);
+    if (carriedNow(LIMEY)) { /* off the ground */ }
+    else if (!(towed[2] && tagAlong(LIMEY, 82))) moveActor(LIMEY, d3x, d3y, dash3);
     if (LIMEY.inv > 0) LIMEY.inv -= dt;
     actorHazards(LIMEY); actorPickups(LIMEY);
   });
@@ -15475,6 +15483,53 @@ function paintAtmosphere(c2, W, H) {
 
    It goes on last of all, over both views, so the round world and the flat one
    come off the same press. */
+/* Painted over the pane of anybody who is off the ground, and only theirs.
+   That is the whole point of its not being a cutscene: in a split screen the
+   player being carried watches the crossing while the other two carry on with
+   whatever they were doing, in their own halves of the picture. */
+function carryPaint(c2, W, H) {
+  if (!G.carry) return;
+  const sx = W / BUF_W, sy = H / BUF_H;
+  const t = G.carry.t;
+  camViews().forEach((v) => {
+    if (G.carry.who.indexOf(v.focus) === -1) return;
+    const x = v.vpX * sx, w = v.vpW * sx;
+    // fading in and out at the ends, so it is a lift-off and a landing
+    const fade = Math.min(1, t / 0.45) * Math.min(1, (CARRY_DUR - t) / 0.45);
+    c2.save();
+    c2.globalAlpha = Math.max(0, fade);
+    drawCarry(c2, t, x, 0, w, H, G.carry.why, G.carry.seed);
+    // the caption, inside this pane
+    const cap = (CARRY_CAPS[G.carry.why] || []).find(cp => t >= cp.from && t < cp.to);
+    if (cap) {
+      // clear of the hint bar the game keeps along the very bottom
+      const fs = Math.max(11, Math.round(Math.min(w, H) * 0.036));
+      c2.font = `bold ${fs}px "Comic Sans MS","Chalkboard SE","Trebuchet MS",sans-serif`;
+      c2.textAlign = 'center';
+      const yb = H * 0.80;
+      c2.fillStyle = 'rgba(12,8,22,.74)';
+      c2.fillRect(x + 6, yb - fs * 1.5, w - 12, fs * 2.6);
+      c2.fillStyle = '#fff6e0';
+      wrapMid(c2, cap.text, x + w / 2, yb + fs * 0.55, w - 26, fs * 1.2);
+    }
+    c2.restore();
+  });
+}
+/* A caption that fits the pane it is in, however narrow that pane is. */
+function wrapMid(c2, text, cx, y, maxW, lh) {
+  const words = String(text).split(' ');
+  const lines = [];
+  let line = '';
+  words.forEach(w2 => {
+    const test = line ? line + ' ' + w2 : w2;
+    if (c2.measureText(test).width > maxW && line) { lines.push(line); line = w2; }
+    else line = test;
+  });
+  if (line) lines.push(line);
+  const start = y - (lines.length - 1) * lh;
+  lines.forEach((l, i) => c2.fillText(l, cx, start + i * lh));
+}
+
 let sheetCache = null;
 function pageSheet(W, H) {
   if (sheetCache && sheetCache.width === W && sheetCache.height === H) return sheetCache;
@@ -16021,31 +16076,49 @@ function mvLimey(c, t, x, y, opts) {
    brings you home with your hearts back. */
 const CARRY_CAPS = {
   travel: [
-    { from: 0.4, to: 2.6, text: 'The Golden Pages lift the three of you off the ground…' },
-    { from: 2.6, to: 4.6, text: '…out over country no map of Wordsville has ever shown…' },
-    { from: 4.6, to: 6.2, text: '…and set you down somewhere new. Together, as always.' },
+    { from: 0.3, to: 1.9, text: 'The Golden Pages lift you off the ground…' },
+    { from: 1.9, to: 3.4, text: '…out over country no map of Wordsville has ever shown…' },
+    { from: 3.4, to: 4.8, text: '…and set you down somewhere new.' },
   ],
   rescue: [
-    { from: 0.4, to: 2.6, text: 'Too much ink! The Golden Pages sweep in and catch all three of you…' },
-    { from: 2.6, to: 4.6, text: '…and carry you up, and away, and home…' },
-    { from: 4.6, to: 6.2, text: '…and set you down safe. Nobody gets left behind.' },
+    { from: 0.3, to: 1.9, text: 'Too much ink! The Golden Pages sweep in and catch all three of you…' },
+    { from: 1.9, to: 3.4, text: '…and carry you up, and away, and home…' },
+    { from: 3.4, to: 4.8, text: '…and set you down safe. Nobody gets left behind.' },
   ],
 };
-/* Going somewhere off the map. The whole family crossing the country together
-   is worth watching; one player slipping off to another land on their own is
-   not the same thing, and a full-screen crossing would stop the other two dead
-   in the middle of their own game — so in co-op they simply go. */
+const CARRY_DUR = 4.8;
+/* Who is off the ground at this moment. Being carried is something that happens
+   to a person, in their own half of the screen, while whoever else is playing
+   carries on with what they were doing — which is the whole reason it is not a
+   cutscene. */
+function carriedNow(A) { return !!(G.carry && G.carry.who.indexOf(A) !== -1); }
+function carryOn() { return !!G.carry; }
+/* Going somewhere off the map. Whoever is going is the one carried: on your own
+   that is the three of you, and in co-op it is the one player who opened their
+   map, in their own half of the screen, while the others carry on with whatever
+   they were doing. */
 function travelFromMap(to, opener) {
   AudioSys.sfx('door');
   loadLevel(to, undefined, opener);
-  if (!opener) startCarry('travel', () => maybeArrival(to));
-  else maybeArrival(to);
+  const who = opener ? [ACTOR_OF[opener]] : SLOTS().slice();
+  startCarry('travel', who, () => maybeArrival(to));
 }
-function startCarry(why, onDone) {
-  G.carrySeed = (Math.random() * 1e9) | 0;
-  G.carryWhy = why;
+function startCarry(why, who, onDone) {
+  const list = (who && who.length) ? who : SLOTS().slice(0, isCoop3() ? 3 : isCoop() ? 2 : 3);
+  G.carry = { why, t: 0, seed: (Math.random() * 1e9) | 0, who: list, onDone: onDone || null };
   AudioSys.sfx('reveal');
-  playMovie('carry', onDone, CARRY_CAPS[why] || CARRY_CAPS.travel);
+}
+function endCarry() {
+  const c = G.carry;
+  G.carry = null;
+  if (c && c.onDone) c.onDone();
+}
+function updateCarry(dt) {
+  if (!G.carry) return;
+  G.carry.t += dt;
+  // anybody being carried has their feet off the floor
+  G.carry.who.forEach(A => { A.moving = false; A.walk = 0; });
+  if (G.carry.t >= CARRY_DUR) endCarry();
 }
 /* One page of the several dozen swirling round them, on its own little orbit. */
 function carryPage(c, t, cx, cy, i, n, rnd) {
@@ -16070,15 +16143,23 @@ function carryPage(c, t, cx, cy, i, n, rnd) {
   c.restore();
   c.globalAlpha = 1;
 }
-const MOVIES = {
-  /* The crossing. Everything below the family is generated from G.carrySeed, so
-     the country is different every trip and identical every frame of the same
-     trip. */
-  carry: {
-    dur: 6.2, music: null, caps: CARRY_CAPS.travel,
-    draw(c, t) {
-      const rescue = G.carryWhy === 'rescue';
-      const rnd = mulberry32((G.carrySeed || 1) >>> 0);
+/* The crossing itself, painted into whatever rectangle it is given — one pane
+   of a split screen, or the whole picture when the family goes together. The
+   country below is generated from the trip's seed, so it is different every
+   trip and identical every frame of the same trip. */
+function drawCarry(c, t, X, Y, W2, H2, why, seed) {
+  c.save();
+  c.beginPath(); c.rect(X, Y, W2, H2); c.clip();
+  /* Fill the pane by covering it, not by stretching to it: a third of a screen
+     is far narrower than the picture is drawn, and scaling each way to fit
+     would leave the family a third of their own width. */
+  const k = Math.max(W2 / 320, H2 / 180);
+  c.translate(X + (W2 - 320 * k) / 2, Y + (H2 - 180 * k) / 2);
+  c.scale(k, k);
+  (function (c, t) {
+
+      const rescue = why === 'rescue';
+      const rnd = mulberry32((seed || 1) >>> 0);
       const W = 320, H = 180;
       /* --- the sky it all hangs in --- */
       const g = c.createLinearGradient(0, 0, 0, H);
@@ -16197,7 +16278,7 @@ const MOVIES = {
       }
       c.restore(); c.globalAlpha = 1;
       // the pages behind them
-      const pr = mulberry32(((G.carrySeed || 1) ^ 0x5bf03635) >>> 0);
+      const pr = mulberry32(((seed || 1) ^ 0x5bf03635) >>> 0);
       const back = [];
       for (let i = 0; i < 22; i++) back.push(i);
       back.forEach(i => { if (i % 2 === 0) carryPage(c, t, cx, cy - 6, i, 22, pr); });
@@ -16214,7 +16295,7 @@ const MOVIES = {
       c.moveTo(cx + 8, cy - 2 + bob(1.1)); c.lineTo(cx + 25, cy + 1 + bob(2.2));
       c.stroke();
       // and the pages in front
-      const pr2 = mulberry32(((G.carrySeed || 1) ^ 0x5bf03635) >>> 0);
+      const pr2 = mulberry32(((seed || 1) ^ 0x5bf03635) >>> 0);
       back.forEach(i => { if (i % 2 === 1) carryPage(c, t, cx, cy - 6, i, 22, pr2); });
       // sparkles coming off the whole business
       for (let i = 0; i < 22; i++) {
@@ -16226,9 +16307,11 @@ const MOVIES = {
         c.fillRect(sx, sy, 1.6, 1.6);
       }
       c.globalAlpha = 1;
-    },
-  },
-  // First steps into a new land: the heroes trek through it.
+  })(c, t);
+  c.restore();
+}
+const MOVIES = {
+  // First steps into a new land: the heroes trek through it.  // First steps into a new land: the heroes trek through it.
   arrive: {
     dur: 7.5, music: null, caps: [],
     draw(c, t) {
@@ -16858,6 +16941,7 @@ function frameInner(ts) {
       updateDetector(dt);
       withWorld(actorOf('diction').lvl, () => markTrail());   // the path the family walks down
       livenUp(dt);          // where everybody is looking, and how they lean
+      updateCarry(dt);      // and anybody the pages have got hold of
       activeWorlds().forEach(id => withWorld(id, () => {
         updateNPCs(dt);
         updateGames(dt);
@@ -16918,6 +17002,7 @@ function frameInner(ts) {
       setGL(false);
       render();
     }
+    carryPaint(ctx, VW, VH); // over the pane of anybody off the ground
     pagePass(ctx, VW, VH);   // and the whole of it is printed on one sheet
     netPump(overlayOpen() || dlgActive() || cardViewOpen());
     pumpCardQueue();
@@ -17162,6 +17247,27 @@ window.DN = {
   /* Where on the frame a colour actually landed, and how much of it there is.
      Asking whether the cat is in somebody's arms means asking where her ginger
      came out and what is drawn across it — not where the game thinks she is. */
+  /* The same, but off the frame the player is actually looking at rather than
+     the buffer under it — the crossing is painted over the top of the world,
+     on the visible canvas, so that is where it has to be read. */
+  frameBox(x, y, w, h, col, tol) {
+    let d;
+    try { d = ctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
+    const t = tol === undefined ? 26 : tol;
+    let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const k = (j * w + i) * 4;
+      if (d[k + 3] < 150) continue;
+      if (Math.abs(d[k] - col[0]) > t || Math.abs(d[k + 1] - col[1]) > t ||
+        Math.abs(d[k + 2] - col[2]) > t) continue;
+      n++;
+      if (x + i < x0) x0 = x + i;
+      if (x + i > x1) x1 = x + i;
+      if (y + j < y0) y0 = y + j;
+      if (y + j > y1) y1 = y + j;
+    }
+    return n ? { n, x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, cx: (x0 + x1) / 2 } : { n: 0 };
+  },
   colourBox(x, y, w, h, col, tol) {
     let d;
     try { d = bctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
@@ -17275,13 +17381,18 @@ window.DN = {
   },
   movieAt(t) { if (G.movie) G.movie.t = t; },
   // the Golden Pages carrying the family: 'travel' or 'rescue'
-  carry(why) { startCarry(why || 'travel'); return G.movie ? G.movie.id : null; },
+  carry(why) { startCarry(why || 'travel', SLOTS().slice()); return DN.carrying(); },
   // travel the way the map does it, so a test walks the same road a player does
-  mapTravel(to, who) { travelFromMap(to, who || null); return G.movie ? G.movie.id : null; },
-  carryWhy: () => G.carryWhy || null,
+  mapTravel(to, who) { travelFromMap(to, who || null); return DN.carrying(); },
+  carryWhy: () => (G.carry ? G.carry.why : null),
+  /* who is off the ground, and how far through the crossing they are */
+  carrying: () => (G.carry ? { why: G.carry.why, t: Math.round(G.carry.t * 100) / 100,
+    who: G.carry.who.map(a => a.char), seed: G.carry.seed } : null),
+  carryAt(t) { if (G.carry) G.carry.t = t; return DN.carrying(); },
+  carryStop() { if (G.carry) endCarry(); return !G.carry; },
   // run the hearts out, wherever somebody is standing
   drainHearts() { save.hearts = save.hearts2 = save.hearts3 = 1; updateHud(); return save.hearts; },
-  carrySeed: () => G.carrySeed || 0,
+  carrySeed: () => (G.carry ? G.carry.seed : 0),
   movieFreezeAt(t) { if (G.movie) { G.movie.t = t; G.movieHold = true; } return !!G.movie; },
   movieEnd() { if (G.movie) endMovie(); return !G.movie; },
   movieHide(what) { G.mvHide = what || null; },
