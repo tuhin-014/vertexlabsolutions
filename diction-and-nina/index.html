@@ -241,6 +241,10 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
 #tc-rack.tc-shy { opacity:.26; }
 @media (prefers-reduced-motion: reduce) { #tc-rack { transition:none; } }
 
+.pad-on {
+  outline:4px solid #ffd12e; outline-offset:2px;
+  box-shadow:0 0 0 3px rgba(255,209,46,.35);
+}
 .ic { width:1.05em; height:1.05em; vertical-align:-0.16em; display:inline-block; }
 
 #code-input {
@@ -8462,7 +8466,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v127 · Your game is your own";
+const GAME_VERSION = "v128 · All of it, on a controller";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9091,6 +9095,60 @@ function readPads() {
     return [];
   }
 }
+/* ---------------- playing the whole game with a controller ----------------
+   A pad could walk you about and talk to people, and then stopped dead at
+   anything with buttons in it: dialogue choices were the number keys, and the
+   backpack, the shop, the wardrobe, the map and the arcade were all things you
+   clicked. So a controller got you as far as the first question anybody asked
+   you and no further, which is not playing the game with a controller.
+
+   Everything a panel offers is a button, so a pad can be given a highlight to
+   move between them and a button to press them with. It works on whatever is
+   in front of you — a dialogue's answers if there are any, otherwise whatever
+   the open panel is made of — so it needs no list of screens and cannot fall
+   behind one being added. */
+let padPick = -1;
+function padTargets() {
+  if (dlgActive() && dlgChoices.children.length) return Array.from(dlgChoices.children);
+  if (overlayOpen()) {
+    return Array.from(panelEl.querySelectorAll(
+      'button:not([disabled]), .panel-card.clickable, [data-see], .letter-btn, .tab-btn'));
+  }
+  return [];
+}
+function padShow(list) {
+  list.forEach((el, i) => el.classList.toggle('pad-on', i === padPick));
+  const cur = list[padPick];
+  if (cur && cur.scrollIntoView) {
+    try { cur.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+  }
+}
+function padMove(d) {
+  const list = padTargets();
+  if (!list.length) return false;
+  padPick = padPick < 0 ? 0 : (padPick + d + list.length) % list.length;
+  padShow(list);
+  return true;
+}
+function padGo() {
+  const list = padTargets();
+  if (!list.length) return false;
+  if (padPick < 0) { padPick = 0; padShow(list); return true; }
+  const el = list[padPick];
+  if (el) { AudioSys.sfx('select'); el.click(); }
+  padPick = -1;
+  return true;
+}
+/* Nothing is highlighted until a pad asks for it, and a new screen starts
+   again from nothing rather than from wherever the last one had got to. */
+function padReset() { padPick = -1; }
+/* Whether this pad's player is the one whose panel is up — the second player's
+   controller should not be pressing buttons in the first player's backpack. */
+function padOwnsUI(i) {
+  if (!(overlayOpen() || dlgActive())) return false;
+  if (!paneOwned()) return i === 0;      // everybody's panel: player one drives it
+  return uiOwner === (i === 1 ? 'FOLLOW' : i === 2 ? 'LIMEY' : 'P');
+}
 function pollPads() {
   const pads = readPads();
   for (let i = 0; i < 3; i++) {
@@ -9109,16 +9167,51 @@ function pollPads() {
       if (now && !gpHeld[i][n]) { AudioSys.start(); onPress(action); }
       gpHeld[i][n] = now;
     };
+    /* With something in front of you, this pad's own stick and buttons move a
+       highlight about it and press what is under it — but only if what is in
+       front of you is this player's. */
+    if (padOwnsUI(i)) {
+      const stick = (p.axes[1] || 0);
+      const nudge = (n, d) => {
+        const now = btn(n) || (n === 12 ? stick < -0.6 : n === 13 ? stick > 0.6 : false);
+        if (now && !gpHeld[i][n]) padMove(d);
+        gpHeld[i][n] = now;
+      };
+      nudge(12, -1); nudge(13, 1);
+      const sx = (p.axes[0] || 0);
+      const side = (n, d) => {
+        const now = btn(n) || (n === 14 ? sx < -0.6 : sx > 0.6);
+        if (now && !gpHeld[i][n]) padMove(d);
+        gpHeld[i][n] = now;
+      };
+      side(14, -1); side(15, 1);
+      const go = btn(0);
+      if (go && !gpHeld[i][0]) { AudioSys.start(); padGo(); }
+      gpHeld[i][0] = go;
+      const back = btn(1);
+      if (back && !gpHeld[i][1]) { padReset(); onPress('escape'); }
+      gpHeld[i][1] = back;
+      const start = btn(9);
+      if (start && !gpHeld[i][9]) onPress('pause');
+      gpHeld[i][9] = start;
+      // and nothing this pad does reaches the world while a panel is up
+      Sg.left = Sg.right = Sg.up = Sg.down = Sg.dash = false;
+      continue;
+    }
     if (i === 0) {
       edge(0, 'interact'); edge(2, 'ability'); edge(3, 'switch'); edge(9, 'pause');
-      edge(12, 'up'); edge(13, 'down');
+      edge(1, 'dash');
+      edge(4, 'inventory'); edge(5, 'quests'); edge(8, 'map');
     } else if (i === 1) {
       edge(0, isCoop() ? 'interact2' : 'interact');
       edge(2, isCoop() ? 'ability2' : 'ability');
+      edge(3, isCoop() ? 'switch2' : 'switch');
+      edge(8, isCoop() ? 'map2' : 'map');
       edge(9, 'pause');
     } else {
       edge(0, isCoop3() ? 'interact3' : 'interact');
       edge(2, isCoop3() ? 'ability3' : 'ability');
+      edge(8, isCoop3() ? 'map3' : 'map');
       edge(9, 'pause');
     }
   }
@@ -10542,6 +10635,7 @@ function say(lines, onDone) {
   if (!overlayOpen()) uiOwner = actingSlot || uiOwner;
   dlgQueue = lines; dlgIdx = 0; dlgShown = 0; dlgDone = onDone || null;
   dlgEl.classList.remove('hidden');
+  padReset();
   showLine();
 }
 function showLine() {
@@ -11217,6 +11311,7 @@ function openOverlay(html, owner) {
   G.bookNav = null; G.onOverlayClose = null;
   uiOwner = owner || actingSlot || null;
   panelEl.innerHTML = iconize(html); overlayEl.classList.remove('hidden');
+  padReset();
   placePanel();
 }
 function closeOverlay() {
@@ -11227,6 +11322,7 @@ function closeOverlay() {
      the overlay itself cannot come back round again. */
   const done = G.onOverlayClose; G.onOverlayClose = null;
   overlayEl.classList.add('hidden'); panelEl.innerHTML = '';
+  padReset();
   if (!dlgActive()) uiOwner = null;
   placePanel();
   if (G.uiTimer) { clearInterval(G.uiTimer); G.uiTimer = null; }
@@ -17719,6 +17815,24 @@ window.DN = {
     return DN.checklist();
   },
   ui: () => overlayOpen(),
+  /* Pretend a controller is plugged in, so the whole of it can be driven from
+     a test the way a player drives it with their thumbs. */
+  pad(i, state) {
+    if (!DN._pads) {
+      DN._pads = [null, null, null];
+      const real = navigator.getGamepads ? navigator.getGamepads.bind(navigator) : null;
+      navigator.getGamepads = () => DN._pads.map((s2, n) => (s2 ? {
+        index: n, connected: true, id: 'test pad',
+        axes: s2.axes || [0, 0, 0, 0],
+        buttons: Array.from({ length: 17 }, (_, b) => ({ pressed: !!(s2.buttons || {})[b] })),
+      } : (real ? (real()[n] || null) : null)));
+    }
+    DN._pads[i] = state;
+    return true;
+  },
+  // what the controller is pointing at right now
+  padAt: () => { const l = padTargets(); return { n: l.length, i: padPick,
+    on: padPick >= 0 && l[padPick] ? (l[padPick].textContent || '').trim().slice(0, 40) : null }; },
   /* Whose panel is up, whether it stops the world, and where on the picture it
      is sitting. */
   panel: () => {
