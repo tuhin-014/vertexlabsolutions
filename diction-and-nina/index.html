@@ -92,6 +92,20 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
   display:flex; align-items:center; justify-content:center;
   border-radius:10px;
 }
+/* A panel that belongs to one player covers that player's own pane and no
+   more of the picture, so the other two can go on seeing their own game. */
+#overlay.panes-2 { width:50%; }
+#overlay.panes-3 { width:33.3333%; }
+#overlay.panes-2.pane-0, #overlay.panes-3.pane-0 { left:0; }
+#overlay.panes-2.pane-1 { left:50%; }
+#overlay.panes-3.pane-1 { left:33.3333%; }
+#overlay.panes-3.pane-2 { left:66.6666%; }
+#overlay.panes-2 #overlay-panel, #overlay.panes-3 #overlay-panel {
+  width:94%; max-width:none; padding:12px 14px; max-height:94%; border-radius:14px;
+}
+#overlay.panes-3 #overlay-panel { font-size:.86em; }
+#overlay.panes-2 #overlay-panel h2, #overlay.panes-3 #overlay-panel h2 { font-size:19px; }
+#overlay.panes-3 .panel-grid { grid-template-columns:1fr; }
 #overlay-panel {
   background:#fffcf2 var(--paper, none) repeat; border:4px solid #14110f; border-radius:18px;
   padding:22px 26px; max-width:820px; width:86%; max-height:88%;
@@ -8448,7 +8462,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v126 · A longer reach";
+const GAME_VERSION = "v127 · Your game is your own";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -8976,6 +8990,13 @@ window.addEventListener('pointerup', () => {
 });
 window.addEventListener('pointercancel', () => { pointer.active = false; });
 
+/* Which player an action belongs to. The second and third players' actions
+   carry their number; the first player's carry nothing. */
+function slotOfAct(k) {
+  if (/2$/.test(k)) return 'FOLLOW';
+  if (/3$/.test(k)) return 'LIMEY';
+  return 'P';
+}
 function onPress(k) {
   if (G.state === 'title') { titleKey(k); return; }
   if (k === 'mute') { const m = AudioSys.toggleMute(); toast(m ? '🔇 Music off' : '🔊 Music on'); return; }
@@ -8989,16 +9010,25 @@ function onPress(k) {
     if (shut.indexOf(k) !== -1 && G.card.t > 0.25) closeCard();
     return;
   }
+  /* A panel that belongs to one player answers to that player's keys, and to
+     nobody else's: the other two are still playing, and their talk and power
+     keys have to go on reaching their own characters rather than being eaten
+     by somebody else's backpack. */
   if (overlayOpen()) {
-    if (G.bookNav && (k === 'left' || k === 'right')) { G.bookNav(k === 'right' ? 1 : -1); return; }
-    if (k === 'escape' || k === 'map' || k === 'map2' || k === 'map3' || k === 'pause') closeOverlay();
-    return;
-  }
-  if (dlgActive()) {
-    if (k === 'interact' || k === 'interact2' || k === 'interact3' || k === 'dash') {
-      if (isGuest()) Net.send({ t: 'da' }); else dlgAdvance();
+    const mine = !paneOwned() || slotOfAct(k) === uiOwner || k === 'escape' || k === 'pause';
+    if (mine) {
+      if (G.bookNav && (k === 'left' || k === 'right')) { G.bookNav(k === 'right' ? 1 : -1); return; }
+      if (k === 'escape' || k === 'map' || k === 'map2' || k === 'map3' || k === 'pause') closeOverlay();
+      return;
     }
-    return;
+  } else if (dlgActive()) {
+    const mine = !paneOwned() || slotOfAct(k) === uiOwner;
+    if (mine) {
+      if (k === 'interact' || k === 'interact2' || k === 'interact3' || k === 'dash' || k === 'dash2' || k === 'dash3') {
+        if (isGuest()) Net.send({ t: 'da' }); else dlgAdvance();
+      }
+      return;
+    }
   }
   if (isGuest() && G.state === 'play') {
     // the visitor asks; the host's game is the one that acts
@@ -9034,12 +9064,12 @@ function onPress(k) {
     case 'interact3':
       if (isCoop3()) doInteractAt(LIMEY.x, LIMEY.y, LIMEY.char, 'LIMEY');
       break;
-    case 'inventory': openInventory(); break;
-    case 'quests': openQuests(); break;
-    case 'map': openMap('P'); break;
-    case 'map2': if (isCoop()) openMap('FOLLOW'); break;
-    case 'map3': if (isCoop3()) openMap('LIMEY'); break;
-    case 'pause': case 'escape': openPause(); break;
+    case 'inventory': asSlot('P', openInventory); break;
+    case 'quests': asSlot('P', openQuests); break;
+    case 'map': asSlot('P', () => openMap('P')); break;
+    case 'map2': if (isCoop()) asSlot('FOLLOW', () => openMap('FOLLOW')); break;
+    case 'map3': if (isCoop3()) asSlot('LIMEY', () => openMap('LIMEY')); break;
+    case 'pause': case 'escape': asSlot(null, () => openOverlayGlobal(openPause)); break;
   }
 }
 document.getElementById('hud-char').addEventListener('click', () => { if (G.state === 'play') doSwitch(); });
@@ -9496,7 +9526,7 @@ function actorPickups(A) {
 }
 
 function updatePlayer(dt) {
-  if (carriedNow(P)) return;       // feet off the floor
+  if (carriedNow(P) || busyNow(P)) return;   // off the floor, or busy with something
   if (riseWalk(P)) return;         // still climbing out of bed
   let dx = ((keys.right || GP[0].right) ? 1 : 0) - ((keys.left || GP[0].left) ? 1 : 0);
   let dy = ((keys.down || GP[0].down) ? 1 : 0) - ((keys.up || GP[0].up) ? 1 : 0);
@@ -9814,18 +9844,18 @@ function updateCoop(dt) {
   } else { handsOff = [0, 0, 0]; }
   // each player walks inside their own land
   withWorld(P.lvl, () => {
-    if (!carriedNow(P)) moveActor(P, d1x, d1y, dash1);
+    if (!carriedNow(P) && !busyNow(P)) moveActor(P, d1x, d1y, dash1);
     if (P.inv > 0) P.inv -= dt;
     actorHazards(P); actorPickups(P);
   });
   withWorld(FOLLOW.lvl, () => {
-    if (carriedNow(FOLLOW)) { /* off the ground */ }
+    if (carriedNow(FOLLOW) || busyNow(FOLLOW)) { /* off the ground, or busy */ }
     else if (!(towed[1] && tagAlong(FOLLOW, 44))) moveActor(FOLLOW, d2x, d2y, dash2);
     if (FOLLOW.inv > 0) FOLLOW.inv -= dt;
     actorHazards(FOLLOW); actorPickups(FOLLOW);
   });
   if (p3) withWorld(LIMEY.lvl, () => {
-    if (carriedNow(LIMEY)) { /* off the ground */ }
+    if (carriedNow(LIMEY) || busyNow(LIMEY)) { /* off the ground, or busy */ }
     else if (!(towed[2] && tagAlong(LIMEY, 82))) moveActor(LIMEY, d3x, d3y, dash3);
     if (LIMEY.inv > 0) LIMEY.inv -= dt;
     actorHazards(LIMEY); actorPickups(LIMEY);
@@ -10136,7 +10166,7 @@ function bestInteract(px, py, self) {
 
 function doInteractAt(px, py, char, who) {
   const actor = ACTOR_OF[who || 'P'];
-  return withWorld(actor.lvl, () => doInteractHere(px, py, char, who));
+  return asSlot(who, () => withWorld(actor.lvl, () => doInteractHere(px, py, char, who)));
 }
 function doInteractHere(px, py, char, who) {
   const it = bestInteract(px, py, char);
@@ -10509,6 +10539,7 @@ function speakerSpot(who) {
   return null;
 }
 function say(lines, onDone) {
+  if (!overlayOpen()) uiOwner = actingSlot || uiOwner;
   dlgQueue = lines; dlgIdx = 0; dlgShown = 0; dlgDone = onDone || null;
   dlgEl.classList.remove('hidden');
   showLine();
@@ -10539,7 +10570,7 @@ function dlgTick() {
       const b = document.createElement('button');
       b.className = 'dlg-choice';
       b.innerHTML = iconize(`${i + 1}. ${choice.label}`);
-      b.onclick = () => { dlgEl.classList.add('hidden'); G.talkingTo = null; AudioSys.sfx('select'); choice.cb(); };
+      b.onclick = () => { dlgEl.classList.add('hidden'); G.talkingTo = null; AudioSys.sfx('select'); asSlot(uiOwner, choice.cb); };
       dlgChoices.appendChild(b);
     });
     dlgNext.style.visibility = 'hidden';
@@ -10555,6 +10586,7 @@ function dlgAdvance() {
   dlgIdx++;
   if (dlgIdx >= dlgQueue.length) {
     dlgEl.classList.add('hidden'); G.talkingTo = null;
+    if (!overlayOpen()) { uiOwner = null; placePanel(); }
     const cb = dlgDone; dlgDone = null;
     if (cb) cb();
     // and then whatever you were going to say next — unless they started
@@ -11137,11 +11169,55 @@ function updateTrial(dt) {
 /* ---------------- overlays ---------------- */
 const overlayEl = document.getElementById('overlay');
 const panelEl = document.getElementById('overlay-panel');
+/* ---------------- panels that belong to one player ----------------
+   A panel used to be everybody's. One player going fishing, or opening their
+   backpack, or reading a quest log, stopped the whole game: the other two sat
+   looking at the back of a box while somebody else played a different game
+   inside it. On your own that is exactly right, and nothing below changes it.
+   In co-op it is wrong, and the fix is the same shape as the one the Golden
+   Pages crossing uses — the thing belongs to a player, it happens in their own
+   half of the screen, and the rest of the game goes on being played.
+
+   Whoever is interacting owns whatever they open, which is why this is a
+   single variable rather than an argument threaded through forty call sites:
+   the panels are opened from deep inside quest code that has no idea who
+   pressed the button. */
+let actingSlot = null;    // who is pressing the button right now
+let uiOwner = null;       // and who owns what is open because of it
+function asSlot(who, fn) {
+  const prev = actingSlot;
+  actingSlot = who || 'P';
+  try { return fn(); } finally { actingSlot = prev; }
+}
+/* A panel belongs to somebody only when there is somebody else to belong away
+   from. On your own, every panel is the whole game's, as it always was. */
+function paneOwned() { return isCoop() && !!uiOwner; }
+/* Some panels are nobody's in particular — the pause menu stops the game for
+   everybody, because that is what pausing is. */
+function openOverlayGlobal(fn) { const r = fn(); uiOwner = null; placePanel(); return r; }
+function ownerActor() { return uiOwner ? ACTOR_OF[uiOwner] : null; }
+/* Is this person busy with something of their own? They do not walk while they
+   are, but nobody else is held up by it. */
+function busyNow(A) { return paneOwned() && ownerActor() === A; }
+/* Does what is open stop the world? Only if it is everybody's. */
+function worldFrozen() {
+  return (overlayOpen() || dlgActive() || cardViewOpen()) && !paneOwned();
+}
+/* Put the panel over its owner's own pane, so it covers their game and not
+   the other two. */
+function placePanel() {
+  overlayEl.classList.remove('pane-0', 'pane-1', 'pane-2', 'panes-2', 'panes-3');
+  if (!paneOwned()) return;
+  const i = uiOwner === 'FOLLOW' ? 1 : uiOwner === 'LIMEY' ? 2 : 0;
+  overlayEl.classList.add('pane-' + i, isCoop3() ? 'panes-3' : 'panes-2');
+}
 function overlayOpen() { return !overlayEl.classList.contains('hidden'); }
-function openOverlay(html) {
+function openOverlay(html, owner) {
   // a fresh panel owes nothing on the way out until it says otherwise
   G.bookNav = null; G.onOverlayClose = null;
+  uiOwner = owner || actingSlot || null;
   panelEl.innerHTML = iconize(html); overlayEl.classList.remove('hidden');
+  placePanel();
 }
 function closeOverlay() {
   /* Some panels have something to do on the way out — the arcade has to pay
@@ -11151,6 +11227,8 @@ function closeOverlay() {
      the overlay itself cannot come back round again. */
   const done = G.onOverlayClose; G.onOverlayClose = null;
   overlayEl.classList.add('hidden'); panelEl.innerHTML = '';
+  if (!dlgActive()) uiOwner = null;
+  placePanel();
   if (G.uiTimer) { clearInterval(G.uiTimer); G.uiTimer = null; }
   if (done) done();
 }
@@ -13254,12 +13332,19 @@ function openWordArcade() {
 
   /* Built once and then kept. Rebuilding the panel on every letter would throw
      away the box you are typing into, along with the caret in it. */
+  /* A box you type into takes the whole keyboard: every key any player presses
+     goes into it and nowhere else, and the other two are frozen out of their
+     own game while somebody spells CAT. So when this belongs to one player of
+     several, the letters are tapped rather than typed, and everybody else's
+     keys go on being their own. On your own there is nobody to take them from,
+     and the box stays. */
+  const shared = isCoop();
   const render = () => {
     openOverlay(`<h2>🔡 Word-Builder — <span id="wb-time">${Math.ceil(timeLeft)}</span>s</h2>
       <p>Score: <b id="wb-score">${score}</b> — words of 3+ letters. 20+ earns a badge!</p>
-      <p style="margin:0 0 4px">Type a word, or tap the letters:</p>
-      <input class="room-input" id="wb-type" maxlength="8" autocomplete="off"
-        autocapitalize="characters" spellcheck="false" placeholder="…">
+      <p style="margin:0 0 4px">${shared ? 'Tap the letters:' : 'Type a word, or tap the letters:'}</p>
+      ${shared ? '' : `<input class="room-input" id="wb-type" maxlength="8" autocomplete="off"
+        autocapitalize="characters" spellcheck="false" placeholder="…">`}
       <div class="puzzle-slots" id="wb-slots">&nbsp;</div>
       <div>${rack.map((L, i) =>
         `<button class="letter-btn" data-i="${i}">${L}</button>`).join('')}</div>
@@ -13275,12 +13360,12 @@ function openWordArcade() {
       if (box()) box().focus();
     }));
     const inp = box();
-    inp.addEventListener('input', () => { typed = settle(inp.value); refresh(); });
+    if (inp) inp.addEventListener('input', () => { typed = settle(inp.value); refresh(); });
     /* The game stands aside entirely while a field has focus, which is what
        keeps typing MAP into the box from throwing you out to the world map —
        and also means Escape never reaches it. So the box has to let you out
        itself, the way the button under it promises. */
-    inp.addEventListener('keydown', (e) => {
+    if (inp) inp.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); submit(); }
       else if (e.key === 'Escape') { e.preventDefault(); finish(); }
     });
@@ -13288,7 +13373,7 @@ function openWordArcade() {
     panelEl.querySelector('#wb-stop').onclick = finish;
     panelEl.querySelector('#wb-sub').onclick = submit;
     refresh();
-    inp.focus();
+    if (inp) inp.focus();
     G.onOverlayClose = finish;    // Escape and the backdrop pay out too
     wbLive = { rack: () => rack.slice(), typed: () => typed, score: () => score, submit,
       type: (v) => { typed = settle(v); refresh(); },
@@ -16928,7 +17013,7 @@ function frameInner(ts) {
      and a quest reply becomes unclickable. You cannot walk during either
      anyway, so there is nothing to lose. */
   touchEl.classList.toggle('stow',
-    G.state !== 'play' || dlgActive() || overlayOpen() || cardViewOpen());
+    G.state !== 'play' || ((dlgActive() || overlayOpen() || cardViewOpen()) && !paneOwned()));
 
   if (G.state === 'title') {
     setGL(false);
@@ -16943,8 +17028,8 @@ function frameInner(ts) {
     if (G.state === 'play' && isGuest()) {
       // a visitor only walks; the host's game owns everything else
       G.playTime += dt;
-      if (!overlayOpen() && !dlgActive() && !cardViewOpen()) netGuestTick(dt);
-    } else if (G.state === 'play' && !overlayOpen() && !dlgActive() && !cardViewOpen()) {
+      if (!worldFrozen()) netGuestTick(dt);
+    } else if (G.state === 'play' && !worldFrozen()) {
       G.playTime += dt;
       syncFollowerLevels();
       if (isCoop()) updateCoop(dt);
@@ -17564,6 +17649,9 @@ window.DN = {
   rackWords: (r) => wordsFromRack(r),
   refill: (r) => plantWord(r),
   wordArcade() { openWordArcade(); return DN.wb(); },
+  // open one of the owned panels as a given player, the way a player does
+  ownedPanel(who, what) { asSlot(who, () => ({ wordArcade: openWordArcade, fishing: openFishing,
+    inventory: openInventory, quests: openQuests, map: () => openMap(who) })[what]()); return DN.panel(); },
   wb: () => (wbLive ? { rack: wbLive.rack(), typed: wbLive.typed(), score: wbLive.score(),
     can: wordsFromRack(wbLive.rack()) } : null),
   /* Play a word the way a child would: put those letters in front of them,
@@ -17631,6 +17719,17 @@ window.DN = {
     return DN.checklist();
   },
   ui: () => overlayOpen(),
+  /* Whose panel is up, whether it stops the world, and where on the picture it
+     is sitting. */
+  panel: () => {
+    const el = document.getElementById('overlay');
+    const r = el && !el.classList.contains('hidden') ? el.getBoundingClientRect() : null;
+    const g = canvas.getBoundingClientRect();
+    return { open: overlayOpen(), dlg: dlgActive(), owner: uiOwner, owned: paneOwned(),
+      frozen: worldFrozen(),
+      box: r && g.width ? { x: Math.round((r.left - g.left) / g.width * 1000) / 10,
+        w: Math.round(r.width / g.width * 1000) / 10 } : null };
+  },
   cardFlip(d) { if (G.card) flipCard(d); return G.card && G.card.id; },
   cardClose() { closeCard(); return true; },
   // for tests: every card already met, so none interrupts what is being measured
