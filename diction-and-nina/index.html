@@ -5466,25 +5466,76 @@ const Net = (() => {
   ];
   // what is actually carrying the packets, for the check panel to say out loud
   N.relayKind = function () { return N.getRelay() ? 'own' : 'built-in'; };
+  N.relayCount = function () { const r = N.getRelay(); return r ? r.length : BUILTIN_RELAY.length; };
   N.builtInRelay = function () { return BUILTIN_RELAY.slice(); };
   /* Free open relays come and go, so a player's own can be added here without
      touching the game — it is remembered on this machine only, and it replaces
      the built-in one rather than joining it, so a relay that has gone bad
      cannot go on being tried. */
   N.getRelay = function () {
-    try { return JSON.parse(localStorage.getItem('dn-turn') || 'null'); } catch (e) { return null; }
+    let r = null;
+    try { r = JSON.parse(localStorage.getItem('dn-turn') || 'null'); } catch (e) { return null; }
+    if (!r) return null;
+    const list = (Array.isArray(r) ? r : [r]).filter(x => x && x.urls);
+    return list.length ? list : null;
   };
   N.setRelay = function (r) {
     try {
-      if (r && r.urls) localStorage.setItem('dn-turn', JSON.stringify(r));
+      const list = (Array.isArray(r) ? r : r ? [r] : []).filter(x => x && x.urls);
+      if (list.length) localStorage.setItem('dn-turn', JSON.stringify(list));
       else localStorage.removeItem('dn-turn');
     } catch (e) {}
     return N.getRelay();
   };
+  /* What a relay service hands you varies: some give you three lines to copy,
+     some give you a block of JavaScript with an array of servers in it, some
+     give you the array on its own. All of them are accepted here, because
+     "paste what they gave you" is the only instruction anybody should have to
+     follow. */
+  N.parseRelay = function (text) {
+    const t = String(text || '').trim();
+    if (!t) return null;
+    let raw = null;
+    // the array out of a block of JavaScript, if that is what was pasted
+    const m = t.match(/\[[\s\S]*\]/);
+    const tries = [t, m && m[0]].filter(Boolean);
+    for (const cand of tries) {
+      try { raw = JSON.parse(cand); break; } catch (e) { /* keep trying */ }
+      try { raw = JSON.parse(cand.replace(/([{,]\s*)([A-Za-z_][\w]*)\s*:/g, '$1"$2":')
+        .replace(/'/g, '"').replace(/,\s*([}\]])/g, '$1')); break; } catch (e) { /* and again */ }
+    }
+    if (!raw) return null;
+    const list = (Array.isArray(raw) ? raw : [raw])
+      .filter(x => x && x.urls)
+      .map(x => ({ urls: x.urls, username: x.username, credential: x.credential }))
+      // a plain STUN line is not a relay, and pasting one would look like it worked
+      .filter(x => /^turns?:/i.test(Array.isArray(x.urls) ? x.urls[0] : x.urls));
+    return list.length ? list : null;
+  };
   function iceServers() {
     const r = N.getRelay();
-    return STUN.concat(r ? [r] : BUILTIN_RELAY);
+    return STUN.concat(r || BUILTIN_RELAY);
   }
+  /* Does this relay actually answer? Asked of the relay on its own, with every
+     other way of connecting switched off, so a 'yes' means the relay and not
+     something else that happened to work. */
+  N.testRelay = function (servers) {
+    return new Promise((done) => {
+      const list = servers || N.getRelay() || BUILTIN_RELAY;
+      let ok = false, probe;
+      try {
+        probe = new RTCPeerConnection({ iceServers: list, iceTransportPolicy: 'relay' });
+      } catch (e) { done(false); return; }
+      const stop = () => { try { probe.close(); } catch (e) {} done(ok); };
+      probe.createDataChannel('t');
+      probe.onicecandidate = (e) => {
+        if (!e.candidate) return stop();
+        if (/ typ relay/.test(e.candidate.candidate)) { ok = true; stop(); }
+      };
+      probe.createOffer().then((o) => probe.setLocalDescription(o)).catch(stop);
+      setTimeout(stop, GATHER_MS);
+    });
+  };
   N.iceServers = iceServers;
   /* How long to wait for addresses and for a meeting point. These were sized
      for two friends in the same country. A relay on the other side of the
@@ -8466,7 +8517,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v128 · All of it, on a controller";
+const GAME_VERSION = "v129 · Somewhere to pass the packets";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -11731,8 +11782,8 @@ async function netCheckPanel() {
                        "Can't reach the meeting point — use the by-hand codes")}
       ${line(c.stun, 'Your outside address was found — most friends will connect',
                      'Your outside address is hidden — only same-wifi play will work')}
-      ${line(c.turn, `The ${Net.relayKind()} relay answered — even strict networks will connect`,
-                     'The relay did not answer — very strict networks will refuse')}
+      ${line(c.turn, `The ${Net.relayKind()} relay answered — even a friend on the other side of the world will connect`,
+                     'The relay did not answer — a friend far away cannot join until one does')}
     </div>
     <p style="margin-top:10px">${c.turn ? 'Everything needed is here.'
       : c.stun ? 'Friends on the same sort of network as you will connect. A friend far away — a different country, or on mobile internet — almost certainly will not, because that needs the relay and the relay is not answering. The one that comes with the game is free and shared, so it is sometimes busy and sometimes gone. Adding your own below is the fix, and it only has to be done on <b>one</b> of the two machines.'
@@ -11753,34 +11804,53 @@ async function netCheckPanel() {
 /* The game comes with a relay, so nothing here is required. It is a free open
    one shared by everybody who uses it, so it can be busy or go away — and a
    player who hits that can put their own in, which replaces it. */
-function netRelayPanel() {
-  const r = Net.getRelay() || {};
+function netRelayPanel(note) {
+  const r = (Net.getRelay() || [])[0] || {};
   netPanel(`
-    <p><b>${r.urls ? 'Your own relay' : 'Use your own relay'}</b></p>
-    <p>If two homes are far apart and one of the routers won't allow a direct
-      link, a relay passes the packets between you. <b>One comes with the game
-      already</b> — you shouldn't need to do anything here.</p>
-    <p>It is a free one shared by everyone, though, so it can be busy. If a
-      friend keeps failing to connect, your own will replace it: <b>metered.ca</b>
-      and <b>Twilio</b> both give one away, and a grown-up can sign up in a
-      couple of minutes. Paste the three lines they give you:</p>
-    <p><b>Address</b> <small>(looks like turn:something.com:443)</small></p>
+    <p><b>${Net.getRelay() ? 'Your own relay' : 'Add a relay'}</b></p>
+    <p>When two homes are far apart — different countries, or one of you on
+      mobile internet — your routers cannot see each other at all, and the
+      packets have to be passed along by a machine in the middle. That machine
+      is a relay, and it is the one piece a single web page cannot be for
+      itself.</p>
+    <p>The game ships with a free shared one. <b>Free relays come and go, and if
+      the check says the relay is not answering then the one it came with has
+      gone.</b> Getting your own is a couple of minutes and it is free:
+      <b>metered.ca</b> and <b>Twilio</b> both hand them out. Only <b>one</b> of
+      you needs it — it will pass the packets for both ends.</p>
+    <p><b>Paste whatever they give you</b> <small>(a block of JavaScript, a list, or just the three lines — anything)</small></p>
+    <textarea class="net-code" id="relay-paste" rows="5" placeholder='[{"urls":"turn:…","username":"…","credential":"…"}]'></textarea>
+    <p style="margin:10px 0 2px"><small>…or type the three lines yourself:</small></p>
+    <p style="margin:0"><b>Address</b> <small>(looks like turn:something.com:443)</small></p>
     <input class="net-code" id="relay-url" value="${r.urls || ''}" placeholder="turn:…">
-    <p><b>Username</b></p>
+    <p style="margin:6px 0 0"><b>Username</b></p>
     <input class="net-code" id="relay-user" value="${r.username || ''}">
-    <p><b>Password</b></p>
+    <p style="margin:6px 0 0"><b>Password</b></p>
     <input class="net-code" id="relay-pass" value="${r.credential || ''}">
+    <p id="relay-note" style="min-height:22px"><b>${note || ''}</b></p>
     <button class="big-btn" id="relay-save">Save and test it</button>
-    <button class="big-btn secondary" id="relay-clear">Go back to the built-in one</button>
+    <button class="big-btn secondary" id="relay-clear">Go back to the one that came with the game</button>
     <button class="big-btn secondary" id="net-again">Back</button>`,
     () => {
-      panelEl.querySelector('#relay-save').onclick = () => {
-        Net.setRelay({
+      panelEl.querySelector('#relay-save').onclick = async () => {
+        const pasted = Net.parseRelay(panelEl.querySelector('#relay-paste').value);
+        const typed = {
           urls: panelEl.querySelector('#relay-url').value.trim(),
           username: panelEl.querySelector('#relay-user').value.trim(),
           credential: panelEl.querySelector('#relay-pass').value.trim(),
-        });
-        netCheckPanel();
+        };
+        const use = pasted || (typed.urls ? [typed] : null);
+        if (!use) { netRelayPanel('That did not look like a relay — paste the whole thing they gave you.'); return; }
+        Net.setRelay(use);
+        const el = panelEl.querySelector('#relay-note');
+        if (el) el.innerHTML = '<b>Testing it…</b>';
+        /* Say whether it works before anybody tries to play on it. A relay that
+           was pasted wrong looks exactly like a relay that is fine until the
+           moment somebody far away cannot join. */
+        const good = await Net.testRelay(use);
+        netRelayPanel(good
+          ? `✅ Saved — your relay answered (${use.length} address${use.length > 1 ? 'es' : ''}). Your faraway friend can join now.`
+          : '⚠️ Saved, but it did not answer. Check the username and password, or that the address begins turn: — then press Save again.');
       };
       panelEl.querySelector('#relay-clear').onclick = () => { Net.setRelay(null); netCheckPanel(); };
       panelEl.querySelector('#net-again').onclick = netCheckPanel;
