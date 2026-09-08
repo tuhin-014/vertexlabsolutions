@@ -412,6 +412,50 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
 }
 .room-input:focus { outline: 4px solid #ffd12e; }
 
+/* ------- this phone, being a controller -------
+   Once a phone is a controller it is not showing a game any more, so it takes
+   the whole screen and sits outside the scaled game area entirely — a thumb
+   wants the bottom corners of the actual phone, not of a 960-wide picture
+   pretending to be one. */
+#padpad {
+  position:fixed; inset:0; z-index:60; background:#1b1530;
+  display:flex; flex-direction:column; touch-action:none; user-select:none;
+}
+#padpad.hidden { display:none !important; }
+#pp-who {
+  flex:none; text-align:center; color:#fff6e0; font-weight:bold;
+  padding:12px 10px 4px; font-size:16px;
+}
+#pp-stick {
+  position:absolute; left:6%; bottom:8%; width:44vw; height:44vw;
+  max-width:260px; max-height:260px;
+  border-radius:50%; background:rgba(255,252,242,.10);
+  border:4px solid rgba(255,252,242,.35);
+}
+#pp-nub {
+  position:absolute; left:50%; top:50%; width:38%; height:38%;
+  transform:translate(-50%,-50%); border-radius:50%;
+  background:rgba(255,236,168,.85); border:4px solid #14110f;
+}
+#pp-btns {
+  position:absolute; right:5%; bottom:9%;
+  display:grid; grid-template-columns:repeat(2, auto); gap:12px; align-items:end;
+}
+.pp-b {
+  width:22vw; height:22vw; max-width:110px; max-height:110px;
+  border-radius:50%; border:4px solid #14110f; background:rgba(255,255,255,.9);
+  font-size:8vw; font-family:inherit;
+}
+.pp-b:active { background:#ffd12e; }
+.pp-b .ic, .pp-b img { width:52%; height:52%; }
+.pp-b[data-b="0"] { width:26vw; height:26vw; max-width:130px; max-height:130px; background:rgba(255,223,94,.95); }
+#pp-small { position:absolute; top:44px; left:0; right:0; display:flex; gap:10px; justify-content:center; }
+.pp-s {
+  width:56px; height:44px; border-radius:12px; border:3px solid #14110f;
+  background:rgba(255,252,242,.85); font-size:18px; font-family:inherit;
+}
+.pp-s:active { background:#ffd12e; }
+
 </style>
 </head>
 <body>
@@ -465,6 +509,21 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
   <div id="tutorial" class="hidden"></div>
 
   <!-- Touch controls -->
+  <div id="padpad" class="hidden">
+    <div id="pp-who"></div>
+    <div id="pp-stick"><div id="pp-nub"></div></div>
+    <div id="pp-btns">
+      <button class="pp-b" data-b="2"><i data-ic="sparkle"></i></button>
+      <button class="pp-b" data-b="0"><i data-ic="chat"></i></button>
+      <button class="pp-b" data-b="1"><i data-ic="zap"></i></button>
+    </div>
+    <div id="pp-small">
+      <button class="pp-s" data-b="12">▲</button>
+      <button class="pp-s" data-b="13">▼</button>
+      <button class="pp-s" data-b="9">☰</button>
+      <button class="pp-s" id="pp-off">✕</button>
+    </div>
+  </div>
   <div id="touch" class="hidden">
     <!-- no d-pad: you walk by holding anywhere on the world, or with WASD -->
     <!-- every other control, generated from the CONTROLS table in game.js -->
@@ -8517,7 +8576,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v129 · Somewhere to pass the packets";
+const GAME_VERSION = "v130 · A phone is a controller";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9137,14 +9196,40 @@ const gpHeld = [{}, {}, {}];
    throws the moment you call it, so checking that it exists isn't enough. Ask
    once; if the answer is no, stop asking rather than throw every frame. */
 let padsBlocked = false;
+/* ---------------- a phone standing in for a controller ----------------
+   Not everybody has a gamepad, and everybody in the room has a phone. One
+   opens the same game, joins with a room code, and becomes a controller for
+   one of the players sitting at the screen — its thumb-stick and buttons come
+   down the same wire the online games use.
+
+   What arrives is shaped exactly like a gamepad, and is handed to the game as
+   one. That is the whole trick: nothing downstream of here knows the
+   difference, so walking about, talking, powers, menus, shops and dialogue
+   answers all work on a phone the day they work on a pad, without a line of
+   code being written twice. */
+const PHONE = [null, null, null];
+function phonePad(st) {
+  const b = st.b || {};
+  return {
+    index: -1, connected: true, id: 'phone',
+    axes: [st.ax || 0, st.ay || 0, 0, 0],
+    buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!b[i] })),
+  };
+}
+function phoneSet(slot, st) {
+  const i = Math.max(0, Math.min(2, slot | 0));
+  PHONE[i] = st ? phonePad(st) : null;
+}
+function phoneSlots() { return PHONE.map((p, i) => (p ? i : -1)).filter(i => i >= 0); }
 function readPads() {
-  if (padsBlocked || !navigator.getGamepads) return [];
-  try {
-    return navigator.getGamepads() || [];
-  } catch (e) {
-    padsBlocked = true;   // no controllers in this frame — keyboard and touch still work
-    return [];
+  let live = [];
+  if (!padsBlocked && navigator.getGamepads) {
+    try { live = Array.from(navigator.getGamepads() || []); }
+    catch (e) { padsBlocked = true; live = []; }
   }
+  // a real controller in a slot wins; otherwise a phone can stand in for one
+  for (let i = 0; i < 3; i++) if (!live[i] && PHONE[i]) live[i] = PHONE[i];
+  return live;
 }
 /* ---------------- playing the whole game with a controller ----------------
    A pad could walk you about and talk to people, and then stopped dead at
@@ -11393,6 +11478,8 @@ const NET = {
   partner: 'your friend',
   sendAt: 0, seenAt: 0, worldStamp: -1,
   backup: null,                          // guest: their own save, kept safe
+  pad: null,                             // screen: which player a phone is being
+  padSlot: null, padName: null,          // phone: which player it was given
 };
 const NET_HZ = 1 / 20;
 const isGuest = () => NET.on && NET.role === 'guest';
@@ -11499,7 +11586,21 @@ function netPump(frozen) {
 }
 
 function netOnMessage(m) {
-  if (!m || !NET.on) return;
+  if (!m) return;
+  /* A phone's messages are read before anything else, because a phone is not a
+     game joining: none of the two-worlds machinery has been started for it, so
+     the flag that says "there is a game on the other end of this" is not set
+     and never will be. */
+  if (m.t === 'padhello') {
+    if (NET.pad === null || NET.pad === undefined) NET.pad = 1;   // the screen picked; default player two
+    phoneSet(NET.pad, { ax: 0, ay: 0, b: {} });
+    Net.send({ t: 'padok', slot: NET.pad, name: whoName(SLOT_NAMES[NET.pad]) });
+    toast(`\u{1F4F1} A phone is playing as ${whoName(SLOT_NAMES[NET.pad])}`);
+    return;
+  }
+  if (m.t === 'pad') { if (NET.pad !== null && NET.pad !== undefined) phoneSet(NET.pad, m); return; }
+  if (m.t === 'padok') { NET.padSlot = m.slot; NET.padName = m.name; if (G.onPadOk) G.onPadOk(m); return; }
+  if (!NET.on) return;
   NET.seenAt = G.t;
   if (isHost()) {
     if (m.t === 'i') { NET.input.x = m.x; NET.input.y = m.y; NET.input.d = !!m.d; }
@@ -11525,8 +11626,20 @@ function netOnMessage(m) {
 
 function netWireCallbacks() {
   Net.onMessage = netOnMessage;
-  Net.onClose = () => netStop('Your friend disconnected.');
+  Net.onClose = () => {
+    if (G.padding) { padStop(); toast('\u{1F4F1} The controller was disconnected.'); return; }
+    if (NET.pad !== null && NET.pad !== undefined) {
+      phoneSet(NET.pad, null); NET.pad = null;
+      toast('\u{1F4F1} The phone disconnected.');
+      return;
+    }
+    netStop('Your friend disconnected.');
+  };
   Net.onOpen = () => {
+    /* A phone is not a second world arriving — it is a controller for this one,
+       so none of the joining-a-game machinery should start up on either end. */
+    if (G.padding || NET.pad !== null && NET.pad !== undefined) { closeOverlay(); return; }
+    if (Net.role === 'guest' && G.wantPad) { closeOverlay(); return; }
     closeOverlay();
     if (Net.role === 'host') netStartHost(); else netStartGuest();
   };
@@ -11702,6 +11815,12 @@ function openOnline() {
         <small>Your world, your save. You get a room code to share.</small></div>
       <div class="panel-card clickable" id="net-join"><b>Join a game</b><br>
         <small>Type a friend's room code and visit their Wordsville.</small></div>
+      <div class="panel-card clickable" id="net-phonehost"><b>📱 Use a phone as a controller</b><br>
+        <small>For somebody sitting right here. You get a code; they type it into
+        their phone and it becomes their controller.</small></div>
+      <div class="panel-card clickable" id="net-phonebe"><b>📱 Be a controller</b><br>
+        <small>Turn <em>this</em> phone into a controller for a game on somebody's
+        screen.</small></div>
     </div>
     <p style="opacity:.7"><small>Once you're in, the two games talk straight to each
       other — nothing about your adventure is stored anywhere else.</small></p>
@@ -11709,6 +11828,8 @@ function openOnline() {
     () => {
       panelEl.querySelector('#net-host').onclick = netHostRoom;
       panelEl.querySelector('#net-join').onclick = netJoinRoom;
+      panelEl.querySelector('#net-phonehost').onclick = phoneHostPanel;
+      panelEl.querySelector('#net-phonebe').onclick = phoneBePanel;
       panelEl.querySelector('#net-check').onclick = netCheckPanel;
     });
 }
@@ -11855,6 +11976,167 @@ function netRelayPanel(note) {
       panelEl.querySelector('#relay-clear').onclick = () => { Net.setRelay(null); netCheckPanel(); };
       panelEl.querySelector('#net-again').onclick = netCheckPanel;
     });
+}
+/* ---------------- a phone as a controller ----------------
+   Two ends. The screen offers a code and says which player the phone will be;
+   the phone types the code in and turns itself into a pad. Both of them use
+   the same room codes and the same wire as playing online, because it is the
+   same problem — two browsers that have to find each other. */
+function phoneHostPanel() {
+  netWireCallbacks();
+  const pick = (NET.pad === null || NET.pad === undefined) ? 1 : NET.pad;
+  netPanel(`
+    <p><b>📱 Use a phone as a controller</b></p>
+    <p>For somebody sitting in the room with you. Their phone becomes a
+      controller for one of the players on this screen — a thumb-stick and
+      buttons, nothing else.</p>
+    <p><b>Which player is the phone?</b></p>
+    <div class="panel-grid" id="phone-slots">
+      ${[0, 1, 2].map(i => `<div class="panel-card clickable${i === pick ? ' pad-on' : ''}" data-slot="${i}">
+        <b>Player ${i + 1}</b><br><small>${whoName(SLOT_NAMES[i])}</small></div>`).join('')}
+    </div>
+    <button class="big-btn" id="phone-go">Get a code</button>
+    <p id="phone-msg" style="min-height:22px"></p>
+    <button class="big-btn secondary" id="net-again">Back</button>`,
+    () => {
+      let slot = pick;
+      const paint = () => panelEl.querySelectorAll('[data-slot]').forEach(el =>
+        el.classList.toggle('pad-on', +el.dataset.slot === slot));
+      panelEl.querySelectorAll('[data-slot]').forEach(el => {
+        el.onclick = () => { slot = +el.dataset.slot; paint(); };
+      });
+      panelEl.querySelector('#phone-go').onclick = async () => {
+        NET.pad = slot;
+        const msg = panelEl.querySelector('#phone-msg');
+        msg.innerHTML = '<b>Getting a code…</b>';
+        try {
+          const code = await Net.hostRoom();
+          netPanel(`
+            <p><b>📱 On the phone, open this same game, tap ⚙️ Menu → Play Online →
+              “Be a controller”, and type:</b></p>
+            <div class="room-code">${code}</div>
+            <p>The phone will be <b>Player ${slot + 1} — ${whoName(SLOT_NAMES[slot])}</b>.</p>
+            <p id="phone-msg2" style="min-height:22px">Waiting for the phone…</p>
+            <button class="big-btn secondary" id="net-again">Stop waiting</button>`,
+            () => { panelEl.querySelector('#net-again').onclick = () => { Net.close(); openOnline(); }; });
+        } catch (e) {
+          msg.innerHTML = '<b>Could not get a code — ' + (e && e.message === 'no-server'
+            ? 'the meeting point could not be reached.' : 'try again.') + '</b>';
+        }
+      };
+      panelEl.querySelector('#net-again').onclick = openOnline;
+      paint();
+    });
+}
+/* On the phone. Once it is connected it stops being a game at all and becomes
+   a control surface: there is nothing to look at on a controller. */
+function phoneBePanel() {
+  netWireCallbacks();
+  netPanel(`
+    <p><b>📱 Be a controller</b></p>
+    <p>Turn this phone into a controller for a game running on somebody's
+      screen. Ask them for the code their game is showing.</p>
+    <input class="room-input" id="phone-room" maxlength="7" autocapitalize="characters"
+      autocomplete="off" spellcheck="false" placeholder="ABC123">
+    <button class="big-btn" id="phone-join">Connect</button>
+    <p id="phone-msg" style="min-height:22px"></p>
+    <button class="big-btn secondary" id="net-again">Back</button>`,
+    () => {
+      const box = panelEl.querySelector('#phone-room');
+      const msg = panelEl.querySelector('#phone-msg');
+      box.addEventListener('input', () => { box.value = Net.tidyRoomCode(box.value); });
+      const go = async () => {
+        msg.innerHTML = '<b>Connecting…</b>';
+        try {
+          G.wantPad = true;
+          await Net.joinRoom(box.value);
+          G.onPadOk = (m) => { G.onPadOk = null; padScreen(m.slot, m.name); };
+          Net.send({ t: 'padhello' });
+          msg.innerHTML = '<b>Connected — asking which player you are…</b>';
+        } catch (e) {
+          msg.innerHTML = '<b>' + (e && e.message === 'no-room'
+            ? 'No game is showing that code.' : 'Could not connect — check the code.') + '</b>';
+        }
+      };
+      panelEl.querySelector('#phone-join').onclick = go;
+      box.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.stopPropagation(); go(); } });
+      panelEl.querySelector('#net-again').onclick = openOnline;
+      setTimeout(() => box.focus(), 60);
+    });
+}
+/* The control surface. Once a phone is a controller it is not showing a game
+   any more, so this takes the whole screen: a thumb-stick under the left thumb
+   and buttons under the right, and the state of both going down the wire
+   twenty times a second — often enough to walk with, seldom enough that a
+   phone on a slow connection keeps up. */
+let padSend = null;
+function padScreen(slot, name) {
+  const el = document.getElementById('padpad');
+  const nub = document.getElementById('pp-nub');
+  const stick = document.getElementById('pp-stick');
+  if (!el) return;
+  closeOverlay();
+  document.getElementById('pp-who').textContent = `📱 You are Player ${slot + 1} — ${name}`;
+  el.classList.remove('hidden');
+  const st = { ax: 0, ay: 0, b: {} };
+  let touchId = null;
+  const setNub = (dx, dy) => {
+    nub.style.left = (50 + dx * 30) + '%';
+    nub.style.top = (50 + dy * 30) + '%';
+  };
+  const from = (t) => {
+    const r = stick.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const rad = r.width / 2;
+    let dx = (t.clientX - cx) / rad, dy = (t.clientY - cy) / rad;
+    const d = Math.hypot(dx, dy);
+    if (d > 1) { dx /= d; dy /= d; }
+    st.ax = Math.abs(dx) < 0.18 ? 0 : dx;
+    st.ay = Math.abs(dy) < 0.18 ? 0 : dy;
+    setNub(dx, dy);
+  };
+  stick.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0]; touchId = t.identifier; from(t); e.preventDefault();
+  }, { passive: false });
+  stick.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) if (t.identifier === touchId) from(t);
+    e.preventDefault();
+  }, { passive: false });
+  const letGo = (e) => {
+    for (const t of e.changedTouches) if (t.identifier === touchId) {
+      touchId = null; st.ax = 0; st.ay = 0; setNub(0, 0);
+    }
+  };
+  stick.addEventListener('touchend', letGo);
+  stick.addEventListener('touchcancel', letGo);
+  // and a mouse, so it can be tried on anything with a pointer
+  stick.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') { touchId = 'm'; from(e); } });
+  stick.addEventListener('pointermove', (e) => { if (touchId === 'm') from(e); });
+  window.addEventListener('pointerup', () => { if (touchId === 'm') { touchId = null; st.ax = 0; st.ay = 0; setNub(0, 0); } });
+  el.querySelectorAll('[data-b]').forEach((btn) => {
+    const b = +btn.dataset.b;
+    const on = (e) => { e.preventDefault(); st.b[b] = true; };
+    const off = (e) => { e.preventDefault(); st.b[b] = false; };
+    btn.addEventListener('pointerdown', on);
+    btn.addEventListener('pointerup', off);
+    btn.addEventListener('pointerleave', off);
+    btn.addEventListener('pointercancel', off);
+  });
+  const off = document.getElementById('pp-off');
+  if (off) off.onclick = () => { padStop(); };
+  if (padSend) clearInterval(padSend);
+  padSend = setInterval(() => {
+    if (!NET.on) { padStop(); return; }
+    Net.send({ t: 'pad', ax: st.ax, ay: st.ay, b: st.b });
+  }, 50);
+  G.padding = true;
+}
+function padStop() {
+  if (padSend) { clearInterval(padSend); padSend = null; }
+  const el = document.getElementById('padpad');
+  if (el) el.classList.add('hidden');
+  G.padding = false;
+  try { Net.close(); } catch (e) {}
 }
 function netJoinRoom() {
   netPanel(`
@@ -17885,6 +18167,12 @@ window.DN = {
     return DN.checklist();
   },
   ui: () => overlayOpen(),
+  /* A phone standing in for a controller, without needing two browsers and a
+     relay to try it: hand the game the same message a phone sends. */
+  phone(slot, st) { if (slot === null) { NET.pad = null; phoneSet(0, null); phoneSet(1, null); phoneSet(2, null); return null; }
+    NET.pad = slot; phoneSet(slot, st); return { slot, live: phoneSlots() }; },
+  phoneSlots: () => phoneSlots(),
+  padScreenOn: () => !document.getElementById('padpad').classList.contains('hidden'),
   /* Pretend a controller is plugged in, so the whole of it can be driven from
      a test the way a player drives it with their thumbs. */
   pad(i, state) {
