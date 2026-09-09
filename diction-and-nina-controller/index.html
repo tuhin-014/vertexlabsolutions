@@ -1,0 +1,915 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b1530">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Diction &amp; Nina — Controller</title>
+<style>
+/* Diction & Nina — the Controller.
+   A controller is held, not read: everything is sized off the phone it is on
+   rather than off a picture pretending to be one, and the two things a thumb
+   reaches for live in the two bottom corners. */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body {
+  height:100%; background:#1b1530; color:#fff6e0; overflow:hidden;
+  font-family:"Comic Sans MS","Chalkboard SE","Segoe Print","Trebuchet MS",sans-serif;
+  -webkit-user-select:none; user-select:none; touch-action:none;
+}
+.hidden { display:none !important; }
+
+#pad-join {
+  height:100%; display:flex; flex-direction:column; justify-content:center;
+  gap:14px; padding:24px max(24px, env(safe-area-inset-left)) 24px max(24px, env(safe-area-inset-right));
+  max-width:520px; margin:0 auto; text-align:center;
+}
+#pad-join h1 { font-size:30px; }
+#pad-join p { font-size:16px; line-height:1.5; opacity:.92; }
+#pad-join .small { font-size:13px; opacity:.6; }
+#pad-room {
+  font-family:inherit; font-size:34px; font-weight:bold; letter-spacing:6px;
+  text-align:center; text-transform:uppercase; padding:14px 10px;
+  border-radius:14px; border:4px solid #14110f; background:#fffcf2; color:#14110f;
+  width:100%;
+}
+#pad-go {
+  font-family:inherit; font-size:22px; font-weight:bold; padding:16px;
+  border-radius:14px; border:4px solid #14110f; background:#ffdf5e; color:#14110f;
+}
+#pad-go:active { background:#ffd12e; }
+#pad-msg { min-height:26px; font-size:15px; }
+
+#pad-face { position:fixed; inset:0; }
+#pad-who {
+  position:absolute; top:max(12px, env(safe-area-inset-top)); left:0; right:0;
+  text-align:center; font-weight:bold; font-size:17px; opacity:.9;
+}
+#pad-stick {
+  position:absolute; left:6%; bottom:9%;
+  width:44vw; height:44vw; max-width:280px; max-height:280px;
+  border-radius:50%; background:rgba(255,252,242,.10);
+  border:4px solid rgba(255,252,242,.35);
+}
+#pad-nub {
+  position:absolute; left:50%; top:50%; width:38%; height:38%;
+  transform:translate(-50%,-50%); border-radius:50%;
+  background:rgba(255,236,168,.9); border:4px solid #14110f;
+}
+/* A column up the right-hand side, with the one you press most at the bottom
+   where the thumb already is, and clear of the stick on the other side. */
+#pad-btns {
+  position:absolute; right:6%; bottom:9%;
+  display:flex; flex-direction:column; gap:13px; align-items:center;
+}
+.pb {
+  width:21vw; height:21vw; max-width:112px; max-height:112px;
+  border-radius:50%; border:4px solid #14110f; background:rgba(255,255,255,.92);
+  font-size:7.5vw; font-family:inherit; line-height:1;
+}
+.pb:active { background:#ffd12e; }
+.pb-big {
+  width:26vw; height:26vw; max-width:140px; max-height:140px;
+  background:rgba(255,223,94,.95); font-size:9vw;
+}
+#pad-small {
+  position:absolute; top:max(46px, calc(env(safe-area-inset-top) + 38px));
+  left:0; right:0; display:flex; gap:10px; justify-content:center;
+}
+.ps {
+  width:58px; height:46px; border-radius:12px; border:3px solid #14110f;
+  background:rgba(255,252,242,.85); color:#14110f; font-size:18px; font-family:inherit;
+}
+.ps:active { background:#ffd12e; }
+@media (min-height:900px) and (min-width:600px) {
+  .pb { font-size:44px; } .pb-big { font-size:54px; }
+}
+
+</style>
+<div id="pad-join">
+  <h1>📱 Controller</h1>
+  <p>For <b>Diction &amp; Nina</b>, running on somebody's screen.
+     Ask them to open <b>⚙️ Menu → Play Online → Use a phone as a controller</b>,
+     and type the code it shows you.</p>
+  <input id="pad-room" maxlength="7" autocapitalize="characters" autocomplete="off"
+    spellcheck="false" placeholder="ABC123">
+  <button id="pad-go">Connect</button>
+  <p id="pad-msg"></p>
+  <p class="small">Nothing is stored and nothing goes through us — this talks
+    straight to their game.</p>
+</div>
+<div id="pad-face" class="hidden">
+  <div id="pad-who"></div>
+  <div id="pad-stick"><div id="pad-nub"></div></div>
+  <div id="pad-btns">
+    <button class="pb" data-b="2">✨</button>
+    <button class="pb" data-b="1">⚡</button>
+    <button class="pb pb-big" data-b="0">💬</button>
+  </div>
+  <div id="pad-small">
+    <button class="ps" data-b="12">▲</button>
+    <button class="ps" data-b="13">▼</button>
+    <button class="ps" data-b="9">☰</button>
+    <button class="ps" id="pad-off">✕</button>
+  </div>
+</div>
+<script>
+/* ============================================================
+   Diction & Nina — playing together over the internet
+   ------------------------------------------------------------
+   There is no game server behind this. Two browsers talk straight
+   to each other over a WebRTC data channel, and the only thing
+   that has to travel by hand is a short invite code:
+
+     Host  → makes an INVITE code, sends it to a friend
+     Guest → pastes it, gets back a REPLY code
+     Host  → pastes the reply, and the link is live
+
+   The code is just the handshake — who to call, and how to prove it's
+   really you — packed into about ninety bytes, so it's short enough to
+   paste into any chat app. Nothing about the two players has to be on
+   the same network, though a very locked-down router can still refuse
+   the direct connection.
+   ============================================================ */
+
+const Net = (() => {
+  const N = {
+    role: null,          // 'host' | 'guest' | null
+    state: 'idle',       // idle | offering | answering | waiting | open | closed | failed
+    error: null,
+    onOpen: null, onClose: null, onMessage: null, onState: null,
+  };
+
+  /* STUN hands each side its own outside address so the two can find each
+     other across routers. Some routers — office and school networks, and the
+     stricter kind of home one — refuse a direct link even then; for those the
+     open relay is a last resort that forwards the packets. Slower, but the
+     difference between playing and not playing when your friend is far away. */
+  const STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302',
+                         'stun:stun.cloudflare.com:3478'] }];
+  /* A relay is the one piece a single HTML file cannot be for itself: it has to
+     be a machine sitting on the open internet. One is built in, so a strict
+     router does not stop two friends playing and nobody has to sign up for
+     anything first.
+
+     Three addresses for the same relay, because which one gets out depends on
+     what the network allows: 80 for the plainest case, 443 because a firewall
+     that blocks everything else usually still lets 443 through, and 443 over
+     TCP for the strictest of all, where UDP is refused outright and the relay
+     has to look like ordinary web traffic.
+
+     It is a free open relay, so it can be busy, rate-limited, or gone — which
+     is exactly why a player's own can still be added, and always wins. */
+  const RELAY_USER = 'openrelayproject', RELAY_PASS = 'openrelayproject';
+  const BUILTIN_RELAY = [
+    // the name the free relay has answered to for years
+    { urls: 'turn:openrelay.metered.ca:80', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turn:openrelay.metered.ca:443', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: RELAY_USER, credential: RELAY_PASS },
+    /* and the name the same machines answer to now. A free relay that has been
+       renamed, rate-limited or retired is the single most likely reason two
+       friends a long way apart cannot reach each other, so it is worth asking
+       for it by both names rather than betting the whole connection on one. */
+    { urls: 'turn:standard.relay.metered.ca:80', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turn:standard.relay.metered.ca:443', username: RELAY_USER, credential: RELAY_PASS },
+    { urls: 'turns:standard.relay.metered.ca:443?transport=tcp', username: RELAY_USER, credential: RELAY_PASS },
+  ];
+  // what is actually carrying the packets, for the check panel to say out loud
+  N.relayKind = function () { return N.getRelay() ? 'own' : 'built-in'; };
+  N.relayCount = function () { const r = N.getRelay(); return r ? r.length : BUILTIN_RELAY.length; };
+  N.builtInRelay = function () { return BUILTIN_RELAY.slice(); };
+  /* Free open relays come and go, so a player's own can be added here without
+     touching the game — it is remembered on this machine only, and it replaces
+     the built-in one rather than joining it, so a relay that has gone bad
+     cannot go on being tried. */
+  N.getRelay = function () {
+    let r = null;
+    try { r = JSON.parse(localStorage.getItem('dn-turn') || 'null'); } catch (e) { return null; }
+    if (!r) return null;
+    const list = (Array.isArray(r) ? r : [r]).filter(x => x && x.urls);
+    return list.length ? list : null;
+  };
+  N.setRelay = function (r) {
+    try {
+      const list = (Array.isArray(r) ? r : r ? [r] : []).filter(x => x && x.urls);
+      if (list.length) localStorage.setItem('dn-turn', JSON.stringify(list));
+      else localStorage.removeItem('dn-turn');
+    } catch (e) {}
+    return N.getRelay();
+  };
+  /* What a relay service hands you varies: some give you three lines to copy,
+     some give you a block of JavaScript with an array of servers in it, some
+     give you the array on its own. All of them are accepted here, because
+     "paste what they gave you" is the only instruction anybody should have to
+     follow. */
+  N.parseRelay = function (text) {
+    const t = String(text || '').trim();
+    if (!t) return null;
+    let raw = null;
+    // the array out of a block of JavaScript, if that is what was pasted
+    const m = t.match(/\[[\s\S]*\]/);
+    const tries = [t, m && m[0]].filter(Boolean);
+    for (const cand of tries) {
+      try { raw = JSON.parse(cand); break; } catch (e) { /* keep trying */ }
+      try { raw = JSON.parse(cand.replace(/([{,]\s*)([A-Za-z_][\w]*)\s*:/g, '$1"$2":')
+        .replace(/'/g, '"').replace(/,\s*([}\]])/g, '$1')); break; } catch (e) { /* and again */ }
+    }
+    if (!raw) return null;
+    const list = (Array.isArray(raw) ? raw : [raw])
+      .filter(x => x && x.urls)
+      .map(x => ({ urls: x.urls, username: x.username, credential: x.credential }))
+      // a plain STUN line is not a relay, and pasting one would look like it worked
+      .filter(x => /^turns?:/i.test(Array.isArray(x.urls) ? x.urls[0] : x.urls));
+    return list.length ? list : null;
+  };
+  function iceServers() {
+    const r = N.getRelay();
+    return STUN.concat(r || BUILTIN_RELAY);
+  }
+  /* Does this relay actually answer? Asked of the relay on its own, with every
+     other way of connecting switched off, so a 'yes' means the relay and not
+     something else that happened to work. */
+  N.testRelay = function (servers) {
+    return new Promise((done) => {
+      const list = servers || N.getRelay() || BUILTIN_RELAY;
+      let ok = false, probe;
+      try {
+        probe = new RTCPeerConnection({ iceServers: list, iceTransportPolicy: 'relay' });
+      } catch (e) { done(false); return; }
+      const stop = () => { try { probe.close(); } catch (e) {} done(ok); };
+      probe.createDataChannel('t');
+      probe.onicecandidate = (e) => {
+        if (!e.candidate) return stop();
+        if (/ typ relay/.test(e.candidate.candidate)) { ok = true; stop(); }
+      };
+      probe.createOffer().then((o) => probe.setLocalDescription(o)).catch(stop);
+      setTimeout(stop, GATHER_MS);
+    });
+  };
+  N.iceServers = iceServers;
+  /* How long to wait for addresses and for a meeting point. These were sized
+     for two friends in the same country. A relay on the other side of the
+     world is a quarter of a second away before it does anything at all, and
+     over TCP on 443 — which is what a strict network leaves you — the
+     handshake to allocate a relay address can take several round trips. Six
+     seconds of gathering is a connection that gives up while the answer is
+     still in the post. */
+  const GATHER_MS = 14000;
+
+  let pc = null, chan = null;
+
+  /* Some sandboxed viewers (the claude.ai artifact preview among them) switch
+     browser-to-browser connections off entirely. Check before offering it,
+     rather than blowing up when the player presses Host. */
+  N.available = () => typeof RTCPeerConnection === 'function';
+  N.unavailableReason =
+    "This preview window doesn't allow browser-to-browser connections. " +
+    'Save the game file and open it in your browser — or put it on a web page — ' +
+    'and Play Online will work from there.';
+
+  function setState(s, err) {
+    N.state = s; N.error = err || null;
+    if (N.onState) N.onState(s, N.error);
+  }
+
+  /* ---- codes ---------------------------------------------------------- */
+  /* base64 with '.' and '_' standing in for '+' and '/', so the dashes that
+     break the code into readable groups can never be mistaken for data */
+  const b64url = {
+    to: (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '.').replace(/\//g, '_').replace(/=+$/, ''),
+    from: (str) => {
+      const s = String(str).replace(/\./g, '+').replace(/_/g, '/').replace(/[^A-Za-z0-9+/]/g, '');
+      const bin = atob(s + '==='.slice((s.length + 3) % 4));
+      return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    },
+  };
+
+  /* A second spelling of the very same code, for when it has to be read out
+     over a call instead of pasted. All capitals, and the letters that sound or
+     look like digits (I, L, O, U) are simply not in the alphabet — so "oh" is
+     always zero and there is no such thing as a wrong guess between 1 and l. */
+  const B32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  const b32 = {
+    to: (bytes) => {
+      let bits = 0, val = 0, out = '';
+      for (const n of bytes) {
+        val = ((val << 8) | n) & 0xFFFFF;   // keep only the bits still owed
+        bits += 8;
+        while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; }
+      }
+      if (bits) out += B32[(val << (5 - bits)) & 31];
+      return out;
+    },
+    from: (str) => {
+      // Q, V and the rest are real symbols; only O, I, L and U are stand-ins
+      const clean = String(str).toUpperCase()
+        .replace(/O/g, '0').replace(/[IL]/g, '1').replace(/U/g, 'V')
+        .replace(/[^0-9A-Z]/g, '');
+      let bits = 0, val = 0;
+      const out = [];
+      for (const ch of clean) {
+        const i = B32.indexOf(ch);
+        if (i < 0) continue;
+        val = ((val << 5) | i) & 0xFFFFF;
+        bits += 5;
+        if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; }
+      }
+      return Uint8Array.from(out);
+    },
+  };
+  // a hint, not a verdict — a dictated code typed in lower case looks like
+  // the pasted spelling, so the decoder tries both and keeps what parses
+  const looksB64 = (code) => /[a-z._]/.test(String(code).replace(/-/g, ''));
+  /* Only four things out of the whole SDP actually matter for a data channel:
+     who you are (ufrag/pwd), the certificate fingerprint, which side starts
+     the handshake, and the addresses to try. Everything else is boilerplate
+     both ends can rebuild identically — and the parts that do matter go out
+     as raw bytes rather than text, which is what keeps the code short.
+
+     A candidate line like
+       candidate:2175273339 1 udp 2113937151 1ae886ca-….local 45149 typ host …
+     is 135 characters of which only the address, the port and the word "host"
+     carry any information: 19 bytes. */
+
+  const ADDR_V4 = 0, ADDR_V6 = 1, ADDR_MDNS = 2;
+  const CTYPES = ['host', 'srflx', 'prflx', 'relay'];
+  const CPRIO = [2113937151, 1677729535, 1677729535, 41885439];
+  const SETUPS = ['actpass', 'active', 'passive'];
+
+  const hexBytes = (hex) => Uint8Array.from(hex.match(/../g) || [], (h) => parseInt(h, 16));
+  const bytesHex = (b) => Array.from(b, (n) => n.toString(16).padStart(2, '0')).join('');
+
+  function packAddr(addr) {
+    if (/\.local$/i.test(addr)) {
+      const hex = addr.replace(/\.local$/i, '').replace(/-/g, '');
+      if (hex.length === 32) return { kind: ADDR_MDNS, bytes: hexBytes(hex) };
+      return null;
+    }
+    const v4 = addr.split('.');
+    if (v4.length === 4 && v4.every((n) => /^\d{1,3}$/.test(n) && +n < 256)) {
+      return { kind: ADDR_V4, bytes: Uint8Array.from(v4, Number) };
+    }
+    if (addr.indexOf(':') !== -1) {
+      // expand the :: shorthand, then take eight 16-bit groups
+      const [head, tail] = addr.split('::');
+      const h = head ? head.split(':') : [], t = tail ? tail.split(':') : [];
+      const groups = h.concat(new Array(8 - h.length - t.length).fill('0'), t);
+      if (groups.length !== 8) return null;
+      const out = new Uint8Array(16);
+      groups.forEach((g, i) => { const v = parseInt(g || '0', 16); out[i * 2] = v >> 8; out[i * 2 + 1] = v & 255; });
+      return { kind: ADDR_V6, bytes: out };
+    }
+    return null;
+  }
+  function unpackAddr(kind, bytes) {
+    if (kind === ADDR_V4) return Array.from(bytes).join('.');
+    if (kind === ADDR_MDNS) {
+      const h = bytesHex(bytes);
+      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}.local`;
+    }
+    const parts = [];
+    for (let i = 0; i < 16; i += 2) parts.push(((bytes[i] << 8) | bytes[i + 1]).toString(16));
+    return parts.join(':');
+  }
+
+  /* Keep only the addresses that can actually reach a friend. The public one
+     comes first; a local one is worth carrying too, so two machines on the same
+     wifi still find each other. But a .local name costs sixteen bytes and means
+     nothing outside your own house, so it is dropped the moment there is a
+     public address to use instead — that alone is a fifth of the whole code. */
+  function pickCands(lines) {
+    const parsed = [];
+    for (const line of lines) {
+      const m = line.match(/^candidate:\S+ \d+ (?:udp|UDP) \d+ (\S+) (\d+) typ (\w+)/);
+      if (!m) continue;
+      const type = CTYPES.indexOf(m[3]);
+      const addr = packAddr(m[1]);
+      if (type < 0 || !addr) continue;
+      parsed.push({ type, addr, port: +m[2], key: m[1] + ':' + m[2] });
+    }
+    const public_ = parsed.some((c) => c.type !== 0);
+    const keep = parsed.filter((c) => !(public_ && c.addr.kind === ADDR_MDNS));
+    keep.sort((a, b) => (a.type === 0 ? 1 : 0) - (b.type === 0 ? 1 : 0));
+    const seen = new Set(), out = [];
+    for (const c of keep) {
+      if (seen.has(c.key)) continue;
+      seen.add(c.key);
+      out.push(c);
+      if (out.length >= 3) break;
+    }
+    return out;
+  }
+
+  function packSdp(sdp, lines) {
+    const grab = (re) => { const m = sdp.match(re); return m ? m[1] : ''; };
+    const ufrag = grab(/a=ice-ufrag:(\S+)/), pwd = grab(/a=ice-pwd:(\S+)/);
+    const fp = hexBytes(grab(/a=fingerprint:sha-256 (\S+)/).replace(/:/g, '').toLowerCase());
+    const setup = Math.max(0, SETUPS.indexOf(grab(/a=setup:(\S+)/)));
+    const cands = pickCands(lines);
+    const bytes = [setup, ufrag.length];
+    for (const ch of ufrag) bytes.push(ch.charCodeAt(0));
+    bytes.push(pwd.length);
+    for (const ch of pwd) bytes.push(ch.charCodeAt(0));
+    for (const n of fp) bytes.push(n);
+    bytes.push(cands.length);
+    for (const c of cands) {
+      bytes.push(c.addr.kind | (c.type << 2));
+      for (const n of c.addr.bytes) bytes.push(n);
+      bytes.push(c.port >> 8, c.port & 255);
+    }
+    return Uint8Array.from(bytes);
+  }
+  function unpackSdp(b, type) {
+    let at = 0;
+    const setup = SETUPS[b[at++]] || (type === 'offer' ? 'actpass' : 'active');
+    const take = (n) => { const s2 = String.fromCharCode(...b.slice(at, at + n)); at += n; return s2; };
+    const ufrag = take(b[at++]);
+    const pwd = take(b[at++]);
+    const fp = (bytesHex(b.slice(at, at + 32)).match(/../g) || []).join(':').toUpperCase();
+    at += 32;
+    const cands = [];
+    const n = b[at++];
+    for (let i = 0; i < n && at < b.length; i++) {
+      const flags = b[at++], kind = flags & 3, ctype = (flags >> 2) & 3;
+      const len = kind === ADDR_V4 ? 4 : 16;
+      const addr = unpackAddr(kind, b.slice(at, at + len));
+      at += len;
+      const port = (b[at] << 8) | b[at + 1];
+      at += 2;
+      cands.push(`candidate:${i + 1} 1 udp ${CPRIO[ctype]} ${addr} ${port} typ ${CTYPES[ctype]}` +
+        (ctype === 0 ? '' : ' raddr 0.0.0.0 rport 0'));
+    }
+    const sdp = [
+      'v=0', 'o=- 1 1 IN IP4 127.0.0.1', 's=-', 't=0 0',
+      'a=group:BUNDLE 0', 'a=msid-semantic: WMS',
+      'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
+      'c=IN IP4 0.0.0.0',
+      'a=ice-ufrag:' + ufrag, 'a=ice-pwd:' + pwd,
+      'a=fingerprint:sha-256 ' + fp, 'a=setup:' + setup,
+      'a=mid:0', 'a=sctp-port:5000', 'a=max-message-size:262144', '',
+    ].join('\r\n');
+    return { sdp, cands };
+  }
+  function group(str, n, sep) { return (str.match(new RegExp('.{1,' + n + '}', 'g')) || []).join(sep); }
+  function encode(kind, sdp, lines) {
+    const body = packSdp(sdp, lines);
+    const all = new Uint8Array(1 + body.length);
+    all[0] = kind === 'offer' ? 1 : 2;
+    all.set(body, 1);
+    // grouped so a chat app wraps it at tidy places — nobody ever retypes it
+    return group(b64url.to(all), 8, '-');
+  }
+  /* the same code again, spelled to be read out loud in fours */
+  N.spoken = function (code) {
+    const bytes = looksB64(code) ? b64url.from(code) : b32.from(code);
+    return group(b32.to(bytes), 4, ' ');
+  };
+  function tryDecode(all) {
+    if (!all || all.length < 40) return null;
+    const kind = all[0] === 1 ? 'offer' : all[0] === 2 ? 'answer' : null;
+    if (!kind) return null;
+    const body = all.slice(1);
+    // both names are short and must be plain SDP-legal text; anything else
+    // means we read the code with the wrong alphabet
+    const uLen = body[1], pLen = body[2 + uLen];
+    if (!uLen || uLen > 64 || !pLen || pLen > 128) return null;
+    if (body.length < 2 + uLen + 1 + pLen + 32) return null;
+    let out;
+    try { out = unpackSdp(body, kind); } catch (e) { return null; }
+    if (!/a=ice-ufrag:[A-Za-z0-9+/]+\r/.test(out.sdp)) return null;
+    if (!/a=ice-pwd:[A-Za-z0-9+/]+\r/.test(out.sdp)) return null;
+    return { kind, sdp: out.sdp, cands: out.cands };
+  }
+  function decode(code) {
+    const raw = String(code || '').trim();
+    if (!raw) throw new Error('paste the code in first');
+    const spellings = looksB64(raw) ? [b64url, b32] : [b32, b64url];
+    for (const sp of spellings) {
+      let bytes = null;
+      try { bytes = sp.from(raw); } catch (e) { continue; }
+      const got = tryDecode(bytes);
+      if (got) return got;
+    }
+    throw new Error("that doesn't look like a whole code — check nothing got cut off");
+  }
+
+  /* ---- what does this network actually allow? ----------------------------
+     Three separate things have to work, and when they don't the game just
+     seems to hang. This finds out which one is missing, in plain words. */
+  N.checkNetwork = async function () {
+    const out = { stun: false, turn: false, signal: false, types: [], detail: '' };
+    if (!N.available()) { out.detail = 'this window blocks browser-to-browser connections'; return out; }
+    // 1 & 2: ask the address servers who we are, and whether a relay answers
+    await new Promise((done) => {
+      let probe;
+      try { probe = new RTCPeerConnection({ iceServers: iceServers() }); } catch (e) { done(); return; }
+      probe.createDataChannel('probe');
+      const stop = () => { try { probe.close(); } catch (e) {} done(); };
+      probe.onicecandidate = (e) => {
+        if (!e.candidate) return stop();
+        const t = (e.candidate.candidate.match(/ typ (\w+)/) || [])[1];
+        if (t && out.types.indexOf(t) === -1) out.types.push(t);
+        if (t === 'srflx') out.stun = true;
+        if (t === 'relay') out.turn = true;
+      };
+      probe.createOffer().then((o) => probe.setLocalDescription(o)).catch(stop);
+      setTimeout(stop, GATHER_MS);
+    });
+    // 3: can we reach a meeting point at all?
+    try {
+      const ws = await signalOpen('DNTEST' + makeRoomCode() + makeRoomCode(), () => {});
+      out.signal = true;
+      signalClose();
+    } catch (e) { out.signal = false; }
+    return out;
+  };
+
+  /* a short plain-English report the player can send on when asking for help */
+  N.report = function (check) {
+    const lines = [
+      'Diction & Nina — connection check',
+      'meeting point: ' + (check.signal ? 'reachable' : 'NOT reachable'),
+      'own outside address (STUN): ' + (check.stun ? 'found' : 'NOT found'),
+      'relay (TURN): ' + (check.turn ? 'available' : 'NOT available') +
+        (N.getRelay() ? ' (own relay set)' : ' (built-in relay)'),
+      'address kinds seen: ' + (check.types.join(', ') || 'none'),
+      'link state: ' + (pc ? pc.iceConnectionState : 'not started'),
+      'page: ' + location.protocol,
+    ];
+    return lines.join('\n');
+  };
+
+  /* ---- six-character room codes ---------------------------------------
+     A code this short can't carry the handshake itself, so it can only be a
+     name to meet under: both games connect to a public PeerJS signalling
+     server, one waits under "DN-K7M2QP" and the other calls it, and the long
+     introduction is passed between them over that connection instead of by
+     hand. Nothing but the handshake goes through it — the game itself still
+     runs browser-to-browser. If the server can't be reached, the paste codes
+     below still work with no server at all. */
+
+  const ROOM_LEN = 6;
+  const SIGNAL_SERVERS = [
+    'wss://0.peerjs.com/peerjs?key=peerjs&version=1.5.4',
+    'wss://peerjs.92k.de/peerjs?key=peerjs&version=1.5.4',
+  ];
+  const HEARTBEAT_MS = 5000;
+  const SIGNAL_TIMEOUT_MS = 20000;
+
+  let sig = null, beat = null, roomCode = null;
+
+  N.roomCode = () => roomCode;
+  function makeRoomCode() {
+    const bytes = new Uint8Array(ROOM_LEN);
+    (self.crypto || window.crypto).getRandomValues(bytes);
+    return Array.from(bytes, (b) => B32[b & 31]).join('');
+  }
+  /* people will type these — treat the look-alikes as the same letter */
+  N.tidyRoomCode = (code) => String(code || '').toUpperCase()
+    .replace(/O/g, '0').replace(/[IL]/g, '1').replace(/U/g, 'V')
+    .replace(/[^0-9A-Z]/g, '').slice(0, ROOM_LEN);
+
+  function signalUrls() {
+    let extra = null;
+    try { extra = localStorage.getItem('dn-signal'); } catch (e) {}
+    return extra ? [extra].concat(SIGNAL_SERVERS) : SIGNAL_SERVERS.slice();
+  }
+  function signalClose() {
+    if (beat) { clearInterval(beat); beat = null; }
+    if (sig) { try { sig.onclose = null; sig.close(); } catch (e) {} sig = null; }
+  }
+  /* open a signalling socket under `id`, trying each server in turn */
+  function signalOpen(id, onMessage) {
+    const urls = signalUrls();
+    const token = Math.random().toString(36).slice(2, 10);
+    // try every meeting point at once and keep the first that answers, rather
+    // than making the player sit through one timeout after another
+    return new Promise((resolve, reject) => {
+      let settled = false, pending = urls.length, taken = false;
+      const sockets = [];
+      const finish = (ws) => {
+        settled = true;
+        sockets.forEach((o) => { if (o !== ws) { try { o.onclose = null; o.close(); } catch (e) {} } });
+        sig = ws;
+        beat = setInterval(() => { try { ws.send(JSON.stringify({ type: 'HEARTBEAT' })); } catch (er) {} }, HEARTBEAT_MS);
+        ws.onerror = null;
+        ws.onclose = () => setState(N.state === 'open' ? N.state : 'failed', 'lost the connection to the meeting point');
+        resolve(ws);
+      };
+      const drop = () => {
+        if (settled) return;
+        if (--pending <= 0) reject(new Error(taken ? 'taken' : 'no-server'));
+      };
+      urls.forEach((base) => {
+        let ws;
+        try { ws = new WebSocket(`${base}&id=${encodeURIComponent(id)}&token=${token}`); }
+        catch (e) { drop(); return; }
+        sockets.push(ws);
+        ws.onerror = drop;
+        ws.onclose = drop;
+        ws.onmessage = (e) => {
+          let m;
+          try { m = JSON.parse(e.data); } catch (err) { return; }
+          if (m.type === 'OPEN') { if (!settled) finish(ws); return; }
+          if (m.type === 'ID-TAKEN') { taken = true; try { ws.close(); } catch (er) {} return; }
+          if (ws === sig) onMessage(m);
+        };
+      });
+      setTimeout(() => { if (!settled) { settled = true; sockets.forEach((o) => { try { o.onclose = null; o.close(); } catch (e) {} }); reject(new Error('no-server')); } }, SIGNAL_TIMEOUT_MS);
+    });
+  }
+  const signalSend = (dst, payload) => {
+    if (sig && sig.readyState === 1) sig.send(JSON.stringify({ type: 'OFFER', dst, payload }));
+  };
+
+  /* every candidate found from here on goes straight down the wire, which
+     connects far more reliably than one bundled list ever could */
+  function trickleTo(dst) {
+    pc.onicecandidate = (e) => {
+      if (e.candidate) signalSend(dst, { cand: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate });
+    };
+  }
+
+  N.hostRoom = async function () {
+    N.role = 'host';
+    freshPeer();
+    setState('offering');
+    wireChannel(pc.createDataChannel('wordsville', { ordered: false, maxRetransmits: 0 }));
+    let peerId = null;
+    for (let tries = 0; tries < 4; tries++) {
+      const code = makeRoomCode();
+      try {
+        await signalOpen('DN-' + code, onSignal);
+        peerId = code;
+        break;
+      } catch (e) {
+        if (e.message === 'taken') continue;      // astronomically unlikely, but free to handle
+        signalClose();
+        throw new Error('no-server');
+      }
+    }
+    if (!peerId) throw new Error('no-server');
+    roomCode = peerId;
+    setState('waiting');
+    return peerId;
+  };
+
+  N.joinRoom = async function (code) {
+    const clean = N.tidyRoomCode(code);
+    if (clean.length !== ROOM_LEN) throw new Error(`a room code is ${ROOM_LEN} letters and numbers`);
+    N.role = 'guest';
+    freshPeer();
+    setState('answering');
+    pc.ondatachannel = (e) => wireChannel(e.channel);
+    const me = 'DNP' + makeRoomCode() + makeRoomCode();
+    try { await signalOpen(me, onSignal); } catch (e) { signalClose(); throw new Error('no-server'); }
+    roomCode = clean;
+    // knock, and let the host make the offer — they are the one holding the
+    // data channel, and an offer without one has nothing to connect
+    signalSend('DN-' + clean, { hello: 1 });
+    setState('waiting');
+    return clean;
+  };
+
+  async function onSignal(m) {
+    if (!m || !m.payload || !pc) return;
+    const from = m.src;
+    const p = m.payload;
+    try {
+      if (p.hello && N.role === 'host') {
+        trickleTo(from);
+        await pc.setLocalDescription(await pc.createOffer());
+        signalSend(from, { sdp: { type: 'offer', sdp: pc.localDescription.sdp } });
+      } else if (p.sdp && p.sdp.type === 'offer' && N.role === 'guest') {
+        trickleTo(from);
+        await pc.setRemoteDescription(p.sdp);
+        await pc.setLocalDescription(await pc.createAnswer());
+        signalSend(from, { sdp: { type: 'answer', sdp: pc.localDescription.sdp } });
+      } else if (p.sdp && p.sdp.type === 'answer' && N.role === 'host') {
+        await pc.setRemoteDescription(p.sdp);
+      } else if (p.cand) {
+        await pc.addIceCandidate(p.cand);
+      }
+    } catch (e) { /* a stray or late message is not worth ending the game over */ }
+  }
+
+  /* ---- connection ----------------------------------------------------- */
+  function gatherAll() {
+    // ICE trickles in; take everything that arrives, but never hang on it
+    return new Promise((resolve) => {
+      const cands = [];
+      let done = false;
+      const finish = () => { if (!done) { done = true; resolve(cands); } };
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) return finish();
+        const c = e.candidate.candidate;
+        if (c && c.indexOf(' udp ') !== -1) cands.push(c.replace(/^a=/, ''));
+      };
+      setTimeout(finish, GATHER_MS);
+    });
+  }
+  function wireChannel(c) {
+    chan = c;
+    chan.onopen = () => { signalClose(); setState('open'); if (N.onOpen) N.onOpen(); };
+    chan.onclose = () => { setState('closed'); if (N.onClose) N.onClose(); };
+    chan.onmessage = (e) => {
+      if (!N.onMessage) return;
+      try { N.onMessage(JSON.parse(e.data)); } catch (err) { /* a torn packet is not worth a crash */ }
+    };
+  }
+  function freshPeer() {
+    if (!N.available()) throw new Error(N.unavailableReason);
+    close();
+    pc = new RTCPeerConnection({ iceServers: iceServers() });
+    pc.onconnectionstatechange = () => {
+      if (!pc) return;
+      const st = pc.connectionState;
+      if (st === 'connecting' && N.state !== 'open') setState('linking');
+      else if (st === 'failed') setState('failed', "your two networks wouldn't let the games reach each other");
+      else if (st === 'disconnected' && N.state === 'open') setState('closed');
+    };
+  }
+
+  /* Host: make an invite code, then wait for the friend's reply code. */
+  N.host = async function () {
+    N.role = 'host';
+    freshPeer();
+    setState('offering');
+    wireChannel(pc.createDataChannel('wordsville', { ordered: false, maxRetransmits: 0 }));
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    const cands = await gatherAll();
+    setState('waiting');
+    return encode('offer', pc.localDescription.sdp, cands);
+  };
+  N.acceptReply = async function (code) {
+    const { kind, sdp, cands } = decode(code);
+    if (kind !== 'answer') throw new Error('that looks like an invite code, not a reply code');
+    await pc.setRemoteDescription({ type: 'answer', sdp });
+    for (const c of cands) { try { await pc.addIceCandidate({ candidate: c, sdpMid: '0', sdpMLineIndex: 0 }); } catch (e) {} }
+  };
+
+  /* Guest: take the invite code and hand back a reply code. */
+  N.join = async function (code) {
+    const { kind, sdp, cands } = decode(code);
+    if (kind !== 'offer') throw new Error('that looks like a reply code, not an invite code');
+    N.role = 'guest';
+    freshPeer();
+    setState('answering');
+    pc.ondatachannel = (e) => wireChannel(e.channel);
+    await pc.setRemoteDescription({ type: 'offer', sdp });
+    for (const c of cands) { try { await pc.addIceCandidate({ candidate: c, sdpMid: '0', sdpMLineIndex: 0 }); } catch (e) {} }
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    const mine = await gatherAll();
+    setState('waiting');
+    return encode('answer', pc.localDescription.sdp, mine);
+  };
+
+  N.send = function (obj) {
+    if (!chan || chan.readyState !== 'open') return false;
+    try { chan.send(JSON.stringify(obj)); return true; } catch (e) { return false; }
+  };
+  N.isOpen = () => !!(chan && chan.readyState === 'open');
+  function close() {
+    if (chan) { try { chan.onclose = null; chan.close(); } catch (e) {} chan = null; }
+    if (pc) { try { pc.close(); } catch (e) {} pc = null; }
+  }
+  N.hangUp = function () {
+    signalClose();
+    roomCode = null;
+    close();
+    N.role = null;
+    setState('idle');
+  };
+
+  return N;
+})();
+
+</script>
+<script>
+/* ============================================================
+   Diction & Nina — the Controller
+   ------------------------------------------------------------
+   This is not the game. It is a controller for the game, on a
+   phone, for somebody sitting in front of a screen that is
+   running it. There is nothing to look at on a controller, so
+   there is nothing to look at here: a code to type in, and then
+   a thumb-stick and some buttons.
+
+   It talks to the game the same way two copies of the game talk
+   to each other — a room code and a direct connection — because
+   it is the same problem: two browsers that have to find each
+   other. Which player it is, is decided by the screen and sent
+   back, so this end never has to be told anything twice.
+   ============================================================ */
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const join = $('pad-join'), face = $('pad-face');
+  const msg = $('pad-msg'), box = $('pad-room'), who = $('pad-who');
+  const stick = $('pad-stick'), nub = $('pad-nub');
+  let sending = null;
+  const st = { ax: 0, ay: 0, b: {} };
+
+  const say = (t) => { msg.innerHTML = t; };
+
+  /* ---- the surface ---- */
+  let grabbed = null;
+  const setNub = (dx, dy) => {
+    nub.style.left = (50 + dx * 30) + '%';
+    nub.style.top = (50 + dy * 30) + '%';
+  };
+  const aim = (pt) => {
+    const r = stick.getBoundingClientRect();
+    const rad = r.width / 2;
+    let dx = (pt.clientX - (r.left + rad)) / rad;
+    let dy = (pt.clientY - (r.top + r.height / 2)) / rad;
+    const d = Math.hypot(dx, dy);
+    if (d > 1) { dx /= d; dy /= d; }
+    // a dead spot in the middle, or a thumb resting on the glass walks you off
+    st.ax = Math.abs(dx) < 0.18 ? 0 : dx;
+    st.ay = Math.abs(dy) < 0.18 ? 0 : dy;
+    setNub(dx, dy);
+  };
+  const drop = () => { grabbed = null; st.ax = 0; st.ay = 0; setNub(0, 0); };
+  stick.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0]; grabbed = t.identifier; aim(t); e.preventDefault();
+  }, { passive: false });
+  stick.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) if (t.identifier === grabbed) aim(t);
+    e.preventDefault();
+  }, { passive: false });
+  const letGo = (e) => {
+    for (const t of e.changedTouches) if (t.identifier === grabbed) drop();
+  };
+  stick.addEventListener('touchend', letGo);
+  stick.addEventListener('touchcancel', letGo);
+  // and a mouse, so it can be tried on anything with a pointer
+  stick.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') { grabbed = 'm'; aim(e); } });
+  stick.addEventListener('pointermove', (e) => { if (grabbed === 'm') aim(e); });
+  window.addEventListener('pointerup', () => { if (grabbed === 'm') drop(); });
+
+  document.querySelectorAll('[data-b]').forEach((btn) => {
+    const b = +btn.dataset.b;
+    const on = (e) => { e.preventDefault(); st.b[b] = true; if (navigator.vibrate) try { navigator.vibrate(8); } catch (er) {} };
+    const off = (e) => { e.preventDefault(); st.b[b] = false; };
+    btn.addEventListener('pointerdown', on);
+    btn.addEventListener('pointerup', off);
+    btn.addEventListener('pointerleave', off);
+    btn.addEventListener('pointercancel', off);
+  });
+
+  /* ---- the wire ---- */
+  function live(slot, name, quiet) {
+    join.classList.add('hidden');
+    face.classList.remove('hidden');
+    who.textContent = `Player ${slot + 1} — ${name}`;
+    if (sending) clearInterval(sending);
+    if (quiet) return;          // shown without a wire behind it, for a test
+    /* Twenty times a second: often enough to walk with, seldom enough that a
+       phone on a slow connection keeps up with it. */
+    sending = setInterval(() => {
+      if (Net.state !== 'open') { stop('Disconnected.'); return; }
+      Net.send({ t: 'pad', ax: st.ax, ay: st.ay, b: st.b });
+    }, 50);
+  }
+  function stop(why) {
+    if (sending) { clearInterval(sending); sending = null; }
+    face.classList.add('hidden');
+    join.classList.remove('hidden');
+    say('<b>' + (why || 'Disconnected.') + '</b>');
+    try { Net.close(); } catch (e) {}
+  }
+
+  Net.onMessage = (m) => {
+    if (m && m.t === 'padok') live(m.slot | 0, m.name || 'a player');
+  };
+  Net.onClose = () => stop('The game closed the connection.');
+
+  async function go() {
+    const code = Net.tidyRoomCode(box.value);
+    if (code.length < 6) { say('<b>That code looks too short.</b>'); return; }
+    if (!Net.available()) { say('<b>' + Net.unavailableReason + '</b>'); return; }
+    say('Connecting…');
+    try {
+      await Net.joinRoom(code);
+      Net.send({ t: 'padhello' });
+      say('Connected — asking which player you are…');
+    } catch (e) {
+      say('<b>' + (e && e.message === 'no-room'
+        ? "No game is showing that code. Check it, and that their game is still waiting."
+        : "Couldn't connect. Check the code and try again.") + '</b>');
+    }
+  }
+  $('pad-go').onclick = go;
+  box.addEventListener('input', () => { box.value = Net.tidyRoomCode(box.value); });
+  box.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  $('pad-off').onclick = () => stop('Disconnected.');
+
+  // for tests: the same surface, driven without a real connection
+  window.PAD = { state: () => ({ ax: st.ax, ay: st.ay, b: Object.assign({}, st.b) }),
+    live, stop, connected: () => !face.classList.contains('hidden'),
+    // the surface with no wire behind it, so it can be looked at and pressed
+    show: (slot, name) => live(slot || 0, name || 'a player', true) };
+})();
+
+</script>
