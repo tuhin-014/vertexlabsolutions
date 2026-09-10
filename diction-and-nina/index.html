@@ -456,9 +456,65 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
 }
 .pp-s:active { background:#ffd12e; }
 
+/* ------- held the wrong way round -------
+   The game is a picture nearly twice as wide as it is tall, and squeezed into
+   a portrait phone it comes out a third of the height of the screen with the
+   controls stacked on top of it. So it is not shown that way at all: turn the
+   phone and it is there. A media query rather than an orientation lock,
+   because locking the screen is a thing browsers only sometimes let a page do
+   and never on an iPhone — this works everywhere, since it is only CSS. */
+#turnme { display:none; }
+@media (orientation: portrait) {
+  /* The one screen in this game that is not the game, so it is the one screen
+     drawn rather than rendered: crayon on cartridge paper, the same hand that
+     drew the Controller. Nothing here is straight. */
+  #turnme {
+    position:fixed; inset:0; z-index:200; color:#3a2a17;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; padding:24px; text-align:center; overflow-y:auto;
+    font-family:"Comic Sans MS","Chalkboard SE","Segoe Print","Trebuchet MS",sans-serif;
+    background-color:#fdf3dc;
+    background-image:
+      repeating-linear-gradient(58deg, rgba(150,120,70,.05) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(-31deg, rgba(150,120,70,.045) 0 2px, transparent 2px 9px);
+  }
+  #turnme h2 { font-size:27px; transform:rotate(-1.2deg); }
+  #turnme h2 span { display:inline-block; }
+  #turnme h2 .c0 { color:#e23b2e; transform:rotate(-4deg); }
+  #turnme h2 .c3 { color:#3fbf3f; transform:rotate(3deg); }
+  #turnme h2 .c5 { color:#3b6fe0; transform:rotate(-3deg); }
+  #turnme h2 .c7 { color:#f2199c; transform:rotate(4deg); }
+  #turnme p { font-size:16px; line-height:1.5; max-width:26em; }
+  #turnme .tm-small { font-size:13px; opacity:.62; }
+  /* and the game itself is not merely covered — nothing of it is reachable */
+  #game-wrap, #touch, #padpad { visibility:hidden !important; pointer-events:none !important; }
+  /* a phone, turning */
+  .tm-phone {
+    width:132px; height:auto; animation:tm-turn 2.4s ease-in-out infinite;
+  }
+  .tm-draw { width:min(100%, 360px); height:auto; }
+  @keyframes tm-turn {
+    0%, 30% { transform:rotate(0deg); }
+    55%, 85% { transform:rotate(-90deg); }
+    100% { transform:rotate(0deg); }
+  }
+  @media (prefers-reduced-motion: reduce) { .tm-phone { animation:none; transform:rotate(-90deg); } }
+  /* on a short phone the second drawing is the first thing to go */
+  @media (max-height:620px) { .tm-draw { display:none; } }
+}
+
 </style>
 </head>
 <body>
+<div id="turnme">
+  <canvas class="tm-phone" data-crayon="phone" width="340" height="432"></canvas>
+  <h2><span class="c0">Turn</span> <span class="c3">your</span>
+    <span class="c5">device</span> <span class="c7">sideways</span></h2>
+  <p>Wordsville is wider than it is tall. Hold your phone the long way round and
+     the whole of it fits.</p>
+  <p class="tm-small">If it stays like this, your screen rotation may be locked.</p>
+  <canvas class="tm-draw" data-crayon="family" width="640" height="364"></canvas>
+</div>
 <div id="game-wrap">
   <canvas id="gl" width="960" height="540" style="display:none"></canvas>
   <canvas id="game" width="960" height="540" style="position:relative"></canvas>
@@ -534,6 +590,400 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
   </div>
 </div>
 
+<script>
+/* ============================================================
+   Diction & Nina — crayon
+   ------------------------------------------------------------
+   Two of this game's surfaces are not the game: the Controller a
+   phone turns into, and the screen that asks you to hold your
+   phone the other way round. Both of them started life plain,
+   which is a strange thing to hand somebody who has just been
+   playing a game about three children who draw on everything.
+
+   So these two are drawn on rather than designed. Wax crayon on
+   cartridge paper: every line gone over three times at falling
+   opacity so the wax builds up where the hand pressed, nothing
+   quite meeting at the corners, rings never closing, legs never
+   the same length. All of it seeded rather than random — a
+   drawing that shivered every frame would be a drawing nobody
+   made.
+
+   Both pages load this, and it wires itself up: any canvas with
+   a data-crayon="..." gets the named picture drawn into it, so
+   neither page has to remember to ask.
+   ============================================================ */
+(function (root) {
+  'use strict';
+
+  /* The tin. Kid drawings do not have a palette, they have whatever is left
+     in the tin, so these are the eight loud ones and nothing in between. */
+  const TIN = ['#e23b2e', '#f28a1c', '#ffd12e', '#3fbf3f',
+    '#18cbe0', '#3b6fe0', '#9a4fd8', '#f2199c'];
+
+  function rnd(seed) {
+    let s = (seed * 1664525 + 1013904223) >>> 0;
+    return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  }
+
+  /* One stroke, three times over: wide and faint underneath, narrow and
+     darker on top. That is what wax does, and it is why a crayon line has
+     a soft edge and a hard middle. */
+  function line(ctx, pts, col, w, seed) {
+    const r = rnd(seed);
+    for (let pass = 2; pass >= 0; pass--) {
+      ctx.strokeStyle = col;
+      ctx.globalAlpha = 0.34 - pass * 0.08;
+      ctx.lineWidth = w * (1 + pass * 0.55);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => {
+        const jx = (r() - 0.5) * 2, jy = (r() - 0.5) * 2;
+        if (i) ctx.lineTo(x + jx, y + jy); else ctx.moveTo(x + jx, y + jy);
+      });
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* A ring that does not close, because a hand going round twice never
+     lands back where it started. */
+  function ring(ctx, cx, cy, rad, col, w, seed) {
+    const r = rnd(seed + 900);
+    const from = r() * 6, turn = Math.PI * 2 * (0.97 + r() * 0.08);
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const a = from + i / 24 * turn;
+      pts.push([cx + Math.cos(a) * rad * (0.97 + r() * 0.06),
+        cy + Math.sin(a) * rad * (0.93 + r() * 0.08)]);
+    }
+    line(ctx, pts, col, w, seed);
+  }
+
+  /* Colouring in: back and forth, over the edges, never all the way into
+     the corners. Nobody colours in neatly. */
+  function fillIn(ctx, x, y, w, h, col, seed) {
+    const r = rnd(seed);
+    /* Wide enough apart that the paper shows between the strokes. Packed
+       tight it stops being crayon and becomes paint, and a green filled in
+       solid at this size goes dark and heavy rather than bright. */
+    const step = 5 + r() * 2;
+    const pts = [];
+    for (let i = 0, yy = y; yy < y + h; i++, yy += step) {
+      const l = x + (r() - 0.5) * 5, rt = x + w + (r() - 0.5) * 5;
+      pts.push(i % 2 ? [rt, yy] : [l, yy]);
+      pts.push(i % 2 ? [l, yy + step * 0.5] : [rt, yy + step * 0.5]);
+    }
+    line(ctx, pts, col, 3, seed + 5);
+  }
+
+  /* Colouring in a patch of something that is more than one colour — a cover
+     that is green down one side and blue down the other. Kept inside its own
+     half by a clip a little wider than the patch: over the line is what a
+     child does, but green scribbled across blue is not two colours, it is
+     one muddy one, and Diction's cover went dark grey. */
+  function patch(ctx, x, y, w, h, col, seed) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x - 1.5, y - 1.5, w + 3, h + 3); ctx.clip();
+    fillIn(ctx, x, y, w, h, col, seed);
+    ctx.restore();
+  }
+
+  /* A rounded box, drawn as a path a hand could follow in one go. */
+  function box(ctx, x, y, w, h, rad, col, wid, seed) {
+    const pts = [];
+    const corner = (cx, cy, a0) => {
+      for (let i = 0; i <= 5; i++) {
+        const a = a0 + i / 5 * Math.PI / 2;
+        pts.push([cx + Math.cos(a) * rad, cy + Math.sin(a) * rad]);
+      }
+    };
+    pts.push([x + rad, y]);
+    pts.push([x + w - rad, y]); corner(x + w - rad, y + rad, -Math.PI / 2);
+    pts.push([x + w, y + h - rad]); corner(x + w - rad, y + h - rad, 0);
+    pts.push([x + rad, y + h]); corner(x + rad, y + h - rad, Math.PI / 2);
+    pts.push([x, y + rad]); corner(x + rad, y + rad, Math.PI);
+    line(ctx, pts, col, wid, seed);
+  }
+
+  /* A face: two eyes gone round twice, and a grin somebody was pleased with. */
+  function faceOn(ctx, cx, cy, spread, col, seed, lashes) {
+    ring(ctx, cx - spread, cy, 3.8, col, 1.15, seed);
+    ring(ctx, cx + spread, cy, 3.8, col, 1.15, seed + 4);
+    line(ctx, [[cx - spread, cy + 0.3], [cx - spread + 0.5, cy + 0.9]], col, 1.7, seed + 8);
+    line(ctx, [[cx + spread, cy + 0.3], [cx + spread + 0.5, cy + 0.9]], col, 1.7, seed + 11);
+    const grin = [];
+    for (let i = 0; i <= 6; i++) {
+      const t = -1 + i / 3;
+      grin.push([cx + t * (spread + 1.4), cy + 5.5 + (1 - t * t) * 3.6]);
+    }
+    line(ctx, grin, col, 1.8, seed + 14);
+    if (lashes) [-1, 1].forEach((sd, i) => {
+      const ex = cx + sd * spread;
+      line(ctx, [[ex + sd * 3.4, cy - 1.6], [ex + sd * 6.4, cy - 3.4]], col, 1.3, seed + 20 + i);
+      line(ctx, [[ex + sd * 3.6, cy + 0.4], [ex + sd * 6.8, cy + 0.8]], col, 1.3, seed + 24 + i);
+    });
+  }
+
+  /* A block of one colour with a hard edge, which is what a stripe on a cover
+     looks like. The crayon goes over the line, but the line is where it stops
+     being that stripe, so it is cut there: a soft crayon stroke is over twice
+     as wide as its own nominal width, and a rainbow of six of them laid down
+     without cutting is not a rainbow, it is a brown smudge with a halo. */
+  function block(ctx, x, y, w, h, col, seed) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    const long = w >= h;
+    const mid = long ? y + h / 2 : x + w / 2;
+    line(ctx, long
+      ? [[x - 2, mid], [x + w * 0.5, mid + 0.7], [x + w + 2, mid - 0.6]]
+      : [[mid, y - 2], [mid + 0.7, y + h * 0.5], [mid - 0.6, y + h + 2]],
+    col, (long ? h : w) * 1.15, seed);
+    ctx.restore();
+  }
+
+  /* Bands of colour laid down the length of something, which is how a child
+     colours in a striped thing: one stroke per stripe, straight across. */
+  function bands(ctx, x, y, w, h, cols, seed) {
+    const step = h / cols.length;
+    cols.forEach((col, i) => block(ctx, x, y + step * i, w, step, col, seed + i * 3));
+  }
+
+  /* ---- the three of them ------------------------------------------------
+     Not three stick people in three colours: these are Diction, Nina and
+     Limey, who are books. Diction's head is his split cover, green down one
+     side and blue down the other with the pages showing at the seam; Nina's
+     is her notebook, pink with the yellow band across it and the stripes
+     along the bottom; Limey is a pocket colouring book, rainbow all the way
+     down, and shorter than both of them.
+
+     Drawn feet-first from the ground up in the character's own space, so a
+     scene only has to say where the ground is and how big they are. Arms are
+     not drawn here — three people holding hands share two arms between each
+     pair, and a shared arm belongs to the scene, not to either of them. */
+  const INK = '#3a2a17';
+  function who(ctx, kind, x, groundY, k, seed, tilt) {
+    ctx.save();
+    ctx.translate(x, groundY); ctx.rotate(tilt || 0); ctx.scale(k, k);
+    /* Over the line is what a child does — but only just over. Everything
+       that colours a cover in is kept to that cover with a shade over a
+       pencil-width of slop, because a yellow band scribbled a full crayon's
+       width past a head is not a band, it is a halo. */
+    const inside = (bx, by, bw, bh, fn) => {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(bx - 1.5, by - 1.5, bw + 3, bh + 3); ctx.clip();
+      fn(); ctx.restore();
+    };
+    let shY = -60;
+    if (kind === 'diction') {
+      /* long legs, and a cover that cannot decide which colour it is */
+      line(ctx, [[-4, -58], [-9, -2]], INK, 2.6, seed + 1);
+      line(ctx, [[4, -58], [9, 0]], INK, 2.6, seed + 2);
+      block(ctx, -10, -80, 11, 22, '#3fbf3f', seed + 5);
+      block(ctx, 1, -80, 9, 22, '#2f8fe8', seed + 9);
+      box(ctx, -10, -80, 20, 22, 3, INK, 2.2, seed + 13);
+      line(ctx, [[-3, -84], [-3, -80]], INK, 1.8, seed + 15);
+      line(ctx, [[3, -84], [3, -80]], INK, 1.8, seed + 16);
+      /* His cover is the one thing about him: green down one side, blue down
+         the other. Scribbled in loose the two ran together into one dark
+         teal, so each half is laid down as its own block and stops where the
+         pages are. */
+      block(ctx, -15, -118, 16, 34, '#3fbf3f', seed + 17);
+      block(ctx, 1, -118, 14, 34, '#2f8fe8', seed + 21);
+      box(ctx, -15, -118, 30, 34, 4, INK, 2.6, seed + 25);
+      // the pages, showing down the middle where the two covers meet
+      line(ctx, [[0, -115], [-2, -108], [2, -101], [-1, -93], [1, -87]],
+        '#fffdf6', 2, seed + 29);
+      faceOn(ctx, 0, -100, 7, INK, seed + 33, false);
+      shY = -74;
+    } else if (kind === 'nina') {
+      /* striped legs — one colour to the knee and another one down */
+      [-5, 5].forEach((lx, i) => {
+        line(ctx, [[lx, -50], [lx * 1.2, -26]], '#18cbe0', 3.4, seed + 1 + i);
+        line(ctx, [[lx * 1.2, -26], [lx * 1.5, -2]], '#f2199c', 3.4, seed + 3 + i);
+      });
+      line(ctx, [[-7, -74], [7, -74], [12, -50], [-12, -50], [-7, -74]], INK, 2.2, seed + 6);
+      line(ctx, [[-4, -66], [-3.4, -65.4]], '#ffe01a', 3, seed + 8);
+      line(ctx, [[3, -60], [3.6, -59.4]], '#f2199c', 3, seed + 10);
+      line(ctx, [[-3, -78], [-3, -74]], INK, 1.8, seed + 11);
+      line(ctx, [[3, -78], [3, -74]], INK, 1.8, seed + 12);
+      inside(-14, -110, 28, 32, () => {
+        /* The pink cover shows above the band and nowhere else. Filled in
+           behind the band as well it came out orange, which is what yellow
+           crayon over pink crayon is, and an orange band is not her band. */
+        fillIn(ctx, -14, -110, 28, 11, '#f2199c', seed + 13);
+        bands(ctx, -14, -99, 28, 10, ['#ffe01a'], seed + 17);
+        const cols = ['#f2199c', '#18cbe0', '#fffdf6', '#f2199c', '#18cbe0', '#f2199c'];
+        for (let i = 0; i < 6; i++) block(ctx, -14 + i * 4.67, -89, 4.67, 11, cols[i], seed + 24 + i);
+      });
+      box(ctx, -14, -110, 28, 32, 4, INK, 2.6, seed + 33);
+      faceOn(ctx, 0, -96, 7, INK, seed + 37, true);
+      shY = -70;
+    } else {
+      /* the little one: rainbow all the way down, and red crayon for limbs */
+      line(ctx, [[-4, -44], [-8, -1]], '#e0392f', 3, seed + 1);
+      line(ctx, [[4, -44], [8, 0]], '#e0392f', 3, seed + 2);
+      inside(-9, -60, 18, 16, () => bands(ctx, -9, -60, 18, 16, TIN.slice(0, 6), seed + 5));
+      box(ctx, -9, -60, 18, 16, 3, INK, 2.2, seed + 11);
+      line(ctx, [[-2.5, -64], [-2.5, -60]], INK, 1.8, seed + 13);
+      line(ctx, [[2.5, -64], [2.5, -60]], INK, 1.8, seed + 14);
+      inside(-13, -92, 26, 28, () => bands(ctx, -13, -92, 26, 28,
+        ['#e0392f', '#f28a1c', '#f2d016', '#3fbf3f', '#2f8fe8', '#7a4fd0'], seed + 15));
+      box(ctx, -13, -92, 26, 28, 4, INK, 2.6, seed + 23);
+      faceOn(ctx, 0, -77, 6, INK, seed + 27, false);
+      shY = -56;
+    }
+    ctx.restore();
+    return { x, shY: groundY + shY * k, reach: 26 * k, col: kind === 'diction' ? '#3fbf3f'
+      : kind === 'nina' ? '#f2199c' : '#e0392f' };
+  }
+
+  function sun(ctx, cx, cy, rad, seed) {
+    ring(ctx, cx, cy, rad, '#ffd12e', 2.6, seed);
+    const r = rnd(seed + 3);
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * Math.PI * 2 + r() * 0.2;
+      line(ctx, [[cx + Math.cos(a) * (rad + 4), cy + Math.sin(a) * (rad + 4)],
+        [cx + Math.cos(a) * (rad + 11), cy + Math.sin(a) * (rad + 11)]],
+      '#f28a1c', 2.2, seed + 10 + i);
+    }
+  }
+
+  function heart(ctx, hx, hy, k, col, seed) {
+    const pts = [];
+    for (let i = 0; i <= 26; i++) {
+      const a = i / 26 * Math.PI * 2;
+      pts.push([hx + 16 * Math.pow(Math.sin(a), 3) * k,
+        hy - (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a)
+          - Math.cos(4 * a)) * k]);
+    }
+    line(ctx, pts, col, 2.2, seed);
+  }
+
+  function flower(ctx, x, groundY, col, seed) {
+    const r = rnd(seed);
+    const h = 14 + r() * 10, cy = groundY - h;
+    line(ctx, [[x, groundY], [x + (r() - 0.5) * 3, cy + 3]], '#3fbf3f', 2, seed + 1);
+    for (let i = 0; i < 5; i++) {
+      const a = i / 5 * Math.PI * 2;
+      ring(ctx, x + Math.cos(a) * 4, cy + Math.sin(a) * 4, 3, col, 1.8, seed + 4 + i);
+    }
+    ring(ctx, x, cy, 2, '#ffd12e', 1.8, seed + 20);
+  }
+
+  function rainbow(ctx, cx, cy, rad, seed) {
+    for (let b = 0; b < 6; b++) {
+      const rr = rad - b * 4.5, pts = [];
+      for (let i = 0; i <= 16; i++) {
+        const a = Math.PI + i / 16 * Math.PI;
+        pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.85]);
+      }
+      line(ctx, pts, TIN[b], 3, seed + b * 7);
+    }
+  }
+
+  /* Set a canvas up in a made-up coordinate space and centre the picture in
+     whatever the page has actually given it. */
+  function stage(cv, vw, vh) {
+    if (!cv || !cv.getContext) return null;
+    const c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    const sc = Math.min(cv.width / vw, cv.height / vh);
+    c.translate((cv.width - vw * sc) / 2, (cv.height - vh * sc) / 2);
+    c.scale(sc, sc);
+    return c;
+  }
+
+  /* ---- the pictures ---------------------------------------------------- */
+
+  /* The three of them holding hands, under a sun and a rainbow, which is the
+     picture behind the fountain and also the picture every child draws. */
+  function family(cv) {
+    const c = stage(cv, 320, 182);
+    if (!c) return;
+    const GY = 152;
+    rainbow(c, 36, 104, 32, 101);
+    sun(c, 292, 30, 14, 201);
+    const g = [];
+    for (let i = 0; i <= 14; i++) g.push([8 + i * 22, GY + Math.sin(i * 1.3) * 2]);
+    line(c, g, '#8a6a3a', 3, 41);
+    for (let i = 0; i < 10; i++) {
+      const gx = 14 + i * 33;
+      line(c, [[gx, GY], [gx - 3, GY - 8]], '#3fbf3f', 1.8, 300 + i);
+      line(c, [[gx + 2, GY], [gx + 4, GY - 9]], '#3fbf3f', 1.8, 320 + i);
+    }
+    flower(c, 26, GY, '#f2199c', 401);
+    flower(c, 300, GY, '#9a4fd8', 419);
+    flower(c, 272, GY, '#e23b2e', 433);
+    const d = who(c, 'diction', 92, GY, 1, 11, -0.04);
+    const n = who(c, 'nina', 160, GY, 1, 23, 0.03);
+    const l = who(c, 'limey', 228, GY, 1, 37, -0.03);
+    /* Two arms to a pair of hands, one line each, drooping the way an arm
+       does when the person on the other end of it is shorter than you. */
+    const hold = (a, b, col, seed) => {
+      const mx = (a.x + b.x) / 2, my = Math.max(a.shY, b.shY) + 20;
+      line(c, [[a.x + 11, a.shY], [mx, my], [b.x - 11, b.shY]], col, 2.6, seed);
+    };
+    hold(d, n, '#3fbf3f', 51);
+    hold(n, l, '#f2199c', 53);
+    line(c, [[d.x - 11, d.shY], [d.x - 24, d.shY + 14], [d.x - 27, d.shY + 22]], '#2f8fe8', 2.6, 55);
+    line(c, [[l.x + 9, l.shY], [l.x + 20, l.shY + 12], [l.x + 24, l.shY + 20]], '#e0392f', 2.8, 57);
+    heart(c, 124, 52, 0.42, '#18cbe0', 71);
+    heart(c, 196, 40, 0.34, '#e23b2e', 77);
+    heart(c, 254, 62, 0.28, '#9a4fd8', 83);
+  }
+
+  /* A phone being turned, drawn by somebody who has seen a phone. */
+  function phone(cv) {
+    const c = stage(cv, 170, 216);
+    if (!c) return;
+    box(c, 56, 36, 78, 156, 12, '#9a4fd8', 3.4, 11);
+    fillIn(c, 64, 52, 62, 124, '#18cbe0', 61);
+    box(c, 63, 50, 64, 128, 5, '#3b6fe0', 2.2, 23);
+    line(c, [[86, 184], [104, 184]], '#9a4fd8', 2.4, 31);
+    /* Diction is on the screen, obviously, because it is his game */
+    who(c, 'diction', 95, 166, 0.62, 47, 0.03);
+    sun(c, 116, 66, 8, 55);
+    heart(c, 76, 68, 0.28, '#e23b2e', 67);
+    /* and an arrow swung right round the outside, saying: this way */
+    const a = [];
+    for (let i = 0; i <= 16; i++) {
+      const t = Math.PI * 1.1 + i / 16 * Math.PI * 0.74;
+      a.push([90 + Math.cos(t) * 76, 122 + Math.sin(t) * 96]);
+    }
+    line(c, a, '#3fbf3f', 3.4, 73);
+    const tip = a[a.length - 1], prev = a[a.length - 3];
+    const ang = Math.atan2(tip[1] - prev[1], tip[0] - prev[0]);
+    line(c, [[tip[0] - Math.cos(ang - 0.5) * 13, tip[1] - Math.sin(ang - 0.5) * 13],
+      tip,
+      [tip[0] - Math.cos(ang + 0.6) * 13, tip[1] - Math.sin(ang + 0.6) * 13]],
+    '#3fbf3f', 3.4, 79);
+  }
+
+  const PICTURES = { family, phone };
+
+  function draw(cv) {
+    const p = cv && PICTURES[cv.getAttribute('data-crayon')];
+    if (p) p(cv);
+  }
+  function drawAll(root2) {
+    const scope = root2 || document;
+    Array.prototype.forEach.call(scope.querySelectorAll('canvas[data-crayon]'), draw);
+  }
+
+  root.Crayon = { TIN, INK, line, ring, box, fillIn, patch, block, bands, faceOn, who, sun,
+    heart, flower, rainbow, family, phone, draw, drawAll };
+
+  /* Wire itself up. The pages load this after their own markup, so there is
+     nothing to wait for; the load handler is only for a page that loads it
+     early on purpose. */
+  if (typeof document !== 'undefined') {
+    drawAll();
+    window.addEventListener('load', () => drawAll());
+  }
+})(typeof window !== 'undefined' ? window : this);
+
+</script>
 <script>
 /**
  * @license
@@ -8576,7 +9026,7 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v131 · The Controller, on its own";
+const GAME_VERSION = "v132 · Drawn by the three of them";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -15820,7 +16270,35 @@ function attentionNear(A, r) {
   const dx = best.x - A.x, dy = best.y - (A.y - 40), d = Math.hypot(dx, dy) || 1;
   return { x: Math.max(-1, Math.min(1, dx / d * 1.25)), y: Math.max(-1, Math.min(1, dy / d * 0.9)) };
 }
+/* How much of somebody's last step was across the page rather than into it.
+
+   A person leans in the direction they are walking, and somebody walking
+   straight up or down the page is walking away from you or towards you, which
+   is not a direction you can lean in. The lean was taken from `facing`, which
+   is only ever left or right and holds its last value while somebody walks up
+   and down — so they went up the screen tilted over as though still heading
+   east, and back down still tilted the same way.
+
+   What the lean is worth is the sideways share of the step, and the honest
+   way to know that is to look at where they actually ended up: every last
+   thing that moves anybody — the walking keys, the tow behind Diction, a
+   villager on its round — is covered by that without any of them having to
+   remember to say. Somebody who walked into a wall did not go anywhere, and
+   comes out of it upright, which is also right. */
+function sideShare(A) {
+  const px = A.wasX, py = A.wasY;
+  A.wasX = A.x; A.wasY = A.y;
+  if (px === undefined) return (A.sideWas = 0);
+  const mx = Math.abs(A.x - px), my = Math.abs(A.y - py);
+  /* Walking on the spot — into the side of a house, or a fence — keeps
+     whatever the last step that went anywhere was worth, so somebody who
+     walks east into a wall stays leaning east into it rather than standing
+     up straight the moment they stop making progress. */
+  if (mx + my < 0.02) return A.sideWas || 0;
+  return (A.sideWas = mx / (mx + my));
+}
 function livenOne(A, dt) {
+  const side = sideShare(A);
   if (A.lookHold) { A.look = { x: A.lookHold.x, y: A.lookHold.y }; A.lean = 0; return; }
   const want = lookTarget(A);
   /* Nobody stares. Even fixed on something, an eye wanders a little round it,
@@ -15833,7 +16311,7 @@ function livenOne(A, dt) {
   const k = Math.min(1, LOOK_EASE * dt * 60);
   A.look.x += (want.x - A.look.x) * k;
   A.look.y += (want.y - A.look.y) * k;
-  const wantLean = (A.moving && !A.sitting && !A.inBed) ? (A.facing || 1) * LEAN_MAX : 0;
+  const wantLean = (A.moving && !A.sitting && !A.inBed) ? (A.facing || 1) * LEAN_MAX * side : 0;
   A.lean = (A.lean || 0) + (wantLean - (A.lean || 0)) * Math.min(1, 0.09 * dt * 60);
 }
 /* Once a frame for everybody, and each of them inside their own land — the
@@ -17710,6 +18188,9 @@ window.DN = {
   trail: () => trailP.length,
   liveliness: () => SLOTS().map(A => ({ char: A.char, moving: !!A.moving, facing: A.facing,
     look: A.look ? { x: Math.round(A.look.x * 1000) / 1000, y: Math.round(A.look.y * 1000) / 1000 } : null,
+    /* where they are as well, so a test asking why somebody is not leaning
+       can tell "walking north" from "walking north into a wall" */
+    x: Math.round(A.x * 10) / 10, y: Math.round(A.y * 10) / 10,
     lean: Math.round((A.lean || 0) * 10000) / 10000 })),
   // the easing curve itself, so a test can ask whether it depends on how fast
   // the machine happens to be running
