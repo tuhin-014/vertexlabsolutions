@@ -454,8 +454,11 @@ html, body {
   }
 
   function rainbow(ctx, cx, cy, rad, seed) {
+    /* The bands step in by a share of the arc rather than by a fixed number
+       of units, so a small rainbow is a small rainbow and not five bands and
+       a blot where the inside one turned inside out. */
     for (let b = 0; b < 6; b++) {
-      const rr = rad - b * 4.5, pts = [];
+      const rr = rad * (1 - b * 0.13), pts = [];
       for (let i = 0; i <= 16; i++) {
         const a = Math.PI + i / 16 * Math.PI;
         pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.85]);

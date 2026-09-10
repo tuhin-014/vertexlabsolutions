@@ -65,6 +65,11 @@
         .app-card .store-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--dark);color:var(--white);border-radius:8px;font-size:12px;font-weight:600;transition:background .2s}
         .app-card .store-btn:hover{background:#334155}
         .app-card .store-btn.disabled{background:var(--border);color:var(--gray);cursor:default}
+        /* Some of these run in a browser as well as on the App Store, so the
+           card offers both and the web one is the quieter of the two. */
+        .app-card .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+        .app-card .store-btn.web{background:var(--white);color:var(--dark);border:1px solid var(--border)}
+        .app-card .store-btn.web:hover{background:var(--light)}
         
         /* B2B Grid */
         .b2b-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px}
@@ -246,6 +251,24 @@
             <div class="desc">Legal documents and compliance toolkit for small businesses — contracts, policies, checklists.</div>
             <div class="tags"><span class="tag">Legal Docs</span><span class="tag">Compliance</span><span class="tag">Templates</span></div>
             <a href="#" class="store-btn disabled">🍎 Coming Soon</a>
+        </div>
+        <div class="app-card">
+            <div class="top"><div class="emoji">📖</div><div class="info"><h3>Diction &amp; Nina: Quest for the Golden Pages</h3><span class="status status-review">⏳ In Review</span></div></div>
+            <div class="desc">A reading adventure for young children — three siblings, twelve golden pages, and a town made of words. Word puzzles, spelling games, and up to three players on one screen.</div>
+            <div class="tags"><span class="tag">Kids 4–8</span><span class="tag">Reading &amp; Spelling</span><span class="tag">Local Co-op</span><span class="tag">No Ads</span></div>
+            <div class="btn-row">
+                <a href="#" class="store-btn disabled">🍎 Coming Soon</a>
+                <a href="/diction-and-nina/" class="store-btn web" target="_blank" rel="noopener">▶️ Play in browser</a>
+            </div>
+        </div>
+        <div class="app-card">
+            <div class="top"><div class="emoji">🎮</div><div class="info"><h3>Diction &amp; Nina Controller</h3><span class="status status-review">⏳ In Review</span></div></div>
+            <div class="desc">Turns a phone into a controller for Diction &amp; Nina running on somebody else's screen. Type the code the game shows you and your thumb is player two.</div>
+            <div class="tags"><span class="tag">Companion App</span><span class="tag">Local Co-op</span><span class="tag">No Account</span></div>
+            <div class="btn-row">
+                <a href="#" class="store-btn disabled">🍎 Coming Soon</a>
+                <a href="/diction-and-nina-controller/" class="store-btn web" target="_blank" rel="noopener">🎮 Open in browser</a>
+            </div>
         </div>
         <div class="app-card">
             <div class="top"><div class="emoji">🔧</div><div class="info"><h3>PopHood — Mobile Mechanic</h3><span class="status status-live">● Live</span></div></div>
