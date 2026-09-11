@@ -86,6 +86,15 @@ html, body {
   text-align:center; font-weight:bold; font-size:17px; color:var(--purple);
   transform:rotate(-.8deg);
 }
+/* Between the two thumbs is a tall stripe of nothing — a controller is all
+   corners — so the one thing worth putting there goes there: whoever you are
+   holding. It sits behind both thumbs and catches nothing. */
+#pad-me {
+  position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+  width:min(70vw, 340px); height:auto; pointer-events:none;
+}
+@media (max-height:560px) { #pad-me { display:none; } }
+
 /* the stick is a ring somebody drew round twice, so it is not a circle */
 #pad-stick {
   position:absolute; left:6%; bottom:9%;
@@ -160,6 +169,7 @@ html, body {
 </div>
 <div id="pad-face" class="hidden">
   <div id="pad-who"></div>
+  <canvas id="pad-me" width="420" height="366"></canvas>
   <div id="pad-stick"><div id="pad-nub"></div></div>
   <div id="pad-btns">
     <button class="pb" data-b="2">✨</button>
@@ -1317,10 +1327,28 @@ const Net = (() => {
   });
 
   /* ---- the wire ---- */
+  /* Which of them this phone is holding. The screen sends the name, because
+     the screen is where the choosing happened — a player who swapped to Limey
+     is Limey, whichever slot they are sitting in. */
+  function drawMe(name, slot) {
+    const cv = $('pad-me');
+    if (!cv || !window.Crayon) return;
+    const kind = /nina/i.test(name) ? 'nina' : /limey/i.test(name) ? 'limey'
+      : /diction/i.test(name) ? 'diction' : ['diction', 'nina', 'limey'][slot % 3];
+    const c = cv.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, cv.width, cv.height);
+    const k = cv.width / 150;
+    c.save(); c.scale(k, k);
+    Crayon.who(c, kind, 75, 126, 1, 11 + slot * 7, slot % 2 ? 0.03 : -0.04);
+    c.restore();
+  }
+
   function live(slot, name, quiet) {
     join.classList.add('hidden');
     face.classList.remove('hidden');
     who.textContent = `Player ${slot + 1} — ${name}`;
+    drawMe(name, slot);
     if (sending) clearInterval(sending);
     if (quiet) return;          // shown without a wire behind it, for a test
     /* Twenty times a second: often enough to walk with, seldom enough that a
