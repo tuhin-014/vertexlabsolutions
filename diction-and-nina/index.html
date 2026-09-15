@@ -8245,11 +8245,7 @@ window.R3Factory = function (env) {
   function perfCheck(dt) {
     if (perf.stage >= 2) return;
     if (dt > 0 && dt < 1) { perf.n++; perf.acc += dt; }
-    /* Sixty frames, not a hundred and fifty. On a machine slow enough to need
-       this, a hundred and fifty frames is twenty-five seconds of watching it
-       struggle before anything is done about it — and now that the round view
-       is drawn at the screen's own resolution there is more to give back. */
-    if (perf.n >= 60) {
+    if (perf.n >= 150) {
       const slow = perf.acc / perf.n > 0.04; // sustained < ~25 fps
       perf.n = 0; perf.acc = 0;
       if (!slow) { perf.stage = 2; return; } // fast enough — lock in current quality
@@ -8275,6 +8271,19 @@ window.R3Factory = function (env) {
   }
 
   /* The screen changed — a window resized, or moved to a different monitor. */
+  /* Draw the round view at a resolution of somebody's choosing, whatever this
+     machine can actually manage. For taking pictures of the game on a
+     machine with no graphics card: a screenshot is looked at on a real
+     screen, and one captured through the software-rendering fallback is a
+     picture of the fallback rather than of the game. Slow, deliberately, and
+     never used while anybody is playing. */
+  R.force = function (px) {
+    quality = Math.max(0.25, px || 1);
+    try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    perf.stage = 2;                   // and do not quietly take it away again
+    return quality;
+  };
+
   R.resize = function (px) {
     if (SOFT) return;                 // it is already doing all it can
     quality = Math.max(1, px || 1);
@@ -18325,6 +18334,9 @@ window.DN = {
   /* what the frame is actually being made of, and what the machine can manage */
   gfx: () => Object.assign({ px: PX, canvas: [canvas.width, canvas.height] },
     (R3 && R3.gfx) ? R3.gfx() : { gl: null, software: null }),
+  /* tools seam: draw the round view at this resolution whatever the machine
+     thinks of the idea — for capturing the game as a real screen shows it */
+  gfxForce: (px) => (R3 && R3.force ? R3.force(px === undefined ? PX : px) : null),
   // test seam: the whole cast with no light falling on them at all
   flatLight: (on) => setFlatLight(on),
   /* test seam: hold somebody's eyes where they are put, so the same face can
