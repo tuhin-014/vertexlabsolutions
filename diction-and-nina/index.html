@@ -20,9 +20,9 @@ html,body {
   border-radius:12px;
   box-shadow:0 22px 64px rgba(0,0,0,.55), 0 2px 0 rgba(255,250,235,.09);
 }
-canvas#game { display:block; width:100%; height:100%; background:#9adcf0; border-radius:12px; image-rendering:pixelated; }
+canvas#game { display:block; width:100%; height:100%; background:#9adcf0; border-radius:12px; }
 canvas#game.gl-on { background:transparent; }
-canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-radius:12px; image-rendering:pixelated; }
+canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-radius:12px; }
 .hidden { display:none !important; }
 
 /* ------- HUD ------- */
@@ -6351,12 +6351,27 @@ const Net = (() => {
      below still work with no server at all. */
 
   const ROOM_LEN = 6;
+  /* peerjs.92k.de used to be the second of these and is gone — not refusing,
+     not slow: nothing answers on the address at all. It is out because a name
+     that cannot be reached is not a spare, and while the race was counting
+     events rather than sockets it was worse than useless: it was the thing
+     taking the live server down with it.
+
+     One meeting point is thin, which is what `dn-signal` and the field in the
+     Play Online panel are for — anyone can run a PeerJS server, and one that
+     somebody is actually looking after beats a free one that might be gone by
+     Tuesday. If none can be reached, the by-hand codes still work with no
+     server at all, and the panel goes straight there. */
   const SIGNAL_SERVERS = [
     'wss://0.peerjs.com/peerjs?key=peerjs&version=1.5.4',
-    'wss://peerjs.92k.de/peerjs?key=peerjs&version=1.5.4',
   ];
   const HEARTBEAT_MS = 5000;
-  const SIGNAL_TIMEOUT_MS = 20000;
+  /* Long enough for a server on the far side of an ocean, short enough that
+     nobody sits watching "finding a meeting point" wondering if it has hung.
+     Every server failing outright is reported the moment the last one does,
+     so this only bites when something accepts the connection and then says
+     nothing. */
+  const SIGNAL_TIMEOUT_MS = 12000;
 
   let sig = null, beat = null, roomCode = null;
 
@@ -6398,17 +6413,25 @@ const Net = (() => {
         ws.onclose = () => setState(N.state === 'open' ? N.state : 'failed', 'lost the connection to the meeting point');
         resolve(ws);
       };
-      const drop = () => {
-        if (settled) return;
+      /* One socket, one vote. A browser reports a WebSocket that could not
+         connect twice — once as an error and once as a close — so counting
+         events instead of sockets made a single dead meeting point look like
+         two of them giving up. With two in the list and one gone, the list
+         was exhausted the instant the dead one failed, and the live server
+         was abandoned in the middle of its handshake. That is every room code
+         in the game failing because of a server nobody was using. */
+      const drop = (ws) => {
+        if (settled || (ws && ws.__counted)) return;
+        if (ws) ws.__counted = true;
         if (--pending <= 0) reject(new Error(taken ? 'taken' : 'no-server'));
       };
       urls.forEach((base) => {
         let ws;
         try { ws = new WebSocket(`${base}&id=${encodeURIComponent(id)}&token=${token}`); }
-        catch (e) { drop(); return; }
+        catch (e) { drop(null); return; }
         sockets.push(ws);
-        ws.onerror = drop;
-        ws.onclose = drop;
+        ws.onerror = () => drop(ws);
+        ws.onclose = () => drop(ws);
         ws.onmessage = (e) => {
           let m;
           try { m = JSON.parse(e.data); } catch (err) { return; }
@@ -6608,12 +6631,38 @@ window.R3Factory = function (env) {
   const isInterior = (id) => INTERIORS.indexOf(id) !== -1;
 
   const glCanvas = document.getElementById('gl');
-  let renderer;
+
+  /* A machine with no graphics card draws every pixel on the processor, and
+     asking one of those for three pixels per game pixel is asking for a
+     slideshow. Chrome will say plainly what it is drawing with, so ask before
+     deciding how much to ask of it — an old laptop or a virtual machine gets
+     what it can actually keep up with, and everything else gets the screen it
+     paid for. */
+  function softwareOnly() {
+    try {
+      const c = document.createElement('canvas');
+      const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+      if (!gl) return true;
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      const name = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+      return /swiftshader|llvmpipe|softwarerasterizer|microsoft basic/i.test(name);
+    } catch (e) { return false; }
+  }
+  const SOFT = softwareOnly();
+  let renderer, quality = SOFT ? 0.5 : ((env && env.px && env.px()) || 1);
+  R.gfx = () => ({ gl: quality, software: SOFT });
   try {
-    renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: false });
-    // slightly pixelated: half-res drawing buffer, CSS scales it up crisp;
-    // viewport/scissor math stays in 960x540 space via the pixel ratio
-    renderer.setPixelRatio(0.5);
+    /* Antialiasing is worth it when there are not enough pixels to go round,
+       and close to pointless once there are three for every one the game asks
+       for — at which point it is only asking a phone to do multisampling it
+       cannot afford. Sharpness first, extra samples only if that is all we
+       have. */
+    renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: quality < 2 && !SOFT });
+    /* The round view used to be drawn into a half-size buffer and stretched
+       back out, which put a staircase down the edge of every roof. It is drawn
+       at whatever the screen is made of now; the viewport and scissor maths
+       stay in 960x540 space, because that is what the pixel ratio is for. */
+    renderer.setPixelRatio(quality);
     renderer.setSize(960, 540, false);
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.shadowMap.enabled = true;
@@ -8196,7 +8245,11 @@ window.R3Factory = function (env) {
   function perfCheck(dt) {
     if (perf.stage >= 2) return;
     if (dt > 0 && dt < 1) { perf.n++; perf.acc += dt; }
-    if (perf.n >= 150) {
+    /* Sixty frames, not a hundred and fifty. On a machine slow enough to need
+       this, a hundred and fifty frames is twenty-five seconds of watching it
+       struggle before anything is done about it — and now that the round view
+       is drawn at the screen's own resolution there is more to give back. */
+    if (perf.n >= 60) {
       const slow = perf.acc / perf.n > 0.04; // sustained < ~25 fps
       perf.n = 0; perf.acc = 0;
       if (!slow) { perf.stage = 2; return; } // fast enough — lock in current quality
@@ -8211,11 +8264,23 @@ window.R3Factory = function (env) {
           ms.forEach(m => { if (m) m.needsUpdate = true; });
         });
       } else {
-        renderer.setPixelRatio(0.35); // drop resolution further — chunkier but smooth
+        /* Still slow with the shadows off: give up some sharpness rather than
+           the frame rate. Half of whatever the screen asked for, never below
+           the one buffer-pixel-per-game-pixel this was before. */
+        quality = Math.max(SOFT ? 0.35 : 1, quality / 2);
+        renderer.setPixelRatio(quality);
         renderer.setSize(960, 540, false);
       }
     }
   }
+
+  /* The screen changed — a window resized, or moved to a different monitor. */
+  R.resize = function (px) {
+    if (SOFT) return;                 // it is already doing all it can
+    quality = Math.max(1, px || 1);
+    if (perf.stage >= 2) return;      // already given up on sharpness for speed
+    try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+  };
 
   const ray = new THREE.Raycaster();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -9027,9 +9092,46 @@ buf.width = BUF_W; buf.height = BUF_H;
 let bctx = buf.getContext('2d'); // swapped to an offscreen ground canvas during the 3D pass
 const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
 
+/* ---------------- drawn at the size it is looked at ----------------
+   The game is authored in a 960x540 space and then stretched to fill whatever
+   screen it lands on — which on a phone is about three times over. Nothing in
+   here is pixel art: every character, building and letter is a shape. So there
+   is no reason to draw it once at 960 across and blow it up; it can be drawn
+   at the resolution it will actually be seen at, and every curve stays a curve.
+
+   None of the rest of this file finds out. The buffers get bigger and both
+   contexts are scaled to match, so every coordinate written anywhere still
+   means what it always meant. */
+let PX = 1, wantPX = 1;
+function screenPX() {
+  const dpr = window.devicePixelRatio || 1;
+  const fitS = Math.min(window.innerWidth / BUF_W, window.innerHeight / BUF_H);
+  /* Whole steps only. A buffer at some fraction of the screen has to be
+     resampled on the way out, which is the blur this exists to remove. */
+  return Math.max(1, Math.min(3, Math.ceil(fitS * dpr - 0.01)));
+}
+function baseTransform() {
+  ctx.setTransform(PX, 0, 0, PX, 0, 0);
+  bctx.setTransform(PX, 0, 0, PX, 0, 0);
+}
+/* Applied at the top of a frame rather than from the resize handler: halfway
+   through drawing, `bctx` is pointing at the 3D ground canvas instead of the
+   buffer, and swapping the buffer out from under it there would be a mess. */
+function applyPX() {
+  if (wantPX === PX && canvas.width === VW * PX) return;
+  PX = wantPX;
+  canvas.width = VW * PX; canvas.height = VH * PX;
+  buf.width = BUF_W * PX; buf.height = BUF_H * PX;
+  bctx = buf.getContext('2d');
+  baseTransform();
+  // anything cached at the old size has to be drawn again
+  vignetteCache = null; darkCanvas = null; sheetCache = null; probe = null;
+  if (R3 && R3.resize) R3.resize(PX);
+}
+
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v132 · Drawn by the three of them";
+const GAME_VERSION = "v133 · Drawn sharp, and they can find each other";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -16150,7 +16252,7 @@ function renderWorldView(v) {
       // props extrude toward the vanishing point based on screen position
       setBBSkew(((p.x - (v.vpX + v.vpW / 2)) / (v.vpW / 2)) * 10, true);
       bctx.save();
-      bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.setTransform(PX, 0, 0, PX, 0, 0);
       bctx.translate(p.x, p.y);
       bctx.scale(S * p.s, S * p.s);
       bctx.translate(-(d.x ?? camX), -d.y);
@@ -16646,19 +16748,18 @@ function vignette() {
   return vignetteCache;
 }
 
-/* slightly pixelated: squeeze the frame through a half-res canvas, then
-   scale it back up with smoothing off for that gentle chunky-pixel look */
-const PIX = 2;
-const pixBuf = document.createElement('canvas');
-pixBuf.width = BUF_W / PIX; pixBuf.height = BUF_H / PIX;
-const pixCtx = pixBuf.getContext('2d');
+/* Straight through, at whatever resolution the screen is actually made of.
+
+   The frame used to be squeezed down through a half-resolution canvas and
+   blown back up with smoothing off, for a chunky-pixel look. But none of this
+   game is pixel art — every character, every building and every letter is
+   drawn as shapes — so that pass was not a style applied to pixel art, it was
+   a perfectly good drawing being thrown away and reconstructed out of blocks
+   four times too big. Everything had a staircase down its edge and every
+   round thing had corners. */
 function blit() {
-  pixCtx.imageSmoothingEnabled = true;
-  pixCtx.clearRect(0, 0, pixBuf.width, pixBuf.height);
-  pixCtx.drawImage(buf, 0, 0, pixBuf.width, pixBuf.height);
-  ctx.imageSmoothingEnabled = false;
   ctx.clearRect(0, 0, VW, VH);
-  ctx.drawImage(pixBuf, 0, 0, VW, VH);
+  ctx.drawImage(buf, 0, 0, VW, VH);   // one buffer pixel per screen pixel
 }
 
 let darkCanvas = null;
@@ -17931,6 +18032,7 @@ function frame(ts) {
   }
 }
 function frameInner(ts) {
+  applyPX();
   const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
   lastTs = ts;
   G.t += dt;
@@ -18049,6 +18151,7 @@ function fit() {
   const s = Math.min(window.innerWidth / 960, window.innerHeight / 540);
   const wrap = document.getElementById('game-wrap');
   wrap.style.transform = `translate(-50%,-50%) scale(${s})`;
+  wantPX = screenPX();
 }
 window.addEventListener('resize', fit);
 fit();
@@ -18060,6 +18163,7 @@ let R3 = null;
 try {
   R3 = window.R3Factory ? window.R3Factory({
     TILE, G, P, FOLLOW, SCRIB, LIMEY, pointer,
+    px: () => PX,
     getSave: () => save, isCoop, isCoop3, skinFor, isDoorOpen, dailyDigQuest,
     camViews, withWorld, restWarm: () => restWarm, dusk: duskLevel, catState, catInArms, npcHere,
     npcAnim: (id) => {
@@ -18085,6 +18189,26 @@ function setGL(on) {
 }
 
 /* ---------------- debug hook (for automated testing) ---------------- */
+/* Every measurement below is in the game's own 960x540 coordinates, and the
+   frame is no longer drawn at that size — so reading it means taking a
+   logical-size copy first. That is what keeps each number these hooks hand
+   back meaning exactly what it meant when the buffer and the screen were the
+   same thing, which is the only reason several hundred assertions written
+   against them still hold. At PX 1 there is nothing to copy. */
+let probe = null, probeCtx = null;
+function logicalCtx(src) {
+  if (PX === 1) return src.getContext('2d');
+  if (!probe) {
+    probe = document.createElement('canvas');
+    probe.width = VW; probe.height = VH;
+    probeCtx = probe.getContext('2d');
+  }
+  probeCtx.setTransform(1, 0, 0, 1, 0, 0);
+  probeCtx.clearRect(0, 0, VW, VH);
+  probeCtx.drawImage(src, 0, 0, VW, VH);
+  return probeCtx;
+}
+
 window.DN = {
   warp(col, row) {
     P.x = (col + 0.5) * TILE; P.y = (row + 1) * TILE - 6;
@@ -18149,7 +18273,7 @@ window.DN = {
      has grain; a flat fill does not. */
   framePaper(x, y, w, h) {
     let d;
-    try { d = ctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
+    try { d = logicalCtx(canvas).getImageData(x, y, w, h).data; } catch (e) { return null; }
     const seen = {};
     let n = 0, sum = 0, sq = 0, lo = 1e9, hi = -1e9;
     for (let i = 0; i < d.length; i += 4) {
@@ -18198,6 +18322,9 @@ window.DN = {
   // the easing curve itself, so a test can ask whether it depends on how fast
   // the machine happens to be running
   easeK: (k, dt) => ease(k, dt),
+  /* what the frame is actually being made of, and what the machine can manage */
+  gfx: () => Object.assign({ px: PX, canvas: [canvas.width, canvas.height] },
+    (R3 && R3.gfx) ? R3.gfx() : { gl: null, software: null }),
   // test seam: the whole cast with no light falling on them at all
   flatLight: (on) => setFlatLight(on),
   /* test seam: hold somebody's eyes where they are put, so the same face can
@@ -18217,7 +18344,7 @@ window.DN = {
   silhouette(cx, cy, maxR, n, past) {
     const R = Math.round(maxR);
     let d;
-    try { d = ctx.getImageData(Math.round(cx) - R, Math.round(cy) - R, R * 2, R * 2).data; } catch (e) { return null; }
+    try { d = logicalCtx(canvas).getImageData(Math.round(cx) - R, Math.round(cy) - R, R * 2, R * 2).data; } catch (e) { return null; }
     const at = (x, y) => {
       const px2 = x + R, py2 = y + R;
       if (px2 < 0 || py2 < 0 || px2 >= R * 2 || py2 >= R * 2) return null;
@@ -18254,7 +18381,7 @@ window.DN = {
     const rad = r || 12;
     const x0 = Math.round(at.x - rad), y0 = Math.round(at.y - rad), n = rad * 2;
     let d;
-    try { d = bctx.getImageData(x0, y0, n, n).data; } catch (e) { return null; }
+    try { d = logicalCtx(buf).getImageData(x0, y0, n, n).data; } catch (e) { return null; }
     let ink = 0;
     for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 150) ink++;
     return { x: x0, y: y0, n, ink };
@@ -18264,7 +18391,7 @@ window.DN = {
      folded leg across it are not. */
   patchColours(x, y, w, h) {
     let d;
-    try { d = bctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
+    try { d = logicalCtx(buf).getImageData(x, y, w, h).data; } catch (e) { return null; }
     const seen = {};
     let n = 0;
     for (let i = 0; i < d.length; i += 4) {
@@ -18284,7 +18411,7 @@ window.DN = {
      on the visible canvas, so that is where it has to be read. */
   frameBox(x, y, w, h, col, tol) {
     let d;
-    try { d = ctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
+    try { d = logicalCtx(canvas).getImageData(x, y, w, h).data; } catch (e) { return null; }
     const t = tol === undefined ? 26 : tol;
     let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
@@ -18302,7 +18429,7 @@ window.DN = {
   },
   colourBox(x, y, w, h, col, tol) {
     let d;
-    try { d = bctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
+    try { d = logicalCtx(buf).getImageData(x, y, w, h).data; } catch (e) { return null; }
     const t = tol === undefined ? 26 : tol;
     let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
@@ -18357,7 +18484,7 @@ window.DN = {
   // how much of a patch is a given colour, give or take
   patchMatch(x, y, w, h, col, tol) {
     let d;
-    try { d = bctx.getImageData(x, y, w, h).data; } catch (e) { return null; }
+    try { d = logicalCtx(buf).getImageData(x, y, w, h).data; } catch (e) { return null; }
     const t = tol === undefined ? 30 : tol;
     let hit = 0, n = 0;
     for (let i = 0; i < d.length; i += 4) {

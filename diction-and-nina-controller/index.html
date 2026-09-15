@@ -1016,12 +1016,27 @@ const Net = (() => {
      below still work with no server at all. */
 
   const ROOM_LEN = 6;
+  /* peerjs.92k.de used to be the second of these and is gone — not refusing,
+     not slow: nothing answers on the address at all. It is out because a name
+     that cannot be reached is not a spare, and while the race was counting
+     events rather than sockets it was worse than useless: it was the thing
+     taking the live server down with it.
+
+     One meeting point is thin, which is what `dn-signal` and the field in the
+     Play Online panel are for — anyone can run a PeerJS server, and one that
+     somebody is actually looking after beats a free one that might be gone by
+     Tuesday. If none can be reached, the by-hand codes still work with no
+     server at all, and the panel goes straight there. */
   const SIGNAL_SERVERS = [
     'wss://0.peerjs.com/peerjs?key=peerjs&version=1.5.4',
-    'wss://peerjs.92k.de/peerjs?key=peerjs&version=1.5.4',
   ];
   const HEARTBEAT_MS = 5000;
-  const SIGNAL_TIMEOUT_MS = 20000;
+  /* Long enough for a server on the far side of an ocean, short enough that
+     nobody sits watching "finding a meeting point" wondering if it has hung.
+     Every server failing outright is reported the moment the last one does,
+     so this only bites when something accepts the connection and then says
+     nothing. */
+  const SIGNAL_TIMEOUT_MS = 12000;
 
   let sig = null, beat = null, roomCode = null;
 
@@ -1063,17 +1078,25 @@ const Net = (() => {
         ws.onclose = () => setState(N.state === 'open' ? N.state : 'failed', 'lost the connection to the meeting point');
         resolve(ws);
       };
-      const drop = () => {
-        if (settled) return;
+      /* One socket, one vote. A browser reports a WebSocket that could not
+         connect twice — once as an error and once as a close — so counting
+         events instead of sockets made a single dead meeting point look like
+         two of them giving up. With two in the list and one gone, the list
+         was exhausted the instant the dead one failed, and the live server
+         was abandoned in the middle of its handshake. That is every room code
+         in the game failing because of a server nobody was using. */
+      const drop = (ws) => {
+        if (settled || (ws && ws.__counted)) return;
+        if (ws) ws.__counted = true;
         if (--pending <= 0) reject(new Error(taken ? 'taken' : 'no-server'));
       };
       urls.forEach((base) => {
         let ws;
         try { ws = new WebSocket(`${base}&id=${encodeURIComponent(id)}&token=${token}`); }
-        catch (e) { drop(); return; }
+        catch (e) { drop(null); return; }
         sockets.push(ws);
-        ws.onerror = drop;
-        ws.onclose = drop;
+        ws.onerror = () => drop(ws);
+        ws.onclose = () => drop(ws);
         ws.onmessage = (e) => {
           let m;
           try { m = JSON.parse(e.data); } catch (err) { return; }
