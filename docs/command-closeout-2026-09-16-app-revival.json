@@ -1,0 +1,50 @@
+{
+  "project": "vertexlabsolutions/app-revival",
+  "date": "2026-09-16",
+  "objective": "Scheduled App Revival run: poll the rejection queue, fix whatever is broken and get it live.",
+  "completed": [
+    "Polled all 54 apps. 14th consecutive run with no NEW Apple bounce: 2 DEVELOPER_REJECTED (CoverWise, GreenScan) are the same standing user blocks, and the 1 REJECTED (Pantria) is shelved by user decision after its 4.3(a).",
+    "CLOSED a 3-run blocker: PopHood 1.1.1 SHIPPED. itunes/lookup confirms minimumOsVersion 17.0, released 09-15. The POST /v1/appStoreVersions write denied across 3 runs and 5 call shapes went through. The minOS 26.2 deployment-target bug is off the board for PopHood.",
+    "CLOSED a false alarm: CleanVerify 1.0.3 was approved AND the 09-13 QA fixes shipped with it. Build 14 uploaded 09-14T03:58:43Z while the fix commit 9551029 is dated 04:00:34Z — two minutes LATER — but that commit is what introduces CURRENT_PROJECT_VERSION 14, so no tree lacking the fixes could have built a 14. The dead Share Proof Report button and the English-at-the-paywall Spanish bug are fixed in the live build.",
+    "FIXED PillFlow Pro (6760236483). PaywallView.swift:212 linked Terms of Use at .../itunes/dev/stdobeula/ — a typo for stdeula that returns 404. The Terms link on the subscription screen has been dead in EVERY shipped build. Guideline 3.1.2 exposure, the same signature that nearly re-rejected HalalWise on 07-31.",
+    "Verified the PillFlow fix in the artifact that ships, not just in source: BUILD SUCCEEDED, zero stdobeula and one stdeula in the built binary, privacy policy URL intact. Commit eed3abcee, bumped 1.3.2(5) to 1.3.3(6).",
+    "Cleared PillFlow of two adjacent defect classes: ITSAppUsesNonExemptEncryption is already false (export compliance will not block submission), and all three product IDs (monthly/yearly/lifetime) exist in ASC, are APPROVED, and match StoreKitManager.swift — no phantom tier.",
+    "Re-audited the three subscription-legal defects from 09-09/09-12 against the live API. All three are still broken."
+  ],
+  "partial": [
+    "PillFlow: the paywall half is fixed and binary-verified, but the same stdobeula typo is ALSO in the live App Store description, which additionally advertises $39.99/yr against a real USA price of $29.99. Both are description-only, so they need a new appStoreVersion. Paste-ready copy is staged in the report, not pushed."
+  ],
+  "pending": [
+    "Ship PillFlow 1.3.3(6): create the version, apply the two description corrections (stdeula link, $29.99/yr), build, upload, submit. Needs Max's approval — the app is live and healthy.",
+    "Anatomly 6768165386: description still has NO Terms of Use link and NO Privacy Policy link, against an auto-renewing sub with a free trial. Bedtime Adventure's exact 3.1.2 signature.",
+    "TradeInvoice 6759491053: description still has zero URLs. Repo fix 8ee3317 from 08-05 is still unsubmitted.",
+    "Anatomly and PillFlow both have NULL promotionalText — the carry-forward trap fired again on their last version bumps; both listings run with an empty promo slot.",
+    "QuitTrack: deploy quittrack-coach, ship the build, THEN rotate the key. Audit Anthropic spend since 2026-07-29. Unchanged from 09-12."
+  ],
+  "blocked": [
+    "All three subscription-legal fixes need a new appStoreVersion, and all three apps are live and healthy, so they need Max's approval regardless.",
+    "Creating an appStoreVersion speculatively is one-way — 409 on delete unless it is the platform's first version — so none was created.",
+    "CoverWise and GreenScan remain standing user blocks; ClearBill and CareLoom still need one web-UI-only medical-device click each.",
+    "PillFlow's lifetime IAP price would not resolve — iapPriceSchedule returned a schedule with no usable price point. Left out of the staged copy rather than guessed at; the live description does not quote it today."
+  ],
+  "decisions": [
+    "Picked PillFlow's dead paywall link as this run's work. Nothing in the rejection queue was both API-fixable and user-approved for the 14th run, and this defect is squarely the task file's own checklist item — 'Privacy Policy + Terms of Use links in any paywall/subscription view'.",
+    "Did not submit anything. PillFlow is live and healthy; a new version plus build is Max's call.",
+    "Did not edit any live listing copy, including the two NULL promo-text slots. Those are outward-facing changes to public listings and were not asked for.",
+    "Verified CleanVerify's build provenance by which commit introduces the build number rather than by commit timestamp, after the timestamps alone implied the fixes had missed the build.",
+    "Corrected the standing note on Anatomly rather than acting on it: its trial is TWO_WEEKS and the description already says 14 days, so the claim is accurate. Its real defect is the missing legal links.",
+    "Left Pantria alone — shelved by user after 4.3(a), and the standing rule is never to fast-resubmit a 4.3."
+  ],
+  "files_changed": [
+    "pillpal-never-miss-a-dose/PillPalPro/Views/Paywall/PaywallView.swift",
+    "pillpal-never-miss-a-dose/project.yml",
+    "pillpal-never-miss-a-dose/PillPalPro.xcodeproj/project.pbxproj",
+    "vertexlabsolutions/revival-reports/2026-09-16-pillflow.md"
+  ],
+  "commits": ["eed3abcee"],
+  "lessons": [
+    "To tell whether a fix is in a build, find which commit introduces that build number. The commit timestamp is not the instrument — the normal order is build, upload, then commit, so a shipped fix routinely carries a timestamp LATER than its own upload.",
+    "A Debug simulator build puts the code in <App>.debug.dylib, not the main executable. strings on the executable returned zero URLs and looked like the fix had vanished. Grep the debug dylib too, or verify against a Release build.",
+    "A present legal link is not a working one. Every prior audit passed PillFlow's paywall because a Terms link existed; nobody resolved it. Legal-link checks must assert HTTP 200, not presence."
+  ]
+}
