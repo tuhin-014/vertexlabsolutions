@@ -1,0 +1,40 @@
+{
+  "project": "vertexlabsolutions/market-research",
+  "date": "2026-09-07",
+  "objective": "Scheduled market-research cycle 20: find the next profitable app, or report why not.",
+  "completed": [
+    "Ran genre-entry-rate instrument on Food & Drink for the first time: 25/100 grossing top-100 apps are <=18mo old, the highest rate ever measured (vs Finance 23, Education/Lifestyle/Health 8, Business/Medical 4).",
+    "Identified FridgeWise: Pantry Inventory (rel 2026-07-29, 9 US ratings) at Food & Drink grossing #84 after 40 days - a direct analog of the unsubmitted Pantria.",
+    "Took the first reading of the cycle-19 distribution instrument (4-day deltas): Ziggy 1320->1376 (+14/day, decelerating from 30); ASL Otty 2323->2487 (+41/day, accelerating); TagHalal 8370->8434 (+16/day); portfolio 14->17 across 17 apps (+0.75/day).",
+    "Swept 18 fresh clusters - zero survivors; closed the 07-23 family-fiduciary/executor thesis on data (5 new entrants/12mo, 1.05yr median age, top result at 0 ratings).",
+    "Wrote vertexlabsolutions/market-research/2026-09-07.md and prepended the cycle to next-saas-opportunities.md.",
+    "Saved memory: project_idea_research_2026_09_07, plus updates to reference_genre_entry_rate and project_pantria."
+  ],
+  "partial": [],
+  "pending": [
+    "Ship Pantria: clear the last submission blocker, run the claims-vs-build table, verify EULA/Terms link is in the App Store description.",
+    "Start the cycle-19 HalalWise TikTok-organic test (still at 0 ratings; not started).",
+    "Apply the HalalWise $4.99/$29.99 reprice identified 2026-08-25 and never actioned."
+  ],
+  "blocked": [
+    "Sensor Tower / AppFigures / AppTweak remain auth-walled.",
+    "Pantria's exact remaining submission blocker was read from commit history, not a live ASC query."
+  ],
+  "decisions": [
+    "NO NEW BUILD (19th no-build in 20 cycles). Top-scoring action is a SHIP (Pantria, 18.7) rather than an experiment.",
+    "Copy ASL Otty's compounding pattern, not Ziggy's decaying spike, as the distribution benchmark.",
+    "Consider re-pointing TikTok test subject #2 from Drawtopia to Pantria (pantry has live TikTok discover surfaces).",
+    "Stop shipping into Business and Medical; re-weight toward Food & Drink."
+  ],
+  "files_changed": [
+    "vertexlabsolutions/market-research/2026-09-07.md",
+    "next-saas-opportunities.md",
+    "memory/project_idea_research_2026_09_07.md",
+    "memory/reference_genre_entry_rate.md",
+    "memory/project_pantria.md",
+    "memory/MEMORY.md"
+  ],
+  "tests_run": "n/a - research cycle; all figures verified live against iTunes Lookup / Search / top-grossing RSS on 2026-09-07",
+  "next_action": "Clear Pantria's last submission blocker and run the pre-submit claims/EULA pass.",
+  "next_prompt": "Finish Pantria for submission: identify and clear the remaining blocker, run the claims-vs-build table over the App Store listing (family-sharing Worker + KV are recorded as NOT deployed - deploy or cut the claim), and confirm the EULA/Terms link is in the App Store description. Do not submit without explicit approval."
+}

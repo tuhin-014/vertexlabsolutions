@@ -1,0 +1,42 @@
+{
+  "project": "vertexlabsolutions/monitoring",
+  "date": "2026-09-09",
+  "objective": "Scheduled monitoring run: App Store build status, customer reviews, and website health across the portfolio.",
+  "completed": [
+    "ASC sweep across 54 apps (42 live): no new rejections, nothing removed from sale, no submission waiting on Apple over 48h (LandlordFlow 1.0.1 at 9.4h is the only one in flight).",
+    "Confirmed LandlordKit (6759428782) was HARD-DELETED — GET /v1/apps/6759428782 returns 404 NOT_FOUND and the record is gone from the app list (54 apps, was 55). The 4.3(a) duplicate rent-tracker pair is closed.",
+    "Confirmed CrewDay 1.1 and Shape Playground 3D 1.5 both cleared review and are READY_FOR_SALE.",
+    "Authenticated review sweep across all 42 live apps: 4 reviews total, zero at or below 3 stars, zero fetch errors (so this is a real read, not a silent 401).",
+    "Re-verified territory availability against territoryAvailabilities (not the cache-stale lookup endpoint): QuranKids 2/175, Settle 1/175, LandlordFlow 2/175, DriftOff 175/175 baseline; Proofbook still 404 on appAvailabilityV2 with no availability record at all.",
+    "Website sweep upgraded to assert on BODY CONTENT, not status codes — the action item left open by the 09-08 report.",
+    "Audited minimumOsVersion across all 42 live apps: PopHood is now the only app still shipping 26.2; every other app is 16.0-18.0.",
+    "Wrote vertexlabsolutions/health-reports/2026-09-09.md."
+  ],
+  "partial": [],
+  "pending": [
+    "Rebrand or take down tradeflow-web — it is publicly serving CaterFlow.",
+    "Set territory availability for QuranKids and Proofbook in the ASC web UI (API is read-only for this).",
+    "Ship the VertexHub next.config redirects() fix and purge the Vercel edge cache.",
+    "Drop PopHood's deployment target off iOS 26.2.",
+    "Confirm whether Settle (1/175) and LandlordFlow (2/175) territory scope is deliberate.",
+    "Decide on nine stale drafts, six of them idle over 140 days; delete the DELETE-OLDest record."
+  ],
+  "blocked": [
+    "Territory availability cannot be fixed via the ASC API — it is read-only on appAvailabilityV2. Web UI only, so Proofbook and QuranKids need a human click."
+  ],
+  "decisions": [
+    "Overall status RED. Two long-standing RED items (VertexHub blank shell, Proofbook unpurchasable) plus one NEW RED found this run.",
+    "NEW FINDING: tradeflow-web-xi.vercel.app serves CaterFlow's marketing site verbatim — 0 mentions of 'TradeFlow', 10 of 'CaterFlow', including testimonials naming CaterFlow by brand. Cause is source-level: workspace/tradeflow-web/ is an unrebranded copy of caterflow-web/, deployed as its own Vercel project. Both it and hireflow-web ship the Next.js default title 'Create Next App', which is why every prior title- and status-based check scored it 'ok'.",
+    "VertexHub returned the SAME etag as the 09-08 read, so this is one pinned 21.8-day-old cached response across four reports, not four separate breaks.",
+    "Added a fourth site-health rule to memory: assert the site's own brand name appears in its body. One grep catches wrong-product deployments that status codes, titles and body-length checks all pass."
+  ],
+  "files_changed": [
+    "vertexlabsolutions/health-reports/2026-09-09.md",
+    "memory/reference_site_health_307_blindspot.md",
+    "memory/reference_portfolio_brand_clones.md",
+    "memory/project_landlordkit.md"
+  ],
+  "tests_run": "n/a - monitoring run; all figures verified live on 2026-09-09 against the ASC API (asc_sweep.py, 54 apps), the authenticated customerReviews endpoint (itunes_sweep.py, 42 apps), territoryAvailabilities, and direct HTTP body fetches of all 10 sites.",
+  "next_action": "Rebrand or take down tradeflow-web — it is the only new defect and it is publicly live selling the wrong product.",
+  "next_prompt": "workspace/tradeflow-web/ is an unrebranded copy of caterflow-web/ and is live at tradeflow-web-xi.vercel.app serving CaterFlow marketing copy (logo, pricing tiers, and testimonials all name CaterFlow). It also ships the default title 'Create Next App' in src/app/layout.tsx. Decide with Max whether TradeFlow is a real product: if yes, rebrand the source properly and fix the title; if no, take the Vercel deployment down. Also fix the same placeholder title in hireflow-web/src/app/layout.tsx."
+}

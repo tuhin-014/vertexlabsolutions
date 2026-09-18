@@ -1,0 +1,31 @@
+{
+  "project": "VertexLab Marketing Agent",
+  "date": "2026-09-07",
+  "objective": "Scheduled 12h marketing run: rotate to the oldest postable product, audit its source against the live listing, draft four platform posts, publish via Buffer.",
+  "completed": [
+    "Rotation resolved to DopaFlow (App 6759934340), last promoted 09-05 17h",
+    "Re-verified live store state (v1.1, 2026-07-15, 1 rating) and CTA by page content, not status code",
+    "Source-audited Settings->Notifications, NotificationService and StoreService at the shipped tree (b9211d33, MARKETING_VERSION 1.1 / build 18, clean working tree)",
+    "Read-only ASC query confirmed both subscriptions APPROVED with live FREE_TRIAL intro offers (monthly ONE_WEEK, yearly ONE_MONTH)",
+    "Drafted 18th fresh DopaFlow angle + 4 posts (Instagram, TikTok, Twitter, Pinterest) under 10 verified constraints",
+    "Wrote report marketing-reports/2026-09-07-12.md; updated both marketing memories (rotation, day count, 6 new DopaFlow copy bans)"
+  ],
+  "partial": [],
+  "pending": [],
+  "blocked": [
+    "Buffer publishing — BUFFER_ACCESS_TOKEN in vertexhub-app/.env.local returns UNAUTHENTICATED (day 90, since 2026-06-09). Needs Max to re-authorise Buffer and paste a fresh token. 0 posts published."
+  ],
+  "decisions": [
+    "Posts drafted but NOT published (no write path exists); no createPost mutation attempted",
+    "Excluded the 8 PM streak-reminder toggle from copy per the standing no-streak-copy ban",
+    "Kept trial-reminder copy conditional ('if you start on a free trial') because it is scheduled only inside in-app purchase"
+  ],
+  "files_changed": [
+    "vertexlabsolutions/marketing-reports/2026-09-07-12.md (new)",
+    "~/.claude/projects/-Users-clawbot--openclaw-workspace/memory/project_buffer_token_dead.md",
+    "~/.claude/projects/-Users-clawbot--openclaw-workspace/memory/reference_marketing_copy_bans.md"
+  ],
+  "tests_run": [],
+  "next_action": "Max re-authorises Buffer; next run promotes LandlordFlow, angle = Terms of Use page shipped 2026-09-05 (audit against the build first).",
+  "next_prompt": "Run the VertexLab marketing agent for LandlordFlow; audit (marketing)/terms/page.tsx against the build before drafting."
+}

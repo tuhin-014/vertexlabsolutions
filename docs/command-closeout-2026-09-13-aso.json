@@ -1,0 +1,37 @@
+{
+  "date": "2026-09-13",
+  "project": "vertexlabsolutions / ASO",
+  "objective": "Scheduled ASO rotation pass — TradeInvoice (Tier 1), plus portfolio metadata health audit.",
+  "completed": [
+    "Audited ASC state for all 4 Tier-1 apps (TradeInvoice, QuitTrack, LeanFast, NerveCalm) — all READY_FOR_SALE, no editable metadata window.",
+    "Promo-text carry-forward check: all clean. LeanFast 1.5 (7 locales, shipped 09-10) carried keywords + promo text correctly in all 7.",
+    "Measured TradeInvoice live competitive position: ranks #1 for own brand name only, absent from top-50 for 'invoice app', 'contractor invoice', 'plumber invoice'.",
+    "Verified TradeInvoice monetization stack is sellable: both subs APPROVED, 175 price rows each, 7-day FREE_TRIAL intro offers present.",
+    "Staged full 1.2 metadata package (subtitle 30/30, keywords 100/100, promo 162/170, description + required subscription/EULA footer), every claim verified against the repo.",
+    "Wrote report to vertexlabsolutions/aso-reports/2026-09-13.md"
+  ],
+  "partial": [],
+  "pending": [
+    "Author + publish app-policies/tradeinvoice/terms-of-use.html (adapt dispatchsimple's) — hard dependency of the 1.2 description.",
+    "Bump TradeInvoice to 1.2, create version record, push staged metadata, set real supportUrl + marketingUrl.",
+    "Fix QuitTrack description ('COMPLETELY FREE / No paywall' + 'Join thousands') in its next release — API-locked today.",
+    "Add TradeInvoice and QuitTrack to Astro tracking (untracked, so no popularity/difficulty data for 2 consecutive passes)."
+  ],
+  "blocked": [
+    "All TradeInvoice metadata except promotionalText is API-locked on READY_FOR_SALE.",
+    "TradeInvoice 1.2 cannot be submitted: no EULA/terms page exists (terms.html, terms-of-use.html, eula.html all 404).",
+    "Command ledger POST /api/sessions still returns 503 — this closeout is queued, not posted."
+  ],
+  "decisions": [
+    "Wrote NO metadata to ASC this run, deliberately. TradeInvoice's only writable field (promotionalText) is already current and accurate for the live 1.1.1 build; rewriting it to describe the unshipped scheduling/crew features would violate the Promise Ledger rule, and creating a speculative appStoreVersion to unlock keywords is one-way (409 on delete).",
+    "Recommended reframing this scheduled rotation from copy-tuning to a listing-correctness/blocker audit — 6 passes of keyword tuning across 4 apps at 1-2 ratings each have not moved ratings; the audit function is what produced value today.",
+    "Did not add apps to Astro tracking — persistent third-party write the task file does not ask for; logged as a recommendation instead."
+  ],
+  "files_changed": [
+    "vertexlabsolutions/aso-reports/2026-09-13.md (new)",
+    "~/.claude/.../memory/project_tradeinvoice.md (updated: 1.2 unshipped + terms 404 blocker)"
+  ],
+  "tests_run": "None (no code changed). Verification was live API reads against App Store Connect + HTTP status checks on policy URLs.",
+  "next_action": "Write app-policies/tradeinvoice/terms-of-use.html, then bump TradeInvoice to 1.2 and push the staged §6 metadata to the new version record.",
+  "next_prompt": "Author a terms-of-use page for TradeInvoice at app-policies/tradeinvoice/terms-of-use.html, adapting app-policies/dispatchsimple/terms-of-use.html for the merged invoicing+scheduling+crew feature set and the trial-then-subscription model (7-day free trial, $14.99/mo or $99.99/yr). Then bump TradeInvoice to 1.2 and apply the staged metadata in vertexlabsolutions/aso-reports/2026-09-13.md section 6. Do not upload a build or submit without explicit approval."
+}

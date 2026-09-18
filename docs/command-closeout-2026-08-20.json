@@ -1,0 +1,42 @@
+{
+  "date": "2026-08-20",
+  "project": "vertexlabsolutions / market-research",
+  "objective": "Scheduled market-research cycle #13: find the next profitable app to build; run the Tier-1 competitor analysis the brief asks for.",
+  "completed": [
+    "INVERTED THE METHOD: switched the programme to demand-first ordering (Astro popularity before flood-detector competition) after twelve vertical-first cycles died mostly on demand/channel",
+    "The inversion paid immediately: killed posture (flood detector reads a textbook donut hole - med10 310, 5.55-yr median incumbent, 1 new entrant - Astro says pop 6) and tinnitus (reads as a live market, Astro says pop 9)",
+    "Established a new sixth corollary to the flood-detector method: a high incumbent rating count is NOT a demand signal when the incumbent has a non-search distribution channel. ReSound's 18,870 ratings come from hearing-aid hardware bundling; the whole hearing category is manufacturer companion apps",
+    "Swept 39 fresh consumer clusters (never-probed territory: recurring physical trigger + plausible WTP). Zero survivors of both halves",
+    "Classified: 12 fortresses (houseplant med10 44,584, trading cards 50,166, fertility 72,386, meal prep 53,139, strength log 11,761), 6 gold rushes (autoimmune protocol has 6 of 10 launched inside 12 months with a 0.85-yr median and a top-1 holding ONE rating), 15 demand-dead",
+    "Rejected hearing test despite the best raw ratio in the sweep (pop 29/diff 17): manufacturer-owned hardware channel, one-time job so a subscription cannot retain, plus the API-blocked medical-device declaration and the standing clinician gate",
+    "Identified food-restriction scanning as the strongest demand cluster measured in months (gluten free scanner pop 52, food scanner 48, fodmap 43) and showed every door into it is locked - fortress on the main terms (med10 7,519) or gold rush on the low-difficulty ones (aip pop 29/diff 11)",
+    "KEY RESULT: the sweep walked into our own asset from the outside. halal food scanner at US pop 31/diff 21 is the best ACCESSIBLE demand/difficulty ratio found anywhere this cycle; every comparable-demand keyword in the sweep sits at difficulty 43-67. Independently reconfirms the 08-12 HalalWise 2.0 recommendation by a completely different route",
+    "TIER-1 COMPETITOR ANALYSIS (explicitly requested by the brief, under-served in prior cycles): LeanFast does not appear in the top 50 for 'intermittent fasting' and holds 1 rating against Zero 445,257 / Simple 395,909 / Fastic 246,125 / BodyFast 145,201; rank #1 is a solo developer with 50,106 ratings. NerveCalm does not appear in the top 50 for 'anxiety relief' and holds 1 rating against Calm 1,974,599 / Headspace 973,867",
+    "Captured competitor pricing: Zero $69.99/yr, Fastic $79.99/yr, BodyFast $49.99/yr",
+    "Found the mechanical counter-evidence that matters: Calmana ranks #10 for 'anxiety relief' with 1 rating and a 2.0 average - exact-match titling DOES place new apps, so placement is achievable and authority is the missing input",
+    "Wrote market-research/2026-08-20.md and prepended the cycle block to next-saas-opportunities.md",
+    "Saved memory: project_idea_research_2026_08_20; updated reference_aso_flood_detector with the sixth corollary and the ordering change; added the MEMORY.md index line"
+  ],
+  "partial": [],
+  "pending": [
+    "HalalWise 2.0 relaunch (score 8.1, top recommendation this cycle): P1 backend + OTA ingredient dictionary, evidence UI, meds module, UK-first, $3.99/mo or $19.99/yr, aggregator-only with no rulings. 10-14 days",
+    "CrewDay Safety Pack (score 8.0) - now carried unbuilt through FOUR cycles; safetykit-ios is roughly 90% of the module, so this is a port not a build. 5-7 days",
+    "Ratings-authority program - #1 non-build recommendation for the FOURTH consecutive cycle, still not started. 15 ratings across 23 live apps; LeanFast and NerveCalm hold one each",
+    "LeanFast rename - specified in five cycles now",
+    "CrewDay/TicketProof phone calls"
+  ],
+  "blocked": [
+    "No paid intelligence source reachable (Appfigures, Sensor Tower, AppTweak all unavailable), so every revenue figure in the report is inferred from published list price x rating count and is labelled as such",
+    "TikTok Creative Center and Reddit were not scraped this cycle",
+    "The UK reading of halal food scanner (pop 48/diff 11) is carried from 2026-08-12 and was NOT re-measured; it must be re-verified before the UK-first positioning is committed",
+    "Astro suggestion output remains noisy; brand and homonym rows were stripped by hand ('urate' pop 44/diff 5 and 'taller' pop 57 treated as noise, not signal)"
+  ],
+  "decisions": [
+    "13th consecutive no-build. The 180-day product freeze from 2026-08-02 holds",
+    "Demand-first ordering is now the programme default - it is cheaper and it front-loads the variable that caused most of the twelve prior no-builds",
+    "The two highest-scoring moves available are both work on assets we already own, not app #36",
+    "Do not build a gluten-free or allergy scanner: same engine as HalalWise, but difficulty 48 instead of 21"
+  ],
+  "posted": false,
+  "note": "Queued locally and NOT posted. This was an unattended scheduled run and the task file did not request an external write."
+}

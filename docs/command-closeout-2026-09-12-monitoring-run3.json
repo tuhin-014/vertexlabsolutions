@@ -1,0 +1,14 @@
+{
+  "title": "Monitoring agent — portfolio health sweep (2026-09-12 run 3)",
+  "project": "vertexlabsolutions",
+  "status": "RED",
+  "summary": "Full ASC + iTunes + site sweep. 54 apps, 42 live, review queue empty, 13/13 sites up, 4 reviews all 5-star. Two RED items carried unchanged for a 6th consecutive run: 3 live apps (CalmNow 6759452120, DispatchSimple 6760984425, Proofbook 6763085500) unreachable in all 6 storefronts, and tradeflow-web-xi.vercel.app still serving the CaterFlow site. Hardened asc_sweep.py to re-query empty version lists (last run's action item 5); no app needed the retry and live count came back 42 directly.",
+  "artifacts": ["vertexlabsolutions/health-reports/2026-09-12-run3.md", "scripts/monitoring/asc_sweep.py"],
+  "next": [
+    "Max: restore all territories for CalmNow, DispatchSimple, Proofbook via ASC web UI (open 6 runs)",
+    "Max: repoint or take down tradeflow-web-xi.vercel.app (open 6 runs)",
+    "Confirm LandlordFlow/QuranKids (us+ca) and Settle (us) territory limits are deliberate",
+    "Lower PopHood deployment target off minOS 26.2 on next version",
+    "Fix Create Next App title tag on hireflow-web"
+  ]
+}
