@@ -1,0 +1,17 @@
+{
+  "date": "2026-09-15",
+  "project": "VertexLab Monitoring",
+  "title": "Daily portfolio health sweep — 09-15",
+  "summary": "Ran the full monitoring sweep: 54 apps via ASC, 42 live apps via iTunes (visibility + reviews), 10 web endpoints. Status RED, day 7, unchanged cause. CalmNow, DispatchSimple and Proofbook are READY_FOR_SALE in ASC but 404 on every storefront; ASC availability is read-only via API so the fix stays manual in the web UI. Everything else green: no new rejections, no INVALID builds, nothing aging in the review queue, no 1-2 star reviews, all sites up. CleanVerify 1.0.3 cleared review and is live. Skinlapse 1.2 (14.9h) and PopHood 1.1.1 (19.2h) are queued and healthy.",
+  "outcomes": [
+    "Health report written to vertexlabsolutions/health-reports/2026-09-15.md",
+    "Telegram RED alert sent (day 7 on the three dark apps)",
+    "CleanVerify 1.0.3 confirmed approved and live on the storefront",
+    "Confirmed VertexHub 307 is still a false positive — body renders",
+    "PopHood remains the last minOS 26.2 binary; 1.1.1 in review is the fix"
+  ],
+  "next": [
+    "Max: restore territory availability for CalmNow, DispatchSimple, Proofbook in ASC web UI",
+    "Recheck PopHood 1.1.1 and Skinlapse 1.2 at the 48h queue mark (2026-09-16)"
+  ]
+}
