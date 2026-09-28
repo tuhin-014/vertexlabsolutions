@@ -1,0 +1,5 @@
+# vertexlabsolutions.com
+User-agent: *
+Allow: /
+
+Sitemap: https://vertexlabsolutions.com/settle/guides/sitemap.xml
