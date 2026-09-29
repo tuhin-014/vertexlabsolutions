@@ -6742,8 +6742,30 @@ window.R3Factory = function (env) {
     } catch (e) { return false; }
   }
   const SOFT = softwareOnly();
-  let renderer, quality = SOFT ? 0.5 : ((env && env.px && env.px()) || 1);
-  R.gfx = () => ({ gl: quality, software: SOFT });
+  /* How many buffer pixels the round view may have per game pixel.
+
+     The flat view is drawn at whatever the screen is made of, and should be:
+     it is ink lines, and a line drawn at two-thirds of a pixel is a blurry
+     line. The round view is soft-shaded blocks under a warm light, where the
+     difference between two and three is not visible and the cost very much
+     is — three means 960x3 by 540x3, which is four and two-third million
+     pixels lit every frame. On a phone reporting a pixel ratio of three that
+     is most of the frame budget spent on a sharpness nobody can see.
+
+     Measured on this machine, frame time tracks pixel count almost exactly:
+     0.52 megapixels 291ms, 1.17 -> 601, 2.07 -> 1058, 4.67 -> 1528. Nine
+     times the pixels for five times the time. Capping at two is 2.25x fewer
+     pixels than three, for a picture that looks the same. */
+  const GL_MAX_PX = 2;
+  let renderer, quality = SOFT ? 0.5
+    : Math.min(GL_MAX_PX, (env && env.px && env.px()) || 1);
+  R.gfx = () => ({ gl: quality, software: SOFT,
+    shadows: !!(renderer && renderer.shadowMap && renderer.shadowMap.enabled),
+    /* What the last frame actually cost the card: draw calls and triangles.
+       On a phone the first of these is usually the whole story. */
+    calls: renderer ? renderer.info.render.calls : 0,
+    tris: renderer ? renderer.info.render.triangles : 0,
+    meshes: renderer ? renderer.info.memory.geometries : 0 });
   try {
     /* Antialiasing is worth it when there are not enough pixels to go round,
        and close to pointless once there are three for every one the game asks
@@ -6758,8 +6780,15 @@ window.R3Factory = function (env) {
     renderer.setPixelRatio(quality);
     renderer.setSize(960, 540, false);
     renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    /* PCFSoft is the dearest filter three.js offers and at this size it buys
+       almost nothing: these are soft blobby shadows under cartoon blocks, not
+       architecture. PCF looks the same here and costs a fraction.
+
+       And with no graphics card there is no argument to have — shadow maps are
+       a second pass over the whole scene every frame, and a software rasteriser
+       is exactly where that is unaffordable. */
+    renderer.shadowMap.enabled = !SOFT;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
   } catch (e) { return R; }
   R.ok = true;
 
@@ -6774,7 +6803,11 @@ window.R3Factory = function (env) {
   const sun = new THREE.DirectionalLight(0xfff2d8, 0.7);
   sun.position.set(-4, 9, 3);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  /* 512, not 1024. The shadow camera covers 26 units and a unit is a tile, so
+     this is about twenty texels across every tile — far more than a soft blob
+     under a tree needs, and a quarter of the fill. */
+  sun.shadow.mapSize.set(512, 512);
+  sun.castShadow = !SOFT;
   sun.shadow.camera.left = -13; sun.shadow.camera.right = 13;
   sun.shadow.camera.top = 13; sun.shadow.camera.bottom = -13;
   sun.shadow.camera.near = 1; sun.shadow.camera.far = 40;
@@ -8360,10 +8393,20 @@ window.R3Factory = function (env) {
 
   /* adaptive quality: drop shadows first; if still slow, drop render resolution */
   const perf = { n: 0, acc: 0, stage: 0 };
+  const PERF_WINDOW = 2.5;             // seconds of running before it decides
   function perfCheck(dt) {
     if (perf.stage >= 2) return;
     if (dt > 0 && dt < 1) { perf.n++; perf.acc += dt; }
-    if (perf.n >= 150) {
+    /* Judged on seconds, not on frames. It was "every 150 frames", which
+       sounds neutral and is the opposite: at sixteen frames a second that is
+       nine seconds before the shadows come off and another nine before the
+       resolution drops, so the slower the machine, the longer it is left
+       struggling — and the machines that need help soonest wait longest.
+
+       Two and a half seconds is two and a half seconds for everybody. The
+       frame floor is there so that something drawing four frames a second
+       still has enough samples for the average to mean anything. */
+    if (perf.acc >= PERF_WINDOW && perf.n >= 20) {
       const slow = perf.acc / perf.n > 0.04; // sustained < ~25 fps
       perf.n = 0; perf.acc = 0;
       if (!slow) { perf.stage = 2; return; } // fast enough — lock in current quality
@@ -8404,7 +8447,9 @@ window.R3Factory = function (env) {
 
   R.resize = function (px) {
     if (SOFT) return;                 // it is already doing all it can
-    quality = Math.max(1, px || 1);
+    /* the same ceiling as at startup — a window dragged onto a retina screen
+       must not undo the cap */
+    quality = Math.max(1, Math.min(GL_MAX_PX, px || 1));
     if (perf.stage >= 2) return;      // already given up on sharpness for speed
     try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
   };
@@ -9258,7 +9303,7 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v137 · The wind gets up and takes the leaves off the trees";
+const GAME_VERSION = "v138 · Smoother, and every run has its own ways through";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9436,6 +9481,9 @@ function freshSave() {
     skins: { diction: ['classic'], nina: ['classic'], scribble: ['classic'], limey: ['classic'] },
     wornSkin: { diction: 'classic', nina: 'classic', scribble: 'classic', limey: 'classic' },
     collected: [], revealed: [], cluesRead: [], dug: [], secrets: [],
+    /* This run's own number. Every hedge with a gap in it this time round is
+       decided by it, so two goes at the game are not the same walk twice. */
+    seed: (Math.random() * 0x7fffffff) | 0,
     bookmarks: 0, gears: 0, treasures: 0, riddles: 0, lore: 0,
     trust: 0, encounters: [],
     badges: [], fish: {}, best: {}, scraps: {}, cards: [],
@@ -10040,8 +10088,70 @@ function pollPads() {
    Every visited area keeps its own living state, so players can stand in
    different lands at the same time. G points at whichever world is being
    simulated or drawn right now; withWorld() swaps it and puts it back. */
+/* ---------------- this run's secret ways through ----------------
+
+   The lands are hand-built and stay hand-built: a golden page is where its
+   author put it, every run, because a quest you cannot finish is not a quest.
+   What varies is what is EXTRA — which hedges have a gap in them this time,
+   and where the little caches are. Nothing on the way to a page is touched,
+   so every seed is winnable and no two are the same walk.
+
+   A gap is only ever cut where the tile already has real ground on both
+   sides of it, opposite each other. That way a secret way through always
+   leads somewhere that was already somewhere, rather than into the back of
+   the scenery or off the edge of the world. And it only ever OPENS: a run
+   can gain a shortcut, never lose a route it needed.
+
+   The hidden-path tiles the game already understands do the rest — 'h' wants
+   Diction's Word Wisdom, 'H' wants Nina's Sketch Vision — so a secret way is
+   a reason to bring the other one along. */
+const SECRET_SOLID = '#TmR';          // hedges, trees, mushrooms, rocks: cuttable
+const SECRET_FLOOR = '.p=';           // what counts as somewhere on the far side
+
+function runHash(seed, id, c, r) {
+  /* one number per tile per run, stirred well enough that neighbouring tiles
+     do not come out alike */
+  let h = (seed | 0) ^ 0x9e3779b9;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 0x85ebca6b);
+  h = Math.imul(h ^ (c * 73856093), 0xc2b2ae35);
+  h = Math.imul(h ^ (r * 19349663), 0x27d4eb2f);
+  h ^= h >>> 15;
+  return (h >>> 0);
+}
+
+/* Cut this run's gaps into a freshly built grid, in place. */
+function cutSecretWays(id, grid, W, H, seed) {
+  const at = (c, r) => (c < 0 || c >= W || r < 0 || r >= H) ? '#' : grid[r][c];
+  const floor = (c, r) => SECRET_FLOOR.indexOf(at(c, r)) !== -1;
+  const found = [];
+  for (let r = 1; r < H - 1; r++) {
+    for (let c = 1; c < W - 1; c++) {
+      if (SECRET_SOLID.indexOf(grid[r][c]) === -1) continue;
+      /* ground on both sides, facing each other: a gap here is a way through
+         rather than a hole in the wall of something */
+      const across = floor(c - 1, r) && floor(c + 1, r);
+      const down = floor(c, r - 1) && floor(c, r + 1);
+      if (!across && !down) continue;
+      found.push([c, r, runHash(seed, id, c, r)]);
+    }
+  }
+  if (!found.length) return [];
+  /* A handful, not a colander. Sorted by the run's own number so the choice is
+     the seed's and nothing else's, then the first few taken. */
+  found.sort((a, b) => a[2] - b[2]);
+  const want = Math.min(found.length, 2 + (found[0][2] % 3));
+  const cut = [];
+  for (let i = 0; i < want; i++) {
+    const [c, r, h] = found[i];
+    /* whose eyes find it: half Diction's, half Nina's */
+    grid[r][c] = (h & 1) ? 'h' : 'H';
+    cut.push({ c, r, who: (h & 1) ? 'diction' : 'nina' });
+  }
+  return cut;
+}
+
 const WORLDS = {};
-const WORLD_KEYS = ['level', 'grid', 'W', 'H', 'billboards', 'treeBillboard', 'scrapTiles', 'npcActors', 'ambient', 'particles'];
+const WORLD_KEYS = ['level', 'grid', 'W', 'H', 'billboards', 'treeBillboard', 'scrapTiles', 'npcActors', 'ambient', 'particles', 'secretWays'];
 function buildWorld(id) {
   const lv = LEVELS[id];
   const w = { level: lv, ambient: [], particles: [] };
@@ -10049,6 +10159,8 @@ function buildWorld(id) {
   w.H = w.grid.length;
   w.W = Math.max(...w.grid.map(r => r.length));
   w.grid.forEach(r => { while (r.length < w.W) r.push('.'); });
+  /* before anything is classified off the grid, cut this run's ways through */
+  w.secretWays = cutSecretWays(id, w.grid, w.W, w.H, (save && save.seed) | 0);
   const raw = (c, r) => (c < 0 || c >= w.W || r < 0 || r >= w.H) ? '#' : w.grid[r][c];
 
   // living villagers: each NPC gets a wandering actor anchored at home
@@ -18118,6 +18230,11 @@ function startGame(fresh) {
     // skins are keepsakes — they survive a fresh start
     const keepSkins = save && save.skins ? { skins: save.skins, wornSkin: save.wornSkin } : null;
     save = freshSave(); save.coop = keepCoop; save.players = keepPlayers;
+    /* A land is built once and kept, which was fine while every run had the
+       same hedges. It no longer does: the gaps are cut from the seed as the
+       grid is built, so a world left over from the last go would hand this
+       one the last run's secrets. Throw them away and let them be rebuilt. */
+    for (const k in WORLDS) delete WORLDS[k];
     if (keepSkins) { save.skins = keepSkins.skins; save.wornSkin = keepSkins.wornSkin; }
     if (keepParty) save.party = keepParty;
   }
@@ -18948,6 +19065,18 @@ window.DN = {
   buttons: () => [...touchEl.querySelectorAll('.tc-btn')].map(b => b.dataset.k),
   buttonsOn: (on) => { if (on !== undefined) setShowButtons(on); return showButtons; },
   motes: () => G.ambient.filter(a => a.kind === 'mote').map(a => ({ x: Math.round(a.x), y: Math.round(a.y), r: a.r })),
+  /* This run's number, and the ways it cut. `reseed` starts a fresh run on a
+     chosen seed, so two of them can be compared without playing twice. */
+  seed: () => (save && save.seed) | 0,
+  reseed: (n) => {
+    save.seed = n | 0;
+    for (const k in WORLDS) delete WORLDS[k];
+    return save.seed;
+  },
+  secretWays: (id) => {
+    const w = worldFor(id || G.levelId);
+    return (w.secretWays || []).map(k => ({ c: k.c, r: k.r, who: k.who }));
+  },
   /* The weather, for a test that wants to watch a gust go through. `hold`
      pins the wind at a value so the sums downstream of it can be measured
      without waiting for the sky to cooperate; pass null to let it blow again. */
