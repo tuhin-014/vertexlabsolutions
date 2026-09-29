@@ -2461,11 +2461,24 @@ function shadeIn(ctx, b) {
   if (w < 6 || h < 6) return;          // too small a thing to have a side to it
   ctx.save();
   ctx.clip();
+  /* The light on a form, in four moves rather than two.
+
+     It was one ramp from a pale wash to a neutral dark, which is shading and
+     is not light: what makes a painted shape look solid is a bright EDGE
+     where the light lands, falling off fast, and a shadow that keeps some
+     colour in it because the ground bounces warmth back up. So there is a
+     tight lit rim at the corner nearest the light, a quick fade out of it, a
+     clean middle, and a warm brown at the far side instead of a grey one.
+
+     Nothing here moves an outline — it is all inside the fill the caller
+     already drew, under the same clip. */
   const g = ctx.createLinearGradient(b.x0, b.y0, b.x1, b.y1);
-  g.addColorStop(0, 'rgba(255,253,242,.26)');
-  g.addColorStop(0.40, 'rgba(255,253,242,0)');
-  g.addColorStop(0.62, 'rgba(34,21,12,0)');
-  g.addColorStop(1, 'rgba(34,21,12,.24)');
+  g.addColorStop(0, 'rgba(255,252,236,.36)');    // the lit edge
+  g.addColorStop(0.15, 'rgba(255,252,238,.16)');
+  g.addColorStop(0.44, 'rgba(255,253,242,0)');
+  g.addColorStop(0.60, 'rgba(34,21,12,0)');
+  g.addColorStop(0.86, 'rgba(52,29,15,.17)');
+  g.addColorStop(1, 'rgba(62,34,17,.30)');       // warm, because ground bounces
   ctx.fillStyle = g;
   ctx.fillRect(b.x0 - 2, b.y0 - 2, w + 4, h + 4);
   ctx.restore();
@@ -2533,16 +2546,37 @@ function moodEyes(ctx, em, cx, cy, gap, rx, ry, col) {
   if (em) emoteEyes(ctx, cx, cy, gap, em, col);
   else eyes(ctx, cx, cy, gap, rx, ry, col);
 }
-/* A shadow with a soft rim. A flat ellipse reads as a sticker pinned under the
-   feet; letting it fade out at the edge makes the ground feel like ground. */
-function softShadow(ctx, cx, cy, rx, ry, alpha = 0.22) {
+/* Where the light is coming from.
+
+   Everything in this game is lit from the upper left — shadeIn runs its
+   highlight from the top-left corner of every form and its shading into the
+   bottom-right — and the shadows were centred under their owner regardless,
+   which is the one place a shadow cannot be unless the sun is directly
+   overhead. Sliding them the other way is the difference between a sticker
+   pinned under the feet and something standing on ground. */
+const SUN = { x: 0.30, y: 0.11 };
+
+/* A shadow with a soft rim, thrown away from the light.
+
+   How far it reaches is taken from how wide it is, because in this game a
+   bigger footprint means a bigger thing and a bigger thing throws further: a
+   tree's shadow leans well out from the trunk, a mushroom's barely leaves it.
+   It is an approximation and it is the right one — every caller gets a shadow
+   that agrees with the lighting without any of them having to say how tall
+   they are. */
+function softShadow(ctx, cx, cy, rx, ry, alpha = 0.22, lift = 0) {
   if (rx <= 0 || ry <= 0) return;
+  /* Lifted off the ground — mid-hop, or a canopy well above its trunk — and
+     the shadow slides further, spreads, and goes faint. */
+  const reach = rx * (0.62 + lift * 0.06);
+  const spread = 1 + lift * 0.05;
   ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(1, ry / rx);
+  ctx.translate(cx + reach * SUN.x, cy + reach * SUN.y);
+  ctx.scale(spread, (ry / rx) * spread);
+  const a2 = alpha / (1 + lift * 0.10);
   const g = ctx.createRadialGradient(0, 0, rx * 0.25, 0, 0, rx);
-  g.addColorStop(0, `rgba(48,30,20,${alpha})`);
-  g.addColorStop(0.62, `rgba(48,30,20,${alpha * 0.62})`);
+  g.addColorStop(0, `rgba(48,30,20,${a2})`);
+  g.addColorStop(0.62, `rgba(48,30,20,${a2 * 0.62})`);
   g.addColorStop(1, 'rgba(48,30,20,0)');
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(0, 0, rx, 0, Math.PI * 2); ctx.fill();
@@ -6875,10 +6909,35 @@ window.R3Factory = function (env) {
      Characters are the game's actual 2D drawings, standing upright in the
      3D world as textured planes — true storybook cutouts. Only the world
      (ground, walls, props, houses) is real geometry. */
+  /* A shadow on the ground, with an edge that stops rather than ends.
+
+     It was an eighteen-sided black disc at a flat opacity, which is a hole
+     cut in the grass — you could count the corners, and when the adaptive
+     check drops the real shadows it turns these UP, so the fallback for a
+     slow machine was a field of dark polygons. A soft falloff costs one
+     64x64 texture for the whole scene and looks like something standing on
+     ground instead. */
+  let blobTex = null;
+  function softBlobTexture() {
+    if (blobTex) return blobTex;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const c = cv.getContext('2d');
+    const g = c.createRadialGradient(32, 32, 1, 32, 32, 31);
+    g.addColorStop(0, 'rgba(0,0,0,0.92)');
+    g.addColorStop(0.45, 'rgba(0,0,0,0.60)');
+    g.addColorStop(0.78, 'rgba(0,0,0,0.20)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+    blobTex = new THREE.CanvasTexture(cv);
+    return blobTex;
+  }
   function shadowBlob(r) {
-    const s = new THREE.Mesh(new THREE.CircleGeometry(r, 18),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 }));
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(r * 2.3, r * 2.3),
+      new THREE.MeshBasicMaterial({ map: softBlobTexture(), transparent: true,
+        opacity: 0.17, depthWrite: false, fog: false }));
     s.rotation.x = -Math.PI / 2; s.position.y = 0.02;
+    s.renderOrder = -1;                 // under everything that stands on it
     s.userData.blob = true;
     return s;
   }
@@ -8416,7 +8475,10 @@ window.R3Factory = function (env) {
         sun.castShadow = false;
         scene.traverse(o => {
           if (!o.isMesh) return;
-          if (o.userData.blob) o.material.opacity = 0.24; // blobs take over grounding
+          /* with the real shadows gone these do the grounding on their own,
+             so they come up a little — but only a little, because soft ones
+             at a fifth read as shadow and at a quarter read as paint */
+          if (o.userData.blob) o.material.opacity = 0.21;
           const ms = Array.isArray(o.material) ? o.material : [o.material];
           ms.forEach(m => { if (m) m.needsUpdate = true; });
         });
@@ -8757,14 +8819,20 @@ window.R3Factory = function (env) {
         for (const m of L.occluders) {
           if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
           sph.copy(m.geometry.boundingSphere).applyMatrix4(m.matrixWorld);
-          sph.radius += 0.45;   // a cutout is a sheet, not a pin: it has width
+          /* A cutout is a sheet, not a pin, so its sphere is padded — but
+             not by half a tile, which ghosted things that were never really
+             in the way. */
+          sph.radius += 0.28;
           const along = sph.center.clone().sub(cam.position).dot(rayO.direction);
           if (along > 0.3 && along < dist2 && rayO.intersectsSphere(sph)) blockedSet.add(m);
         }
       }
       for (const m of L.occluders) {
         const ud = m.userData;
-        const want = blockedSet.has(m) ? (ud.ghostTo || 0.22) : 1;
+        /* 0.22 is a hole in the scene: a whole wall going that faint reads as
+           a rendering fault rather than as something being seen past. 0.42
+           still shows the hero through it and still looks like a wall. */
+        const want = blockedSet.has(m) ? (ud.ghostTo || 0.42) : 1;
         ud.fade = ud.fade === undefined ? 1 : ud.fade + (want - ud.fade) * 0.2;
         const mat = m.material;
         if (ud.fade < 0.99) {
@@ -9303,7 +9371,7 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v138 · Smoother, and every run has its own ways through";
+const GAME_VERSION = "v140 · Nobody asks a stranger round to the fire";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -15097,6 +15165,16 @@ function canInviteToFire(id) {
   if (!G.npcActors || !G.npcActors[id]) return false;
   if (G.rest) return false;                       // ask before you sit, not after
   if (!FIRE_INVITE[id]) return false;
+  /* Not the first time you meet them. Walking up to somebody you have never
+     spoken to, hearing who they are, and then immediately asking them round
+     to sit by a fire is not how meeting somebody goes — and it lands on top
+     of their introduction, which is the one thing they had to say.
+
+     Their card is the record of having met: this is decided before the
+     conversation starts and the card is collected during it, so the first
+     time through there is no card here and no invitation, and every time
+     after there is both. All nine who can be invited have one. */
+  if (!hasCard(id)) return false;
   const a = G.npcActors[id];
   if (a.guest || a.sitting) return false;         // already coming, or already there
   return !!nearestFire(a.x, a.y);
@@ -18942,6 +19020,10 @@ window.DN = {
       x: Math.round(a.x), y: Math.round(a.y) })),
   invite: (id) => { if (!canInviteToFire(id)) return false; inviteToFire(id); return true; },
   canInvite: (id) => canInviteToFire(id),
+  /* Having met somebody, without walking across the land to do it. Their card
+     is the record, so this takes it — which is exactly what the first
+     conversation does. */
+  meet: (id) => { collectCard(id, true); return hasCard(id); },
   inviteLines: () => JSON.parse(JSON.stringify(FIRE_INVITE)),
   secrets: () => SECRETS.map(x => ({ id: x.id, land: x.land, col: x.col, row: x.row,
     hint: x.hint, coins: x.coins, lines: x.lines.length, found: secretFound(x.id) })),
