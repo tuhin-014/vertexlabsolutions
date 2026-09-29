@@ -3051,13 +3051,25 @@ function drawNPCSprite(ctx, id, x, y, t, opts) {
     }
     case 'comma': {
       walkLeg(ctx, g, -1, -7, -12, 4.5); walkLeg(ctx, g, 1, 7, -12, 4.5);
-      // a proper round head, with his comma-tail as a flourish off the side
+      /* The tail is the whole of why he is called Comma, and it was a sliver
+         five pixels across tucked in behind his shoulder — so what you saw was
+         a small round policeman and not a punctuation mark at all.
+
+         Widening it did not fix it either, because a separate shape gets its
+         own outline and at this size the ink swallowed the blue: he grew a
+         black wing. A comma is not a circle with something stuck to it, it is
+         one glyph — so the head and the tail are one path now, outlined once,
+         round the outside of the whole thing. Same head, same cap, same visor,
+         same eyepatch; a tail you can read from across the square. */
       shape(ctx, '#3f9bee', () => {
-        ctx.beginPath(); ctx.moveTo(-13, -38 + bob);
-        ctx.quadraticCurveTo(-19, -26 + bob, -27, -19 + bob);
-        ctx.quadraticCurveTo(-16, -27 + bob, -12, -33 + bob); ctx.closePath();
+        ctx.beginPath();
+        /* the long way round the head: from its lower right, up over the top
+           and down to its lower left, leaving the bottom open for the tail */
+        ctx.arc(0, -47 + bob, 17, Math.PI * 0.35, Math.PI * -1.25, true);
+        ctx.quadraticCurveTo(-33, -30 + bob, -30, -12 + bob);   // out and down to the point
+        ctx.quadraticCurveTo(-14, -22 + bob, 7.7, -31.9 + bob); // and back along the inside
+        ctx.closePath();
       });
-      shape(ctx, '#3f9bee', () => { ctx.beginPath(); ctx.arc(0, -47 + bob, 17, 0, Math.PI * 2); });
       shape(ctx, '#243b52', () => rr(ctx, -16, -36 + bob, 32, 18, 4));
       ctx.fillStyle = '#ffd12e'; ctx.fillRect(-15, -34 + bob, 3, 14); ctx.fillRect(12, -34 + bob, 3, 14);
       limb(ctx, 16, -30 + bob, 24, -34 + bob);
@@ -3700,6 +3712,73 @@ function drawGroundCell(ctx, theme, ch, c, r, t, nb, opts) {
       seed, heavy ? 3 : 2.6, heavy ? 0.6 : 0.5, fill);
   });
 }
+/* What a trodden path actually has on it: stones pressed into it, a scuff or
+   two where feet have been, and now and again something growing up through.
+
+   A path was a slab of one colour with a line round it, and in the town it is
+   most of what you are looking at — so it was most of the picture doing
+   nothing. All of it is seeded off the tile, so it is the same path every time
+   you walk down it rather than boiling underfoot. */
+function pathLife(ctx, sx, sy, h, P) {
+  const at = (n) => (h >> n) % 26;
+  /* First the ground itself, which was a flat slab: a soft patch of warm and a
+     soft patch of cool, so the surface has weather in it before anything is
+     put on top. */
+  if ((h % 4) < 2) washBlot(ctx, sx, sy, h, 'rgba(255,240,205,.30)');
+  if ((h % 7) === 2) washBlot(ctx, sx, sy, h >> 5, 'rgba(96,72,38,.10)');
+
+  /* Then the stones. A stone is a dark bed with a lit top — without the
+     highlight it is a smudge, and at this size a smudge is what you get. */
+  const TONES = ['rgba(216,200,168,.95)', 'rgba(198,186,166,.92)', 'rgba(224,206,172,.9)'];
+  const stone = (px, py, rr, tone) => {
+    oval(ctx, px, py + rr * 0.35, rr * 1.05, rr * 0.72, 'rgba(74,54,26,.26)');
+    oval(ctx, px, py, rr, rr * 0.82, TONES[tone % 3]);
+    oval(ctx, px - rr * 0.28, py - rr * 0.3, rr * 0.55, rr * 0.4, 'rgba(255,252,242,.8)');
+  };
+  /* Sparingly. Every other tile having a stone in the same place in it reads
+     as spots on wallpaper rather than as grit on a road. */
+  if ((h % 3) === 1) stone(sx + at(2) + 8, sy + at(7) + 9, 2.1 + ((h >> 12) % 3) * 0.7, h);
+  if ((h % 7) === 5) stone(sx + at(15) + 9, sy + at(19) + 10, 1.5, h >> 4);
+  if ((h % 17) === 4) {                         // and once in a while a scatter
+    const cx2 = sx + at(11) + 12, cy2 = sy + at(21) + 13;
+    stone(cx2, cy2, 1.9, h); stone(cx2 + 5, cy2 + 3, 1.3, h >> 2); stone(cx2 - 4, cy2 + 4, 1.1, h >> 6);
+  }
+  if ((h % 8) === 3) {
+    ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    const qx = sx + at(9) + 9, qy = sy + at(13) + 11;
+    ctx.beginPath(); ctx.moveTo(qx, qy); ctx.quadraticCurveTo(qx + 6, qy + 2, qx + 12, qy); ctx.stroke();
+  }
+}
+
+/* Grass coming over the kerb. Where a path runs alongside grass the join was a
+   ruled line, and nothing in a garden has a ruled edge — so the path tile puts
+   a few blades of its neighbour's grass just inside its own border. Drawn by
+   the path rather than by the grass because the ground goes down in one pass,
+   row by row, and whatever the grass reached across would be painted over a
+   moment later by the tile it reached onto. */
+function vergeTufts(ctx, sx, sy, h, P, nb) {
+  ctx.strokeStyle = P.speck; ctx.lineCap = 'round';
+  const blade = (bx, by, lean, len) => {
+    ctx.lineWidth = 2.1;
+    ctx.beginPath(); ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + lean * 0.5, by - len * 0.6, bx + lean, by - len);
+    ctx.stroke();
+  };
+  const sides = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+  sides.forEach(([dc, dr], i) => {
+    if (nb(dc, dr) !== '.') return;
+    const seed = (h >> (i * 3)) % 24;
+    if (seed % 3 === 0) return;                  // not every verge, or it is a hedge
+    for (let k = 0; k < 2 + (seed % 2); k++) {
+      const along = 7 + ((seed + k * 9) % 26);
+      const lean = ((seed + k * 5) % 5) - 2;
+      const len = 6 + ((seed + k * 3) % 4);
+      if (dr) blade(sx + along, sy + (dr > 0 ? TILE - 2 : 2), lean, dr > 0 ? len : -len);
+      else blade(sx + (dc > 0 ? TILE - 2 : 2), sy + along, dc > 0 ? -lean : lean, len);
+    }
+  });
+}
+
 function drawGroundBody(ctx, theme, ch, c, r, t, nb, opts) {
   const P = THEME_G[theme] || THEME_G.town;
   const sx = c * TILE, sy = r * TILE;
@@ -3803,6 +3882,9 @@ function drawGroundBody(ctx, theme, ch, c, r, t, nb, opts) {
     if (!isPath(0, 1)) ctx.fillRect(sx, sy + TILE - 3, TILE, 3);
     if (!isPath(-1, 0)) ctx.fillRect(sx, sy, 3, TILE);
     if (!isPath(1, 0)) ctx.fillRect(sx + TILE - 3, sy, 3, TILE);
+    /* outdoors it is a path; indoors the same tile is a rug, and a rug has
+       neither stones in it nor grass growing through it */
+    if (!P.weave) { pathLife(ctx, sx, sy, h, P); vergeTufts(ctx, sx, sy, h, P, nb); }
     if (P.weave) {
       /* Indoors this is not a path, it is a rug. A flat slab of colour laid
          across a wooden floor reads as paint; wool reads as somewhere you
@@ -3883,6 +3965,14 @@ function drawGroundBody(ctx, theme, ch, c, r, t, nb, opts) {
    BB_SKEW is set per-draw by the renderer; 0 = flat (classic view). */
 let BB_SKEW = 0, BB_ON = false;
 function setBBSkew(s, on = true) { BB_SKEW = Math.max(-12, Math.min(12, s || 0)); BB_ON = on !== false; }
+
+/* How hard the wind is blowing, in the pixels-a-second the game keeps it in;
+   positive is a breeze coming from the left. The art layer does one thing with
+   it — leans the things that would lean. A tree that stands dead still while
+   its own leaves stream past it is the sort of detail you do not consciously
+   notice and do not believe either. */
+let WIND = 0;
+function setWind(w) { WIND = Math.max(-60, Math.min(60, w || 0)); }
 function extrude(ctx, shade, depth, silhouette) {
   if (!BB_ON) return;
   const steps = 3, lift = depth || 8;
@@ -3915,21 +4005,24 @@ function drawBillboard(ctx, type, x, feetY, t, opts = {}) {
       const cvar = opts.theme === 'river' ? '#4fb060' : '#3aa02c';
       const cdark = opts.theme === 'river' ? '#2e7a40' : '#256e1c';
       const clight = opts.theme === 'river' ? '#7fd08a' : '#66c554';
+      /* The canopy leans and the trunk does not, which is what a tree does:
+         the higher up the mass, the further the wind carries it. */
+      const lean = WIND * 0.075;
       extrude(ctx, cdark, 9, (c2) => {
-        c2.arc(-14, -44, 16, 0, Math.PI * 2);
-        c2.arc(14, -44, 16, 0, Math.PI * 2);
-        c2.arc(0, -58, 18, 0, Math.PI * 2);
-        c2.arc(0, -40, 15, 0, Math.PI * 2);
+        c2.arc(-14 + lean, -44, 16, 0, Math.PI * 2);
+        c2.arc(14 + lean, -44, 16, 0, Math.PI * 2);
+        c2.arc(0 + lean * 1.3, -58, 18, 0, Math.PI * 2);
+        c2.arc(0 + lean * 0.8, -40, 15, 0, Math.PI * 2);
       });
       // trunk with a shaded side
       shape(ctx, '#8a5a2a', () => rr(ctx, -7, -34, 14, 34, 4));
       ctx.fillStyle = 'rgba(0,0,0,.22)';
       ctx.fillRect(BB_SKEW >= 0 ? 2 : -7, -32, 5, 30);
-      // canopy: three shaded balls
-      ball3(ctx, -14, -44, 16, cvar, clight, cdark);
-      ball3(ctx, 14, -44, 16, cvar, clight, cdark);
-      ball3(ctx, 0, -58, 18, cvar, clight, cdark);
-      ball3(ctx, 0, -40, 15, cvar, clight, cdark);
+      // canopy: four shaded balls, leaning the same way the back-mass does
+      ball3(ctx, -14 + lean, -44, 16, cvar, clight, cdark);
+      ball3(ctx, 14 + lean, -44, 16, cvar, clight, cdark);
+      ball3(ctx, 0 + lean * 1.3, -58, 18, cvar, clight, cdark);
+      ball3(ctx, 0 + lean * 0.8, -40, 15, cvar, clight, cdark);
       break;
     }
     case 'm': { // mushroom — domed cap with under-rim shadow
@@ -6939,13 +7032,23 @@ window.R3Factory = function (env) {
     const g = new THREE.Group();
     const TG = THEME_G[theme] || THEME_G.town;
     if (type === 'T') {
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.9, 8), M(0x8a5a2b));
-      trunk.position.y = 0.45;
-      g.add(trunk);
-      [[0, 1.35, 0, 0.5], [-0.38, 1.1, 0.05, 0.36], [0.38, 1.12, -0.05, 0.36]].forEach(([x, y, z, r]) => {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), M(0x3f9e4d));
-        s.position.set(x, y, z); g.add(s);
-      });
+      /* A trunk does not meet the ground at a right angle — it flares into it,
+         and that flare is most of what tells you a tree is growing rather than
+         standing in a pot. Three balls on a stick is a lollipop; foliage is
+         clumps of different sizes in two greens, because a canopy catches the
+         light unevenly. */
+      const flare = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.30, 0.22, 9), M(0x7d5126));
+      flare.position.y = 0.11;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.9, 9), M(0x8a5a2b));
+      trunk.position.y = 0.55;
+      g.add(flare, trunk);
+      [[0, 1.42, 0, 0.5, 0], [-0.40, 1.13, 0.06, 0.36, 1], [0.40, 1.16, -0.05, 0.36, 0],
+       [0.16, 1.62, 0.18, 0.28, 1], [-0.22, 1.50, -0.20, 0.26, 0], [0.05, 1.05, 0.30, 0.24, 1]]
+        .forEach(([x, y, z, r, dark]) => {
+          const s = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10),
+            M(dark ? 0x35894a : 0x4bb05c));
+          s.position.set(x, y, z); g.add(s);
+        });
       g.add(shadowBlob(0.42));
     } else if (type === 'm') {
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.3, 8), M(0xf5ead2));
@@ -7424,18 +7527,33 @@ window.R3Factory = function (env) {
       });
     } else if (d.type === 'lamp') {
       const lx2 = d.col + 0.5;   // the pole stands in the middle of its own tile
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.4, 8), M(0x3a3f46));
-      pole.position.set(lx2, 1.2, cz);
+      /* A pole coming straight out of flat pavement looks pushed into it. A
+         lamp post has a plinth it is bolted to, a swell where the casting
+         thickens, a collar, and a little shoulder under the lantern — and the
+         glass sits ON something rather than hovering with a hat above it. */
+      const IRON = M(0x3a3f46), IRON2 = M(0x2e333a);
+      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 0.12, 10), IRON2);
+      plinth.position.set(lx2, 0.06, cz);
+      const swell = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.15, 0.26, 10), IRON);
+      swell.position.set(lx2, 0.22, cz);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.085, 2.15, 9), IRON);
+      pole.position.set(lx2, 1.32, cz);
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.07, 10), IRON2);
+      collar.position.set(lx2, 1.05, cz);
+      const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.07, 0.16, 10), IRON);
+      shoulder.position.set(lx2, 2.33, cz);
       const lampb = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10),
         M(0xffefa8, { emissive: 0x9a8430 }));
       lampb.position.set(lx2, 2.55, cz);
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.2, 8), M(0x3a3f46));
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.22, 10), IRON);
       cap.position.set(lx2, 2.85, cz);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), IRON2);
+      finial.position.set(lx2, 2.99, cz);
       // a real lamp, so the pavement under it goes warm as the evening comes on
       const halo = new THREE.PointLight(0xffdc9a, 0, 8, 1.7);
       halo.position.set(lx2, 2.4, cz);
       const pool = glowDisc(lx2, cz, 2.4, 0xffd089);
-      g.add(pole, lampb, cap, halo, pool);
+      g.add(plinth, swell, pole, collar, shoulder, lampb, cap, finial, halo, pool);
       LIT.push({ mesh: lampb, lamp: halo, pool });
     } else if (d.type === 'ruin') {
       [[-1.2, 0.9], [0, 1.6], [1.1, 0.6]].forEach(([dx, h]) => {
@@ -9140,7 +9258,7 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v133 · Drawn sharp, and they can find each other";
+const GAME_VERSION = "v137 · The wind gets up and takes the leaves off the trees";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9154,6 +9272,7 @@ const G = {
   trial: null,
   fireworks: false,
   particles: [], ambient: [],
+  wind: 0, windHold: null,          // how hard it is blowing, and a test's thumb on it
   floats: [],                // little numbers that rise off a thing and fade
   chain: { n: 0, t: -99 },   // how many things picked up on the run
   shake: 0,                  // a knock to the camera, dying away
@@ -12362,6 +12481,17 @@ function netHookCopy() {
 }
 function openOnline() {
   netWireCallbacks();
+  /* Standing at this menu means not being in the middle of anything, so let go
+     of the two flags that say an incoming connection is a phone rather than a
+     second player. They were set on the way into a phone screen and nothing
+     ever cleared them, so somebody who merely looked at "use a phone as a
+     controller" had room codes stop working for the rest of the session: the
+     two games would connect, the host would still say "waiting", and no
+     two-player game ever started. */
+  if (!NET.on) {
+    if (NET.pad !== null && NET.pad !== undefined) { phoneSet(NET.pad, null); NET.pad = null; }
+    G.wantPad = false;
+  }
   if (!Net.available()) {
     netPanel(`
       <p><b>Online play can't run here.</b></p>
@@ -12582,7 +12712,7 @@ function phoneHostPanel() {
             <p>The phone will be <b>Player ${slot + 1} — ${whoName(SLOT_NAMES[slot])}</b>.</p>
             <p id="phone-msg2" style="min-height:22px">Waiting for the phone…</p>
             <button class="big-btn secondary" id="net-again">Stop waiting</button>`,
-            () => { panelEl.querySelector('#net-again').onclick = () => { Net.close(); openOnline(); }; });
+            () => { panelEl.querySelector('#net-again').onclick = () => { Net.hangUp(); openOnline(); }; });
         } catch (e) {
           msg.innerHTML = '<b>Could not get a code — ' + (e && e.message === 'no-server'
             ? 'the meeting point could not be reached.' : 'try again.') + '</b>';
@@ -12700,7 +12830,7 @@ function padStop() {
   const el = document.getElementById('padpad');
   if (el) el.classList.add('hidden');
   G.padding = false;
-  try { Net.close(); } catch (e) {}
+  Net.hangUp();
 }
 function netJoinRoom() {
   netPanel(`
@@ -14779,6 +14909,25 @@ const MOTES = {
   town: '#fff0c2', forest: '#eaffc0', peak: '#e8f4ff', river: '#fff4c8',
   caves: '#b9a8ff', plaza: '#ffd9f2', home: '#ffe6ba', library: '#ffe0a8', vault: '#c9b4ff',
 };
+/* Which trees are on screen, so the wind has something to take a leaf off.
+   Scanning only what the view covers, because a land is sixty tiles wide and
+   fifty-nine of those columns are nowhere near you. */
+function treeInView(v) {
+  if (!G.grid || !G.grid.length) return null;
+  const c0 = Math.max(0, Math.floor(v.camX / TILE));
+  const c1 = Math.min(G.W - 1, Math.ceil((v.camX + v.vpW / S) / TILE));
+  const r0 = Math.max(0, Math.floor(v.camY / TILE));
+  const r1 = Math.min(G.H - 1, Math.ceil((v.camY + VIEW_H) / TILE));
+  const found = [];
+  for (let r = r0; r <= r1; r++) {
+    const row = G.grid[r];
+    if (!row) continue;
+    for (let c = c0; c <= c1; c++) if (row[c] === 'T') found.push([c, r]);
+  }
+  return found.length ? found[Math.floor(Math.random() * found.length)] : null;
+}
+
+let ambId = 0;
 let moteTimer = 0;
 function updateMotes(dt) {
   const col = MOTES[G.level.theme];
@@ -15475,6 +15624,23 @@ function updateAmbient(dt) {
   updateMotes(dt);
   updateEmbers(dt);
   if (G.levelId === P.lvl) updateSecretTell(dt);
+  /* Wind, as weather rather than as a number: a swell with a quicker gust
+     riding on it and a shiver on top, so it lulls, picks up, and drops away
+     again instead of blowing steadily for ever. Set before the early return
+     below, because the trees lean in every land, including the ones with
+     nothing drifting through them.
+
+     The first go at this had periods of seventy-five, twenty-two and nine
+     seconds, which is a real enough wind and far too slow to be a nice one:
+     you could watch for half a minute and see the trees hold one lean the
+     whole time. Thirty, twelve and six is a breeze that does something while
+     you are standing in it. */
+  G.wind = (G.windHold === null || G.windHold === undefined)
+    ? Math.sin(G.t * 0.21) * 22 + Math.sin(G.t * 0.52 + 1.3) * 12
+      + Math.sin(G.t * 1.1 + 0.6) * 5
+    : G.windHold;
+  setWind(G.wind);
+
   const cfg = AMBIENT[G.level.theme];
   if (!cfg) return;
   ambTimer -= dt;
@@ -15488,6 +15654,18 @@ function updateAmbient(dt) {
     a.y = a.kind === 'sparkle' || a.kind === 'firefly'
       ? v.camY + Math.random() * VIEW_H
       : v.camY - 20;
+    /* A leaf that starts at the top of the screen has come from nowhere. If
+       there is a tree in view the wind takes one off that instead, from up in
+       the canopy where the leaves are. */
+    if (a.kind === 'leaf') {
+      const from = treeInView(v);
+      if (from) {
+        a.x = from[0] * TILE + TILE / 2 + (Math.random() - 0.5) * 26;
+        a.y = from[1] * TILE - 26 + Math.random() * 20;
+        a.offTree = true;
+      }
+    }
+    a.id = ++ambId;              // so a test can follow one rather than the crowd
     a.rot = Math.random() * Math.PI * 2;
     a.vr = (Math.random() - 0.5) * 3;
     a.phase = Math.random() * Math.PI * 2;
@@ -15508,6 +15686,12 @@ function updateAmbient(dt) {
       a.x += (a.vx + Math.sin(G.t * 1.5 + a.phase) * 12) * dt;
       a.y += a.vy * dt;
     }
+    /* And the wind takes them all, by however much each of them catches it.
+       Rain is heavy and barely slants; a leaf goes where it is told. Without
+       this every speck wandered on its own sine and a gust was invisible. */
+    const CATCH = { leaf: 1, petal: 1, confetti: 0.95, snow: 0.8, mote: 0.45, rain: 0.22 };
+    const catches = CATCH[a.kind];
+    if (catches) a.x += G.wind * catches * dt;
     if (a.life <= 0 || !inAnyView(a.x, a.y, 60)) G.ambient.splice(i, 1);
   }
 }
@@ -18680,6 +18864,11 @@ window.DN = {
     inBed: !!a.inBed, emote: emoteOf(a), x: Math.round(a.x), y: Math.round(a.y) })),
   beds: () => (G.level.decos || []).filter(d => d.type === 'bed')
     .map(d => ({ who: d.who, col: d.col, row: d.row, color: d.color })),
+  /* The online menu, opened the way the pause menu opens it. The four cards
+     on it are the top of every connection flow, so a test can click the same
+     ones a player does rather than reaching past the screen they came from —
+     which is exactly where the mode flags get set. */
+  online() { openOnline(); return !!panelEl.querySelector('#net-host'); },
   photo() { openPhoto(); return !!panelEl.querySelector('#photo-big'); },
   doodle() { openDoodle(); return !!panelEl.querySelector('#doodle-big'); },
   levelMap: (land) => ((LEVELS[land || G.levelId] || {}).map || []).slice(),
@@ -18759,6 +18948,20 @@ window.DN = {
   buttons: () => [...touchEl.querySelectorAll('.tc-btn')].map(b => b.dataset.k),
   buttonsOn: (on) => { if (on !== undefined) setShowButtons(on); return showButtons; },
   motes: () => G.ambient.filter(a => a.kind === 'mote').map(a => ({ x: Math.round(a.x), y: Math.round(a.y), r: a.r })),
+  /* The weather, for a test that wants to watch a gust go through. `hold`
+     pins the wind at a value so the sums downstream of it can be measured
+     without waiting for the sky to cooperate; pass null to let it blow again. */
+  wind: () => Math.round(G.wind * 10) / 10,
+  windHold: (w) => { G.windHold = (w === null || w === undefined) ? null : w; return G.windHold; },
+  drifting: () => G.ambient.filter(a => a.kind !== 'mote')
+    .map(a => ({ id: a.id, kind: a.kind, x: Math.round(a.x), y: Math.round(a.y), offTree: !!a.offTree })),
+  treesInView: () => {
+    const vs = viewsHere();
+    if (!vs.length) return 0;
+    let n = 0;
+    for (const v of vs) if (treeInView(v)) n++;
+    return n;
+  },
   ringShow(on) { if (R3) R3.forceRing = on; return DN.ring(); },
   unlocked: (id) => areaUnlocked(id),
   gates: () => AREA_ORDER.map(id => ({ id, needs: AREA_UNLOCK[id], open: areaUnlocked(id) })),
@@ -18795,6 +18998,10 @@ window.DN = {
   phone(slot, st) { if (slot === null) { NET.pad = null; phoneSet(0, null); phoneSet(1, null); phoneSet(2, null); return null; }
     NET.pad = slot; phoneSet(slot, st); return { slot, live: phoneSlots() }; },
   phoneSlots: () => phoneSlots(),
+  /* The two flags that decide whether an incoming connection is a second
+     player or a phone pretending to be a joystick. They are the whole of the
+     difference between "your friend joined" and nothing happening at all. */
+  padFlags: () => ({ pad: NET.pad, wantPad: !!G.wantPad }),
   padScreenOn: () => !document.getElementById('padpad').classList.contains('hidden'),
   /* Pretend a controller is plugged in, so the whole of it can be driven from
      a test the way a player drives it with their thumbs. */
