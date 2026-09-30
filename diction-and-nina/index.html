@@ -9343,6 +9343,36 @@ const TITLE_S = BUF_W / 320;         // title screen is authored at 320x180
    contexts are scaled to match, so every coordinate written anywhere still
    means what it always meant. */
 let PX = 1, wantPX = 1;
+
+/* Giving up sharpness rather than the frame rate, in the FLAT view.
+
+   The round view has adapted to a slow machine since it was written. This one
+   never has: it takes whatever the screen says and draws at it for ever. On a
+   big window that is 2880x1620 of canvas — every line of ink, every stone in
+   the path, every character — redrawn from scratch sixty times a second, and
+   it is all on the processor, because canvas 2D has no card to hand it to.
+
+   Measured here, the cost is very nearly the pixel count and nothing else:
+
+     PX 2   1920x1080 (2.07 MP)    50.9ms a frame
+     PX 3   2880x1620 (4.67 MP)   105.7ms a frame
+
+   So a machine that cannot keep up at three might manage perfectly at two,
+   and a step down is invisible next to a game running at nine frames a
+   second. Judged on seconds rather than on frames, for the same reason the
+   round view's check is: at nine frames a second, a hundred and fifty of them
+   is sixteen seconds of struggling before anything is done about it. */
+const PX_WINDOW = 2.5;               // seconds of watching before deciding
+const PX_SLOW = 0.030;               // a frame this long is under ~33 a second
+let pxWatch = { t: 0, n: 0, acc: 0, floor: 1 };
+function pxCheck(dt) {
+  if (PX <= pxWatch.floor) return;          // nothing left to give up
+  if (dt > 0 && dt < 0.5) { pxWatch.n++; pxWatch.acc += dt; pxWatch.t += dt; }
+  if (pxWatch.t < PX_WINDOW || pxWatch.n < 20) return;
+  const mean = pxWatch.acc / pxWatch.n;
+  pxWatch = { t: 0, n: 0, acc: 0, floor: pxWatch.floor };
+  if (mean > PX_SLOW) wantPX = Math.max(pxWatch.floor, PX - 1);
+}
 function screenPX() {
   const dpr = window.devicePixelRatio || 1;
   const fitS = Math.min(window.innerWidth / BUF_W, window.innerHeight / BUF_H);
@@ -9371,7 +9401,7 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v140 · Nobody asks a stranger round to the fire";
+const GAME_VERSION = "v141 · The flat view gives up sharpness before it gives up the frame rate";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -18425,6 +18455,7 @@ function frameInner(ts) {
   lastTs = ts;
   G.t += dt;
   G.dt = dt;   // how long this frame was, for everything that eases
+  if (G.state === 'play') pxCheck(dt);
 
   pollPads();
   /* Stand aside for anything the player is reading or choosing from. The rack
@@ -18711,6 +18742,7 @@ window.DN = {
   // the machine happens to be running
   easeK: (k, dt) => ease(k, dt),
   /* what the frame is actually being made of, and what the machine can manage */
+  pxWanted: () => wantPX,
   gfx: () => Object.assign({ px: PX, canvas: [canvas.width, canvas.height] },
     (R3 && R3.gfx) ? R3.gfx() : { gl: null, software: null }),
   /* tools seam: draw the round view at this resolution whatever the machine
