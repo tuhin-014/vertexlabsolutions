@@ -9365,7 +9365,9 @@ let PX = 1, wantPX = 1;
 const PX_WINDOW = 2.5;               // seconds of watching before deciding
 const PX_SLOW = 0.030;               // a frame this long is under ~33 a second
 let pxWatch = { t: 0, n: 0, acc: 0, floor: 1 };
+let pxPin = 0;                       // a resolution held by hand; 0 is nobody's
 function pxCheck(dt) {
+  if (pxPin) return;                        // somebody is holding it
   if (PX <= pxWatch.floor) return;          // nothing left to give up
   if (dt > 0 && dt < 0.5) { pxWatch.n++; pxWatch.acc += dt; pxWatch.t += dt; }
   if (pxWatch.t < PX_WINDOW || pxWatch.n < 20) return;
@@ -9401,7 +9403,7 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v141 · The flat view gives up sharpness before it gives up the frame rate";
+const GAME_VERSION = "v142 · A leaf is very nearly the same green as Diction's head";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -18570,7 +18572,7 @@ function fit() {
   const s = Math.min(window.innerWidth / 960, window.innerHeight / 540);
   const wrap = document.getElementById('game-wrap');
   wrap.style.transform = `translate(-50%,-50%) scale(${s})`;
-  wantPX = screenPX();
+  wantPX = pxPin || screenPX();
 }
 window.addEventListener('resize', fit);
 fit();
@@ -18748,6 +18750,13 @@ window.DN = {
   /* tools seam: draw the round view at this resolution whatever the machine
      thinks of the idea — for capturing the game as a real screen shows it */
   gfxForce: (px) => (R3 && R3.force ? R3.force(px === undefined ? PX : px) : null),
+  /* tools seam: hold the FLAT view at this resolution whatever the machine
+     thinks of the idea. Without it, a measurement of what resolution does to
+     the drawing is also a measurement of how fast the machine taking it is:
+     on a slow one the game quite correctly steps down halfway through, and
+     the two halves of the measurement are then of two different frames. 0
+     hands the decision back to the game. */
+  pxHold(px) { pxPin = px || 0; if (pxPin) wantPX = pxPin; return pxPin; },
   // test seam: the whole cast with no light falling on them at all
   flatLight: (on) => setFlatLight(on),
   /* test seam: hold somebody's eyes where they are put, so the same face can
@@ -19196,6 +19205,17 @@ window.DN = {
      without waiting for the sky to cooperate; pass null to let it blow again. */
   wind: () => Math.round(G.wind * 10) / 10,
   windHold: (w) => { G.windHold = (w === null || w === undefined) ? null : w; return G.windHold; },
+  /* tools seam: sweep the weather off the page and still the air, so that a
+     measurement of something standing on it is not also a measurement of a
+     leaf that blew past. Worth having because the leaves are very nearly the
+     same green as Diction's head — #5cb361 is within a hair of his fill in
+     every channel — so anything counting his green in a patch of the frame
+     will happily count a leaf as part of him. */
+  calm() {
+    G.ambient = G.ambient.filter(a => a.kind === 'mote');
+    G.windHold = 0; setWind(0);
+    return G.ambient.length;
+  },
   drifting: () => G.ambient.filter(a => a.kind !== 'mote')
     .map(a => ({ id: a.id, kind: a.kind, x: Math.round(a.x), y: Math.round(a.y), offTree: !!a.offTree })),
   treesInView: () => {
