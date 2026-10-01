@@ -8450,11 +8450,105 @@ window.R3Factory = function (env) {
     return dynamic[nm];
   }
 
-  /* adaptive quality: drop shadows first; if still slow, drop render resolution */
-  const perf = { n: 0, acc: 0, stage: 0 };
+  /* Giving things up, one at a time, until the frame rate is bearable.
+
+     This had two rungs and then stopped: shadows off, then one halving of
+     the resolution, then `stage = 2` and it never looked again.
+
+     Take a school Chromebook, 1366x768 at one device pixel per CSS pixel.
+     It starts at quality 2, so the two rungs bought it the shadows and a
+     halving to 1 — and then this:
+
+       quality = Math.max(SOFT ? 0.35 : 1, quality / 2)
+
+     floored it at one buffer pixel per game pixel, which is where it already
+     was, and `perf.stage >= 2` stopped the meter for good. Half a megapixel
+     lit every frame, forty-odd draw calls, and a check that had decided it
+     was finished helping. In a window small enough for the flat view to want
+     one pixel each, quality starts at exactly 1 and that line is arithmetic
+     that changes nothing at all.
+
+     Worse than the floor: a window that came back *fast* also set stage to
+     2. Cope for the first two and a half seconds in a quiet room and you
+     were written off before ever reaching the busy part of town.
+
+     So: a list of rungs, cheapest thing to lose first, each tried in turn,
+     and the next window decides whether it was enough. Nothing locks. A
+     window that comes back fast stops the descent but keeps the meter
+     running, so a machine that copes in a quiet room and struggles in the
+     busy town gets help when it reaches the town rather than never. It only
+     ever goes down, so it cannot oscillate. */
   const PERF_WINDOW = 2.5;             // seconds of running before it decides
-  function perfCheck(dt) {
-    if (perf.stage >= 2) return;
+  /* Under about twenty-six frames a second. Not thirty: a machine held at a
+     steady thirty by vsync reports 33ms and is doing fine, and would
+     otherwise be stripped of its smoke and half its pixels to buy a frame
+     rate it cannot exceed. */
+  const PERF_SLOW = 0.038;
+  const perf = { n: 0, acc: 0, rung: 0 };
+  /* Each rung returns true if it actually changed something. One that cannot
+     (no shadows to turn off on a machine that never had them) reports so and
+     the ladder moves straight on rather than spending a window on nothing —
+     which is the other half of the old bug. */
+  const RUNGS = [
+    // 1. the real shadow maps, which the soft blobs can stand in for
+    () => {
+      if (!renderer.shadowMap.enabled) return false;
+      renderer.shadowMap.enabled = false;
+      sun.castShadow = false;
+      scene.traverse(o => {
+        if (!o.isMesh) return;
+        /* with the real shadows gone these do the grounding on their own,
+           so they come up a little — but only a little, because soft ones
+           at a fifth read as shadow and at a quarter read as paint */
+        if (o.userData.blob) o.material.opacity = 0.21;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => { if (m) m.needsUpdate = true; });
+      });
+      return true;
+    },
+    // 2. three quarters of the resolution, which is a softer picture
+    () => stepQuality(),
+    // 3. the chimney smoke: pretty, and a moving transparent thing per puff
+    () => {
+      if (!L.smoke.length || perfOff.smoke) return false;
+      perfOff.smoke = true;
+      L.smoke.forEach(ch => ch.puffs.forEach(s2 => { s2.visible = false; }));
+      return true;
+    },
+    // 4. three quarters again
+    () => stepQuality(),
+    /* 5. fading out whatever stands between the camera and the hero. It is
+       the one thing here that reaches into a material every frame, and a
+       material touched every frame is a shader recompile risk on a weak
+       driver. Losing it means a wall can hide him; being able to see him at
+       twelve frames a second is worse. */
+    () => {
+      if (perfOff.ghost) return false;
+      perfOff.ghost = true;
+      (L.occluders || []).forEach(m => {
+        if (!m || !m.material) return;
+        m.material.opacity = 1; m.material.transparent = false;
+        m.material.needsUpdate = true;
+      });
+      return true;
+    },
+    // 6. and the last of the resolution
+    () => stepQuality(),
+  ];
+  const perfOff = { smoke: false, ghost: false };
+  /* Never below a third of a game pixel each way: past that the round view
+     is a smear and the flat view is the better offer. */
+  const GL_MIN_PX = 0.34;
+  function stepQuality() {
+    const want = Math.max(GL_MIN_PX, quality * 0.75);
+    if (want >= quality - 0.001) return false;
+    quality = want;
+    try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    return true;
+  }
+  let perfManual = false;          // a test is driving it instead of the clock
+  function perfCheck(dt) { if (!perfManual) perfTick(dt); }
+  function perfTick(dt) {
     if (dt > 0 && dt < 1) { perf.n++; perf.acc += dt; }
     /* Judged on seconds, not on frames. It was "every 150 frames", which
        sounds neutral and is the opposite: at sixteen frames a second that is
@@ -8465,33 +8559,79 @@ window.R3Factory = function (env) {
        Two and a half seconds is two and a half seconds for everybody. The
        frame floor is there so that something drawing four frames a second
        still has enough samples for the average to mean anything. */
-    if (perf.acc >= PERF_WINDOW && perf.n >= 20) {
-      const slow = perf.acc / perf.n > 0.04; // sustained < ~25 fps
-      perf.n = 0; perf.acc = 0;
-      if (!slow) { perf.stage = 2; return; } // fast enough — lock in current quality
-      perf.stage++;
-      if (perf.stage === 1) {
-        renderer.shadowMap.enabled = false;
-        sun.castShadow = false;
-        scene.traverse(o => {
-          if (!o.isMesh) return;
-          /* with the real shadows gone these do the grounding on their own,
-             so they come up a little — but only a little, because soft ones
-             at a fifth read as shadow and at a quarter read as paint */
-          if (o.userData.blob) o.material.opacity = 0.21;
-          const ms = Array.isArray(o.material) ? o.material : [o.material];
-          ms.forEach(m => { if (m) m.needsUpdate = true; });
-        });
-      } else {
-        /* Still slow with the shadows off: give up some sharpness rather than
-           the frame rate. Half of whatever the screen asked for, never below
-           the one buffer-pixel-per-game-pixel this was before. */
-        quality = Math.max(SOFT ? 0.35 : 1, quality / 2);
-        renderer.setPixelRatio(quality);
-        renderer.setSize(960, 540, false);
-      }
+    if (perf.acc < PERF_WINDOW || perf.n < 20) return;
+    const mean = perf.acc / perf.n;
+    perf.n = 0; perf.acc = 0;
+    if (mean <= PERF_SLOW) return;      // coping: stop descending, keep watching
+    /* How many rungs this window is worth.
+
+       One at a time is fine for a machine that is merely slow, and far too
+       patient for one that is not: six rungs at two and a half seconds each
+       is fifteen seconds of struggling before the last of the help arrives,
+       and the machines that need all six are exactly the ones least able to
+       sit through it. So the step is proportional to the trouble — twice over
+       the line takes two rungs, three times takes three — and a machine
+       barely over it still steps gently, one at a time. */
+    if (perf.rung >= RUNGS.length) {
+      /* Everything is off and it is still behind. There is one thing left
+         that would help and it is not the renderer's to choose. */
+      if (env && env.tooSlow) env.tooSlow();
+      return;
+    }
+    let steps = Math.max(1, Math.min(RUNGS.length, Math.round(mean / PERF_SLOW)));
+    /* Past any rung with nothing left to give, so that a window is never
+       spent on a step that does nothing. */
+    while (steps > 0 && perf.rung < RUNGS.length) {
+      if (RUNGS[perf.rung++]()) steps--;
     }
   }
+  /* what the ladder has given up so far, for a test and for the numbers on
+     the pause screen */
+  R.perf = () => ({ rung: perf.rung, rungs: RUNGS.length, quality,
+    shadows: !!(renderer && renderer.shadowMap && renderer.shadowMap.enabled),
+    smoke: !perfOff.smoke, ghost: !perfOff.ghost });
+  /* test seams: drive the ladder with a machine that is not this one.
+
+     `perfManual` takes the meter off the real clock, so that the box running
+     the test — which has no graphics card and is genuinely slow in this view
+     — does not step the ladder down underneath a test that is trying to
+     watch it step. `perfPoke` then hands it one whole clean window of frames
+     of a stated length, enough of them to force a decision, so one call is
+     one decision. `perfReset` puts the rung counter back without pretending
+     to give back what earlier rungs already took. */
+  R.perfManual = (on) => { perfManual = on !== false; perf.n = 0; perf.acc = 0; return perfManual; };
+  R.perfPoke = (ms, frames) => {
+    const dt = (ms || 50) / 1000;
+    const n = frames || Math.max(21, Math.ceil(PERF_WINDOW / dt) + 1);
+    perf.n = 0; perf.acc = 0;        // one call, one window, one decision
+    for (let i = 0; i < n; i++) perfTick(dt);
+    return R.perf();
+  };
+  const QUALITY0 = quality;        // what this machine asked for before any of this
+  R.perfReset = () => {
+    perf.rung = 0; perf.n = 0; perf.acc = 0;
+    /* And put back what the rungs took. Without this a test can only ever
+       watch the ladder once: the second run finds everything already gone,
+       every rung reporting nothing to give, and races to the bottom in a
+       single window whatever it is handed — which looks like a pass and
+       measures nothing. */
+    if (!SOFT && renderer) {
+      renderer.shadowMap.enabled = true;
+      sun.castShadow = true;
+      scene.traverse(o => {
+        if (!o.isMesh) return;
+        if (o.userData.blob) o.material.opacity = 0.17;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => { if (m) m.needsUpdate = true; });
+      });
+    }
+    perfOff.smoke = false;
+    (L.smoke || []).forEach(ch => ch.puffs.forEach(s2 => { s2.visible = true; }));
+    perfOff.ghost = false;
+    quality = QUALITY0;
+    try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    return R.perf();
+  };
 
   /* The screen changed — a window resized, or moved to a different monitor. */
   /* Draw the round view at a resolution of somebody's choosing, whatever this
@@ -9366,6 +9506,24 @@ const PX_WINDOW = 2.5;               // seconds of watching before deciding
 const PX_SLOW = 0.030;               // a frame this long is under ~33 a second
 let pxWatch = { t: 0, n: 0, acc: 0, floor: 1 };
 let pxPin = 0;                       // a resolution held by hand; 0 is nobody's
+
+/* Where a frame actually goes.
+
+   Off by default, and free while it is off: `profOn` is tested before the
+   clock is ever read, so a frame nobody is measuring pays nothing for the
+   possibility of being measured. On, it accumulates milliseconds under named
+   keys and counts the frames, and DN.prof() hands back the average frame
+   broken up by phase — which is the only honest way to decide what to make
+   cheaper, as against the three times I have guessed and been wrong. */
+let profOn = false, profAcc = {}, profFrames = 0;
+function profMark(k, ms) { profAcc[k] = (profAcc[k] || 0) + ms; }
+function prof(k, fn) {
+  if (!profOn) return fn();
+  const t0 = performance.now();
+  const r = fn();
+  profMark(k, performance.now() - t0);
+  return r;
+}
 function pxCheck(dt) {
   if (pxPin) return;                        // somebody is holding it
   if (PX <= pxWatch.floor) return;          // nothing left to give up
@@ -9403,7 +9561,7 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v142 · A leaf is very nearly the same green as Diction's head";
+const GAME_VERSION = "v143 · The round view keeps giving things up, and says when it runs out";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -16236,6 +16394,21 @@ function iconize(str) {
     .replace(ANY_PICTO, () => `<img class="ic" src="${iconDataURI('unknown')}" alt="">`);
 }
 let toastTimer = null;
+/* When the round view has given up everything it has and the machine is
+   still behind, there is one thing left that would help and the game cannot
+   do it on anybody's behalf: the flat view. It is a different-looking game,
+   not a quality setting, so switching somebody over without asking would be
+   taking a decision that is theirs. Saying it out loud once is not.
+
+   Once a session rather than once a save: the same save gets carried between
+   a desk machine and a school Chromebook, and the Chromebook should hear it. */
+let flatOffered = false;
+function offerFlatView() {
+  if (flatOffered || VIEWMODE !== 'paper') return false;
+  flatOffered = true;
+  toast('🐢 Still slow? Try ⚙️ Menu → Flat view — it is much lighter');
+  return true;
+}
 function toast(msg) {
   const el = document.getElementById('toast');
   el.innerHTML = iconize(msg);
@@ -16366,6 +16539,7 @@ function renderWorldView(v) {
     draws.push({ x: (c + 0.5) * TILE, y: (r + 1) * TILE,
       fn: () => drawWallCube(bctx, G.level.theme, c, r, G.t, nb(c, r)) });
   };
+  const t_ground = profOn ? performance.now() : 0;
   for (let r = r0; r <= r1; r++) {
     for (let c = c0; c <= c1; c++) {
       let ch = G.grid[r][c];
@@ -16416,7 +16590,9 @@ function renderWorldView(v) {
      coordinates so it stays with the ground rather than swimming about under
      the camera. Only the land gets it: everything standing on the land is a
      drawing *on* the paper, not part of it. */
-  paperGrain(bctx, c0 * TILE, r0 * TILE, (c1 - c0 + 2) * TILE, (r1 - r0 + 2) * TILE);
+  if (profOn) profMark('ground', performance.now() - t_ground);
+  prof('grain', () =>
+    paperGrain(bctx, c0 * TILE, r0 * TILE, (c1 - c0 + 2) * TILE, (r1 - r0 + 2) * TILE));
 
   // ceremony marker
   if (G.levelId === 'plaza' && !save.flags.ending) {
@@ -16677,8 +16853,8 @@ function renderWorldView(v) {
     setBBSkew(0, false);
   } else {
     setBBSkew(0, false); // classic view stays flat
-    draws.forEach(d => d.fn());
-    drawEffects();
+    prof('sprites', () => draws.forEach(d => d.fn()));
+    prof('effects', () => drawEffects());
   }
 
   bctx.restore();
@@ -16872,24 +17048,23 @@ function render() {
   bctx.clearRect(0, 0, BUF_W, BUF_H);
   const views = camViews();
   // each pane draws its own land
-  views.forEach(v => withWorld(v.lvl, () => renderWorldView(v)));
+  prof('world', () => views.forEach(v => withWorld(v.lvl, () => renderWorldView(v))));
 
   // atmosphere, per pane — one player can be in daylight while another is underground
-  views.forEach(v => withWorld(v.lvl, () => {
+  prof('light', () => views.forEach(v => withWorld(v.lvl, () => {
     landLight(v);   // the light this particular land sits in
     if (G.levelId === 'caves') { renderDarkness([v]); return; }
     bctx.save();
     bctx.beginPath(); bctx.rect(v.vpX, 0, v.vpW, BUF_H); bctx.clip();
     skyTint(bctx, v.vpX, v.vpW, BUF_H);
     bctx.restore();
-  }));
+  })));
 
   // split-screen dividers + player tags
   drawSplitOverlay(bctx, BUF_W, BUF_H);
 
   // soft vignette, and the firelight closing in if you are sitting by one
-  bctx.drawImage(vignette(), 0, 0);
-  restWash(bctx, BUF_W, BUF_H);
+  prof('vignette', () => { bctx.drawImage(vignette(), 0, 0); restWash(bctx, BUF_W, BUF_H); });
 
   // area-change fade
   if (G.fade > 0.01) {
@@ -16897,7 +17072,7 @@ function render() {
     bctx.fillRect(0, 0, BUF_W, BUF_H);
   }
 
-  blit();
+  prof('blit', () => blit());
 }
 
 /* Each land sits in its own light: a wash of the sun (or the lamplight, or
@@ -18452,6 +18627,8 @@ function frame(ts) {
   }
 }
 function frameInner(ts) {
+  const t_frame = profOn ? performance.now() : 0;
+  if (profOn) profFrames++;
   applyPX();
   const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
   lastTs = ts;
@@ -18459,6 +18636,7 @@ function frameInner(ts) {
   G.dt = dt;   // how long this frame was, for everything that eases
   if (G.state === 'play') pxCheck(dt);
 
+  const t_update = profOn ? performance.now() : 0;
   pollPads();
   /* Stand aside for anything the player is reading or choosing from. The rack
      sits over the dialogue box, and the d-pad over its left end — leave them up
@@ -18514,6 +18692,7 @@ function frameInner(ts) {
       if (G.level) updateAmbient(dt);
       if (G.state === 'play') updateCat(dt);   // Marmalade pottering about at home
     }));
+    if (profOn) profMark('update', performance.now() - t_update);
     G.fade = Math.max(0, G.fade - dt * 2.2);
     // cameras: solo follows the leader; co-op split screen follows each hero
     const clampAxis = (target, world, view) =>
@@ -18555,7 +18734,7 @@ function frameInner(ts) {
       render();
     }
     carryPaint(ctx, VW, VH); // over the pane of anybody off the ground
-    pagePass(ctx, VW, VH);   // and the whole of it is printed on one sheet
+    prof('sheet', () => pagePass(ctx, VW, VH));  // printed on one sheet
     netPump(overlayOpen() || dlgActive() || cardViewOpen());
     pumpCardQueue();
     drawCardOverlay(dt);   // straight onto the visible canvas, so it stays crisp
@@ -18564,6 +18743,7 @@ function frameInner(ts) {
     updateHint();
     updateTutorialBanner();
   }
+  if (profOn) profMark('FRAME', performance.now() - t_frame);
   requestAnimationFrame(frame);
 }
 
@@ -18585,6 +18765,8 @@ try {
   R3 = window.R3Factory ? window.R3Factory({
     TILE, G, P, FOLLOW, SCRIB, LIMEY, pointer,
     px: () => PX,
+    /* the round view has spent every rung it has and is still behind */
+    tooSlow: () => offerFlatView(),
     getSave: () => save, isCoop, isCoop3, skinFor, isDoorOpen, dailyDigQuest,
     camViews, withWorld, restWarm: () => restWarm, dusk: duskLevel, catState, catInArms, npcHere,
     npcAnim: (id) => {
@@ -18750,6 +18932,15 @@ window.DN = {
   /* tools seam: draw the round view at this resolution whatever the machine
      thinks of the idea — for capturing the game as a real screen shows it */
   gfxForce: (px) => (R3 && R3.force ? R3.force(px === undefined ? PX : px) : null),
+  /* what the round view has given up so far to keep the frame rate, and a
+     seam to hand its ladder a slow machine that is not this one */
+  glPerf: () => (R3 && R3.perf ? R3.perf() : null),
+  glPoke: (ms, frames) => (R3 && R3.perfPoke ? R3.perfPoke(ms, frames) : null),
+  glManual: (on) => (R3 && R3.perfManual ? R3.perfManual(on) : null),
+  glReset: () => (R3 && R3.perfReset ? R3.perfReset() : null),
+  /* whether the game has mentioned the flat view yet; pass false to forget
+     having said it, so a test can watch it said again */
+  flatOffered: (v) => { if (v === false) flatOffered = false; return flatOffered; },
   /* tools seam: hold the FLAT view at this resolution whatever the machine
      thinks of the idea. Without it, a measurement of what resolution does to
      the drawing is also a measurement of how fast the machine taking it is:
@@ -18757,6 +18948,17 @@ window.DN = {
      the two halves of the measurement are then of two different frames. 0
      hands the decision back to the game. */
   pxHold(px) { pxPin = px || 0; if (pxPin) wantPX = pxPin; return pxPin; },
+  /* tools seam: what a frame is made of, in milliseconds, averaged over every
+     frame since it was switched on. Pass true to start (which clears), false
+     to stop, nothing to read. */
+  prof(on) {
+    if (on === true) { profOn = true; profAcc = {}; profFrames = 0; return true; }
+    if (on === false) { profOn = false; return false; }
+    const n = Math.max(1, profFrames);
+    const out = { frames: profFrames };
+    for (const k in profAcc) out[k] = Math.round(profAcc[k] / n * 100) / 100;
+    return out;
+  },
   // test seam: the whole cast with no light falling on them at all
   flatLight: (on) => setFlatLight(on),
   /* test seam: hold somebody's eyes where they are put, so the same face can
