@@ -6765,13 +6765,15 @@ window.R3Factory = function (env) {
      deciding how much to ask of it — an old laptop or a virtual machine gets
      what it can actually keep up with, and everything else gets the screen it
      paid for. */
+  let GL_NAME = '';        // kept, so the speed check can say what is drawing
   function softwareOnly() {
     try {
       const c = document.createElement('canvas');
       const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
-      if (!gl) return true;
+      if (!gl) { GL_NAME = 'no webgl at all'; return true; }
       const dbg = gl.getExtension('WEBGL_debug_renderer_info');
       const name = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+      GL_NAME = name || 'not saying';
       return /swiftshader|llvmpipe|softwarerasterizer|microsoft basic/i.test(name);
     } catch (e) { return false; }
   }
@@ -6791,9 +6793,25 @@ window.R3Factory = function (env) {
      times the pixels for five times the time. Capping at two is 2.25x fewer
      pixels than three, for a picture that looks the same. */
   const GL_MAX_PX = 2;
-  let renderer, quality = SOFT ? 0.5
-    : Math.min(GL_MAX_PX, (env && env.px && env.px()) || 1);
-  R.gfx = () => ({ gl: quality, software: SOFT,
+  /* What the screen would like, and what it gets to begin with.
+
+     These used to be the same thing, and that is the wrong way round for the
+     machine that needs the most help. Asking a screen what it wants and
+     giving it that means a weak machine is hammered from the first frame and
+     only let off after the meter has watched it struggle for two and a half
+     seconds — and then again, and again, a rung at a time. Four rounds of
+     work on being laggy and the game still opened by asking a school
+     Chromebook for four times the pixels it could manage.
+
+     So it opens at one buffer pixel per game pixel, which any machine
+     running this at all can manage, and climbs to what the screen asked for
+     only once a window has come back comfortably fast. A desktop is briefly
+     soft and sharp within a few seconds. A Chromebook is never hammered at
+     all. Nothing climbs after the ladder has taken a single thing away, so
+     giving up and earning back cannot chase each other. */
+  let QUALITY_ASK = SOFT ? 0.5 : Math.min(GL_MAX_PX, (env && env.px && env.px()) || 1);
+  let renderer, quality = Math.min(1, QUALITY_ASK);
+  R.gfx = () => ({ gl: quality, software: SOFT, name: GL_NAME, ask: QUALITY_ASK,
     shadows: !!(renderer && renderer.shadowMap && renderer.shadowMap.enabled),
     /* What the last frame actually cost the card: draw calls and triangles.
        On a phone the first of these is usually the whole story. */
@@ -8484,6 +8502,10 @@ window.R3Factory = function (env) {
      otherwise be stripped of its smoke and half its pixels to buy a frame
      rate it cannot exceed. */
   const PERF_SLOW = 0.038;
+  /* Comfortable, not merely coping: over fifty a second. Climbing wants a
+     higher bar than descending, or a machine sitting between the two would
+     be handed pixels and have them taken away again. */
+  const PERF_FAST = 0.020;
   const perf = { n: 0, acc: 0, rung: 0 };
   /* Each rung returns true if it actually changed something. One that cannot
      (no shadows to turn off on a machine that never had them) reports so and
@@ -8547,7 +8569,8 @@ window.R3Factory = function (env) {
     return true;
   }
   let perfManual = false;          // a test is driving it instead of the clock
-  function perfCheck(dt) { if (!perfManual) perfTick(dt); }
+  let perfPinned = false;          // R.force has set the resolution by hand
+  function perfCheck(dt) { if (!perfManual && !perfPinned) perfTick(dt); }
   function perfTick(dt) {
     if (dt > 0 && dt < 1) { perf.n++; perf.acc += dt; }
     /* Judged on seconds, not on frames. It was "every 150 frames", which
@@ -8562,7 +8585,18 @@ window.R3Factory = function (env) {
     if (perf.acc < PERF_WINDOW || perf.n < 20) return;
     const mean = perf.acc / perf.n;
     perf.n = 0; perf.acc = 0;
-    if (mean <= PERF_SLOW) return;      // coping: stop descending, keep watching
+    if (mean <= PERF_SLOW) {
+      /* Coping. Stop descending, keep watching — and if nothing has been
+         taken away yet and the machine is not merely coping but comfortable,
+         give back the sharpness the screen asked for, a step at a time.
+         `rung === 0` is the whole safeguard against the two chasing each
+         other: one thing given up and the climb is over for good. */
+      if (perf.rung === 0 && mean < PERF_FAST && quality < QUALITY_ASK) {
+        quality = Math.min(QUALITY_ASK, quality + 0.5);
+        try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+      }
+      return;
+    }
     /* How many rungs this window is worth.
 
        One at a time is fine for a machine that is merely slow, and far too
@@ -8607,7 +8641,10 @@ window.R3Factory = function (env) {
     for (let i = 0; i < n; i++) perfTick(dt);
     return R.perf();
   };
-  const QUALITY0 = quality;        // what this machine asked for before any of this
+  const QUALITY0 = quality;        // where it opened, before any of this
+  /* test seam: what the screen is taken to be asking for, so the climb can
+     be driven on a machine that is not asking for it. */
+  R.perfAsk = (v) => { if (v) QUALITY_ASK = v; return QUALITY_ASK; };
   R.perfReset = () => {
     perf.rung = 0; perf.n = 0; perf.acc = 0;
     /* And put back what the rungs took. Without this a test can only ever
@@ -8643,17 +8680,38 @@ window.R3Factory = function (env) {
   R.force = function (px) {
     quality = Math.max(0.25, px || 1);
     try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
-    perf.stage = 2;                   // and do not quietly take it away again
+    perfPinned = true;                // and do not quietly take it away again
     return quality;
   };
 
+  /* The window changed — resized, or moved to a different screen — so what
+     it is asking for has changed.
+
+     This used to set the resolution itself, flooring it at 1, and its guard
+     against overriding the ladder was `perf.stage >= 2` — a field that was
+     renamed to `rung` and so a test that was always false. It is reached
+     from applyPX, which runs whenever the FLAT view steps its own
+     resolution down. So on any machine slow enough for the flat ladder to
+     act, every step it took reached across and shoved the round view's
+     quality back up to 1, undoing the round ladder's work. Two ladders
+     fighting each other through a stale field name.
+
+     It now moves the *ask* and leaves the picture alone. If the ladder has
+     taken anything away it stays in charge; if it has not, the climb walks
+     up to the new ask when a window comes back comfortably fast. */
   R.resize = function (px) {
-    if (SOFT) return;                 // it is already doing all it can
-    /* the same ceiling as at startup — a window dragged onto a retina screen
-       must not undo the cap */
-    quality = Math.max(1, Math.min(GL_MAX_PX, px || 1));
-    if (perf.stage >= 2) return;      // already given up on sharpness for speed
-    try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    if (perfPinned) return;           // somebody set it by hand
+    /* A machine with no graphics card is asking for half a pixel each
+       whatever screen it is plugged into, so that belongs in the ask rather
+       than in a gate in front of it. It used to be `if (SOFT) return`, which
+       is also why no test on a software renderer could ever reach the rest
+       of this function and catch what it was doing wrong. */
+    QUALITY_ASK = SOFT ? 0.5 : Math.max(1, Math.min(GL_MAX_PX, px || 1));
+    if (perf.rung > 0) return;        // the ladder is in charge now
+    if (quality > QUALITY_ASK) {
+      quality = QUALITY_ASK;
+      try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    }
   };
 
   const ray = new THREE.Raycaster();
@@ -9515,6 +9573,21 @@ let pxPin = 0;                       // a resolution held by hand; 0 is nobody's
    keys and counts the frames, and DN.prof() hands back the average frame
    broken up by phase — which is the only honest way to decide what to make
    cheaper, as against the three times I have guessed and been wrong. */
+/* And the plainest measurement of all: how many frames actually happened.
+   Everything else here is about what a frame costs; this is the number the
+   player is complaining about. Always on, because it is two additions. */
+let fpsN = 0, fpsT = 0, fpsNow = 0, fpsLow = 0, fpsSince = 0;
+function fpsTick(ts) {
+  fpsN++;
+  if (!fpsT) { fpsT = ts; return; }
+  if (ts - fpsT < 1000) return;
+  fpsNow = Math.round(fpsN * 1000 / (ts - fpsT));
+  fpsN = 0; fpsT = ts;
+  /* The worst second of actual play. Not the first few, which are loading
+     and would make every machine look dreadful. */
+  if (G.state === 'play') fpsSince += 1;
+  if (fpsSince > 4 && (!fpsLow || fpsNow < fpsLow)) fpsLow = fpsNow;
+}
 let profOn = false, profAcc = {}, profFrames = 0;
 function profMark(k, ms) { profAcc[k] = (profAcc[k] || 0) + ms; }
 function prof(k, fn) {
@@ -9561,7 +9634,7 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v143 · The round view keeps giving things up, and says when it runs out";
+const GAME_VERSION = "v144 · The two resolution ladders had been shoving each other";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -12955,6 +13028,70 @@ function netTrouble() {
 }
 
 /* the plain-words network check */
+/* What this machine is actually managing, in words somebody can send me.
+
+   Four versions of work on being laggy were aimed at a machine I could only
+   guess at, from a container with no graphics card, and three of those
+   versions went into the wrong view. A page that says plainly what the
+   frame rate is, which view is drawing it, what has already been given up
+   and what the card calls itself ends the guessing. It is modelled on the
+   connection check, which works the same way and for the same reason. */
+function speedReport() {
+  const f = DN.fps(), g = DN.gfx(), lad = DN.glPerf();
+  const pr = DN.prof();
+  const parts = Object.keys(pr).filter(k => k !== 'frames' && k !== 'FRAME')
+    .sort((a, b) => pr[b] - pr[a]).map(k => `${k} ${pr[k]}`);
+  const gave = !lad ? 'the round view is not running'
+    : lad.rung === 0 ? 'nothing yet'
+    : [`rung ${lad.rung} of ${lad.rungs}`,
+       lad.shadows ? null : 'shadows off',
+       lad.smoke ? null : 'smoke off',
+       lad.ghost ? null : 'see-through walls off'].filter(Boolean).join(', ');
+  return [
+    'Diction & Nina — speed check',
+    GAME_VERSION,
+    `picture: ${VIEWMODE === 'paper' ? 'round (3D)' : 'flat (2D)'}`,
+    `frames a second: ${f.now} now, worst ${f.low || '—'} while playing`,
+    `window: ${window.innerWidth}x${window.innerHeight} at ${window.devicePixelRatio || 1}`
+      + ` device pixel${(window.devicePixelRatio || 1) === 1 ? '' : 's'} per CSS pixel`,
+    `flat view: ${g.px} pixel${g.px === 1 ? '' : 's'} per game pixel (${g.canvas.join('x')})`,
+    `round view: ${lad ? lad.quality : '—'} per game pixel, screen asked for ${g.ask === undefined ? '—' : g.ask}`,
+    `given up so far: ${gave}`,
+    `graphics: ${g.software ? 'SOFTWARE (no card) — ' : ''}${g.name || '—'}`,
+    `last frame cost the card: ${g.calls} draw calls, ${g.tris} triangles`,
+    `where a frame goes (ms, over ${pr.frames} frames): FRAME ${pr.FRAME || '—'}`
+      + (parts.length ? ' · ' + parts.join(' · ') : ' (not measured)'),
+  ].join('\n');
+}
+function speedCheckPanel() {
+  openOverlay(`<h2>🐢 Speed check</h2><p>Measuring… <small>(two seconds)</small></p>`);
+  DN.prof(true);
+  setTimeout(() => {
+    DN.prof(false);
+    const f = DN.fps();
+    const verdict = f.now >= 50 ? '✅ This is running smoothly.'
+      : f.now >= 30 ? '🙂 Playable, but not smooth.'
+      : '🐢 This is slow. ' + (VIEWMODE === 'paper'
+        ? 'The <b>flat view</b> is much lighter on a machine like this — worth trying it from the Display box in the pause menu.'
+        : 'The flat view is already on, which is the lighter of the two.');
+    openOverlay(`<h2>🐢 Speed check</h2>
+      <p style="font-size:1.3em;margin:4px 0"><b>${f.now} frames a second</b>${f.low ? ` · worst ${f.low}` : ''}</p>
+      <p>${verdict}</p>
+      <p style="margin:10px 0 2px"><small>Send this to whoever is working on the game — it says
+        exactly what this machine is doing, which is otherwise guesswork.</small></p>
+      <textarea class="net-code" id="speed-rep" readonly rows="12">${speedReport()}</textarea>
+      <button class="big-btn" data-copy="speed-rep">Copy this report</button>
+      <button class="big-btn secondary" id="speed-flat">🎥 Switch to the ${VIEWMODE === 'paper' ? 'flat' : 'round'} view</button>
+      <button class="big-btn secondary" id="speed-back">Back</button>`);
+    netHookCopy();
+    panelEl.querySelector('#speed-flat').onclick = () => {
+      setViewMode(VIEWMODE === 'paper' ? 'flat' : 'paper');
+      AudioSys.sfx('select');
+      speedCheckPanel();
+    };
+    panelEl.querySelector('#speed-back').onclick = openPause;
+  }, 2000);
+}
 async function netCheckPanel() {
   netPanel('<p>Checking… <small>(about ten seconds)</small></p>');
   const c = await Net.checkNetwork();
@@ -14604,7 +14741,8 @@ function openPause() {
       <div class="panel-card"><b>🔔 Sound effects</b><br><input type="range" id="vol-sfx" min="0" max="100" value="${AudioSys.volumes().sfx * 100}" style="width:100%"></div>
       <div class="panel-card"><b>🖥️ Display</b><br><button class="big-btn secondary" id="btn-fs" style="margin-top:4px">Fullscreen</button>
         <button class="big-btn secondary" id="btn-3d" style="margin-top:4px">🎥 View: ${VIEW_LABEL[VIEWMODE]}</button>
-        <button class="big-btn secondary" id="btn-buttons" style="margin-top:4px">🎛️ On-screen buttons: ${showButtons ? 'On' : 'Off'}</button></div>
+        <button class="big-btn secondary" id="btn-buttons" style="margin-top:4px">🎛️ On-screen buttons: ${showButtons ? 'On' : 'Off'}</button>
+        <button class="big-btn secondary" id="btn-speed" style="margin-top:4px">🐢 Speed check</button></div>
     </div>
     ${padPickerHtml()}
     <button class="big-btn" id="resume">Resume (Esc)</button>
@@ -14628,6 +14766,7 @@ function openPause() {
     toast(showButtons ? '🎛️ On-screen buttons on' : '🎛️ On-screen buttons off');
     openPause();
   };
+  panelEl.querySelector('#btn-speed').onclick = speedCheckPanel;
   panelEl.querySelector('#btn-3d').onclick = () => {
     setViewMode(VIEWMODE === 'paper' ? 'flat' : 'paper');
     AudioSys.sfx('select');
@@ -18629,6 +18768,7 @@ function frame(ts) {
 function frameInner(ts) {
   const t_frame = profOn ? performance.now() : 0;
   if (profOn) profFrames++;
+  fpsTick(ts);
   applyPX();
   const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
   lastTs = ts;
@@ -18927,6 +19067,8 @@ window.DN = {
   easeK: (k, dt) => ease(k, dt),
   /* what the frame is actually being made of, and what the machine can manage */
   pxWanted: () => wantPX,
+  // how many frames a second are really happening, and the worst second of play
+  fps: () => ({ now: fpsNow, low: fpsLow }),
   gfx: () => Object.assign({ px: PX, canvas: [canvas.width, canvas.height] },
     (R3 && R3.gfx) ? R3.gfx() : { gl: null, software: null }),
   /* tools seam: draw the round view at this resolution whatever the machine
@@ -18938,6 +19080,7 @@ window.DN = {
   glPoke: (ms, frames) => (R3 && R3.perfPoke ? R3.perfPoke(ms, frames) : null),
   glManual: (on) => (R3 && R3.perfManual ? R3.perfManual(on) : null),
   glReset: () => (R3 && R3.perfReset ? R3.perfReset() : null),
+  glAsk: (v) => (R3 && R3.perfAsk ? R3.perfAsk(v) : null),
   /* whether the game has mentioned the flat view yet; pass false to forget
      having said it, so a test can watch it said again */
   flatOffered: (v) => { if (v === false) flatOffered = false; return flatOffered; },
