@@ -196,6 +196,33 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
 .tc-btn:active { background:#ffd12e; }
 .tc-btn:focus-visible { outline:3px solid #ffd12e; outline-offset:2px; }
 
+/* The thumbstick, bottom left, where a thumb already is when a phone is held
+   the long way round. Big: this is aimed at a seven-year-old's thumb, not a
+   mouse pointer. See-through, because it is sitting on top of the land. */
+#tc-stick {
+  position:absolute; left:16px; bottom:16px;
+  width:124px; height:124px; border-radius:50%;
+  border:3px solid rgba(20,17,15,.66); background:rgba(255,252,242,.30);
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:auto; touch-action:none; -webkit-user-select:none; user-select:none;
+  box-shadow:0 2px 0 rgba(0,0,0,.14);
+}
+#tc-stick.hidden { display:none; }
+#tc-knob {
+  width:58px; height:58px; border-radius:50%;
+  border:3px solid #14110f; background:rgba(255,223,94,.92);
+  pointer-events:none; will-change:transform;
+  transition:transform .06s linear;
+}
+#tc-stick.held #tc-knob { transition:none; background:#ffd12e; }
+/* A phone has no keys, so it should not be shown any. */
+body.dn-mobile .tc-menu .tc-key { display:none; }
+/* and the rack moves up out of the corner, which now belongs to the stick */
+body.dn-mobile #tc-rack { top:84px; transform:none; }
+body.dn-mobile .tc-main .tc-menu { width:150px; height:38px; }
+body.dn-mobile .tc-menu .tc-name { font-size:13px; }
+body.dn-mobile .tc-menu .tc-ic { font-size:17px; }
+
 /* the rack of everything else — down the left edge, out of the way of the
    world's middle, each one wearing its name and the key it stands for. Kept
    see-through so the land carries on behind it. */
@@ -581,7 +608,10 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
     </div>
   </div>
   <div id="touch" class="hidden">
-    <!-- no d-pad: you walk by holding anywhere on the world, or with WASD -->
+    <!-- you can always walk by holding anywhere on the world and dragging,
+         but only if somebody has told you so. On a touch screen there is a
+         stick in the corner as well, which is a thing you can see. -->
+    <div id="tc-stick" class="hidden" aria-label="Walk"><div id="tc-knob"></div></div>
     <!-- every other control, generated from the CONTROLS table in game.js -->
     <div id="tc-rack"></div>
     <div class="tc-right">
@@ -3356,11 +3386,21 @@ function drawNPCSprite(ctx, id, x, y, t, opts) {
    thing to do in a game that can simply show you the picture.
 
    So here it is, in chalk on the fountain stone, drawn the way a child draws:
-   heads too big, arms too long, everybody grinning, the ground a wobbly line
+   covers too big, arms too long, everybody grinning, the ground a wobbly line
    under their feet. It has been rained on three winters, so the chalk is
    patchy and the stone shows through. Everything wobbles by a seeded amount
    rather than a random one — a drawing that shivered every frame would be a
-   drawing nobody made. */
+   drawing nobody made.
+
+   And the three of them are books, which this drawing had somehow forgotten.
+   It drew round heads with faces in them and a body underneath: three human
+   children, in a family of a dictionary, a notebook and a pocket colouring
+   book. Nina would not have drawn her brother as a person. She would have
+   drawn the split down his cover, because that is the thing about him you
+   would draw. So each of them is the cover they actually are — Diction's
+   torn page edge down the middle, Nina's band across hers, Limey's stripes
+   and his red crayon arms — still wonky, still grinning, still too big for
+   their legs. */
 function chalkRnd(seed) {
   let s2 = (seed * 1664525 + 1013904223) >>> 0;
   return () => { s2 = (s2 * 1664525 + 1013904223) >>> 0; return s2 / 4294967296; };
@@ -3390,35 +3430,92 @@ function chalkRing(ctx, cx, cy, rad, col, w, seed) {
   }
   chalkLine(ctx, pts, col, w, seed);
 }
-/* One of the three, as a five-year-old draws a person: a round head with a
-   face in it, a straight-ish body, legs that do not match, and one arm out to
-   each side to hold on with. */
-function chalkKid(ctx, x, groundY, col, seed, tilt, hair) {
+/* A book is a rectangle, and a child's rectangle has corners that miss and
+   sides that bow. Walked round as one closed path with a few points down each
+   side, so the wobble in chalkLine has something to bend. */
+function chalkRect(ctx, x, y, w, h, col, lw, seed) {
+  const pts = [];
+  const along = (x1, y1, x2, y2, n) => {
+    for (let i = 0; i < n; i++) pts.push([x1 + (x2 - x1) * (i / n), y1 + (y2 - y1) * (i / n)]);
+  };
+  along(x, y, x + w, y, 4);
+  along(x + w, y, x + w, y + h, 4);
+  along(x + w, y + h, x, y + h, 4);
+  along(x, y + h, x, y, 4);
+  pts.push([x, y]);
+  chalkLine(ctx, pts, col, lw, seed);
+}
+/* One of the three, as a five-year-old draws her family: a big cover with a
+   face on it, the one marking off that cover that makes it theirs, a little
+   body underneath, legs that do not match, and an arm out to each side to
+   hold on with.
+
+   `kind` picks which of them it is, because the whole charm of a child's
+   drawing of her brothers is that you can tell which is which from one
+   detail each. */
+function chalkBook(ctx, x, groundY, col, seed, tilt, kind) {
   const r = chalkRnd(seed);
-  const head = 15 + r() * 3;
-  const headY = groundY - 62 - r() * 5;
+  /* Diction has the long legs and is the tallest; Limey is the pocket one and
+     barely comes up to his sister. A child gets that part right even when she
+     gets nothing else right. */
+  const tall = kind === 'diction' ? 1 : kind === 'nina' ? 0.92 : 0.78;
+  const cw = 30 + r() * 4, ch = 32 + r() * 4;
+  const coverY = groundY - (58 + r() * 5) * tall - ch / 2;
+  const cx = x - cw / 2;
+  const midY = coverY + ch / 2;
   ctx.save();
   ctx.translate(x, 0);
   ctx.rotate(tilt);
   ctx.translate(-x, 0);
-  chalkRing(ctx, x, headY, head, col, 2.6, seed + 1);
-  // eyes and a grin, all slightly off
-  chalkLine(ctx, [[x - 6, headY - 4], [x - 5, headY - 1]], col, 2.6, seed + 2);
-  chalkLine(ctx, [[x + 5, headY - 4], [x + 6, headY - 1]], col, 2.6, seed + 3);
-  chalkLine(ctx, [[x - 7, headY + 5], [x - 2, headY + 9], [x + 4, headY + 9], [x + 8, headY + 4]],
-    col, 2.2, seed + 4);
-  if (hair) {   // Nina gets three chalk flicks on top, because of course she does
-    for (let i = -1; i <= 1; i++) {
-      chalkLine(ctx, [[x + i * 6, headY - head + 2], [x + i * 8, headY - head - 7]], col, 2.2, seed + 5 + i);
+  chalkRect(ctx, cx, coverY, cw, ch, col, 2.6, seed + 1);
+
+  /* Each one's marking, kept out of the way of the face. A child draws the
+     face big and central, so the thing that says which book this is has to
+     live somewhere else on the cover — along the top for the two with bands,
+     and for Diction down the middle with his face sitting in one half of it,
+     which is a thing a five-year-old would absolutely do. */
+  const faceX = kind === 'diction' ? x - cw * 0.16 : x;
+  const topBand = coverY + ch * 0.26;
+  if (kind === 'diction') {
+    // the split down his cover, with the torn page edge in it — four zigs,
+    // not forty: she is five
+    const sx = cx + cw * 0.74;
+    chalkLine(ctx, [[sx + 1, coverY + 2], [sx - 3, coverY + ch * 0.3],
+      [sx + 3, coverY + ch * 0.55], [sx - 2, coverY + ch * 0.8], [sx + 1, coverY + ch - 2]],
+      col, 2.2, seed + 20);
+  } else if (kind === 'nina') {
+    // the yellow band straight across her, drawn as two lines near the top
+    chalkLine(ctx, [[cx + 1, topBand - 4], [cx + cw - 1, topBand - 5]], col, 2.2, seed + 21);
+    chalkLine(ctx, [[cx + 1, topBand + 4], [cx + cw - 1, topBand + 3]], col, 2.2, seed + 22);
+  } else {
+    // Limey is stripes, because that is most of what he is
+    for (let i = 0; i < 3; i++) {
+      const sy = coverY + 4 + i * 5.5;
+      chalkLine(ctx, [[cx + 1, sy + (r() - 0.5) * 2], [cx + cw - 1, sy + (r() - 0.5) * 2]],
+        col, 2.0, seed + 30 + i);
     }
   }
-  const bodyTop = headY + head + 1, bodyBot = groundY - 22 - r() * 4;
-  chalkLine(ctx, [[x, bodyTop], [x + (r() - 0.5) * 4, bodyBot]], col, 2.8, seed + 9);
-  // legs, which do not match
-  chalkLine(ctx, [[x, bodyBot], [x - 8 - r() * 4, groundY - 1]], col, 2.6, seed + 10);
-  chalkLine(ctx, [[x, bodyBot], [x + 7 + r() * 5, groundY + 1]], col, 2.6, seed + 11);
+
+  // eyes and a grin on the cover, all slightly off
+  const eyeY = coverY + ch * 0.58;
+  chalkLine(ctx, [[faceX - 7, eyeY - 2], [faceX - 6, eyeY + 2]], col, 2.6, seed + 2);
+  chalkLine(ctx, [[faceX + 6, eyeY - 2], [faceX + 7, eyeY + 2]], col, 2.6, seed + 3);
+  chalkLine(ctx, [[faceX - 8, eyeY + 9], [faceX - 3, eyeY + 13], [faceX + 3, eyeY + 13],
+    [faceX + 8, eyeY + 8]], col, 2.2, seed + 4);
+
+  /* The little body under the cover — their actual bodies are a second,
+     smaller rectangle, so that is what she drew. */
+  const bodyTop = coverY + ch + 1;
+  const bodyH = (16 + r() * 4) * tall, bodyW = cw * 0.6;
+  chalkRect(ctx, x - bodyW / 2, bodyTop, bodyW, bodyH, col, 2.4, seed + 9);
+  const bodyBot = bodyTop + bodyH;
+
+  // legs, which do not match. Limey's are crayons, so his are straighter.
+  const legSpread = kind === 'limey' ? 5 : 8;
+  chalkLine(ctx, [[x - 2, bodyBot], [x - legSpread - r() * 4, groundY - 1]], col, 2.6, seed + 10);
+  chalkLine(ctx, [[x + 2, bodyBot], [x + legSpread - 1 + r() * 5, groundY + 1]], col, 2.6, seed + 11);
   ctx.restore();
-  return { armY: bodyTop + 12 + r() * 4, headY, head };
+  return { armY: bodyTop + bodyH * 0.35, coverY, cw, ch };
 }
 /* The drawing itself, at whatever size it is given. */
 function drawDoodle(ctx, w, h, t) {
@@ -3448,9 +3545,9 @@ function drawDoodle(ctx, w, h, t) {
   for (let i = 0; i <= 14; i++) gpts.push([30 + i * 26, GY + Math.sin(i * 1.3) * 2.5]);
   chalkLine(ctx, gpts, '#f6f2e6', 3, 41);
   // the three of them
-  const d = chalkKid(ctx, 122, GY, '#8ee88e', 11, -0.04, false);
-  const n = chalkKid(ctx, 210, GY, '#ffa8d8', 23, 0.03, true);
-  const l = chalkKid(ctx, 296, GY, '#ffd08a', 37, -0.02, false);
+  const d = chalkBook(ctx, 122, GY, '#8ee88e', 11, -0.04, 'diction');
+  const n = chalkBook(ctx, 210, GY, '#ffa8d8', 23, 0.03, 'nina');
+  const l = chalkBook(ctx, 296, GY, '#ffd08a', 37, -0.02, 'limey');
   // and the arms, joined — the whole point of the picture
   chalkLine(ctx, [[122 - 22, d.armY + 10], [122 - 12, d.armY], [122, d.armY - 2]], '#8ee88e', 2.6, 51);
   chalkLine(ctx, [[122, d.armY - 2], [160, d.armY + 6], [210, n.armY - 1]], '#8ee88e', 2.6, 52);
@@ -9564,6 +9661,7 @@ const PX_WINDOW = 2.5;               // seconds of watching before deciding
 const PX_SLOW = 0.030;               // a frame this long is under ~33 a second
 let pxWatch = { t: 0, n: 0, acc: 0, floor: 1 };
 let pxPin = 0;                       // a resolution held by hand; 0 is nobody's
+let stillHold = false;               // the world holding its breath for a measurement
 
 /* Where a frame actually goes.
 
@@ -9634,11 +9732,12 @@ function applyPX() {
 
 const SPEED = 3.6;
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v144 · The two resolution ladders had been shoving each other";
+const GAME_VERSION = "v145 · A stick you can see, a pulse that waits, and three books in chalk";
 
 /* ---------------- state ---------------- */
 const G = {
   state: 'title',            // title | play | cutscene
+  abilityCd: {},             // seconds left before each HERO may pulse again
   dt: 1 / 60,                // how long the frame being drawn is, in seconds
   levelId: null, level: null, grid: null, W: 0, H: 0,
   billboards: [],            // static y-sorted sprites from tiles
@@ -9669,6 +9768,23 @@ const P = {
 };
 const MAX_HEARTS = 3;
 const BOOST_MAX = 5, BOOST_CD = 4;
+/* A hero ability had no cost at all: hold X down and the pulse went off every
+   frame, which made finding a hidden path a matter of walking about leaning
+   on a key rather than working out where to stand. So it waits.
+
+   Kept per character rather than per player, because swapping to Nina and
+   back again must not hand you a fresh pulse — that is the same ability
+   whoever is holding the controller. Six seconds: long enough that a pulse
+   is a decision, short enough that being one tile out is not a punishment. */
+const ABILITY_CD = 6;
+const ABILITY_COL = { diction: '#7fd4a8', nina: '#ff9ad2', limey: '#f28a1c' };
+function abilityCd(char) { return (G.abilityCd && G.abilityCd[char]) || 0; }
+function abilityCds() { return G.abilityCd || (G.abilityCd = {}); }
+function abilityReady(char) { return abilityCd(char) <= 0; }
+function tickAbilityCd(dt) {
+  const cd = abilityCds();
+  for (const k in cd) if (cd[k] > 0) cd[k] = Math.max(0, cd[k] - dt);
+}
 // the sibling you're not controlling walks a few steps behind
 const FOLLOW = { x: 0, y: 0, walk: 0, facing: 1, moving: false, lvl: 'town', char: 'nina' };
 /* a point a fixed distance back along a walked trail — following by
@@ -10095,11 +10211,90 @@ touchEl.querySelectorAll('.tc-btn').forEach(wireControl);
 /* On a phone you want them; on a big screen you might rather have the corner
    of the world back. On by default either way — a control you cannot see is a
    control you do not know about. */
+/* Mobile mode: a phone is not a keyboard, and the game had been talking to
+   one as though it were — "E — talk to Limey" on a device with no E, and
+   every button in the rack wearing the letter it stands for. On top of that,
+   the only way to walk was to hold a finger on the land and drag, which works
+   perfectly and which nobody discovers, because nothing says so.
+
+   Guessed from the pointer the device actually has, and remembered once
+   somebody sets it by hand either way. */
+let mobileMode = false;
+function guessMobile() {
+  try {
+    if (matchMedia('(pointer: coarse)').matches) return true;
+    return (navigator.maxTouchPoints || 0) > 0;
+  } catch (e) { return false; }
+}
+try {
+  const saved = localStorage.getItem('dn-mobile');
+  mobileMode = saved === null ? guessMobile() : saved === '1';
+} catch (e) { mobileMode = guessMobile(); }
+function setMobileMode(on) {
+  mobileMode = !!on;
+  document.body.classList.toggle('dn-mobile', mobileMode);
+  syncStick();
+  try { localStorage.setItem('dn-mobile', mobileMode ? '1' : '0'); } catch (e) {}
+  return mobileMode;
+}
+/* The stick only exists where it is wanted: in mobile mode, with the
+   on-screen controls on. */
+function syncStick() {
+  const el = document.getElementById('tc-stick');
+  if (el) el.classList.toggle('hidden', !(mobileMode && showButtons));
+  if (!(mobileMode && showButtons)) stickLetGo();
+}
+/* The thumbstick itself. Analogue: a small push is a small walk, which is
+   what makes a stick better than four arrows for getting through a doorway. */
+const STICK = { id: null, dx: 0, dy: 0 };
+const STICK_DEAD = 0.22;        // below this it is a thumb resting, not steering
+function stickVec() {
+  const m = Math.hypot(STICK.dx, STICK.dy);
+  if (m < STICK_DEAD) return null;
+  return { dx: STICK.dx, dy: STICK.dy, m: Math.min(1, m) };
+}
+function stickLetGo() {
+  STICK.id = null; STICK.dx = 0; STICK.dy = 0;
+  const el = document.getElementById('tc-stick'), k = document.getElementById('tc-knob');
+  if (el) el.classList.remove('held');
+  if (k) k.style.transform = 'translate(0px,0px)';
+}
+function stickSetup() {
+  const el = document.getElementById('tc-stick'), knob = document.getElementById('tc-knob');
+  if (!el || !knob) return;
+  const grab = (e) => {
+    const b = el.getBoundingClientRect();
+    const rad = b.width / 2;
+    let dx = (e.clientX - (b.left + rad)) / rad, dy = (e.clientY - (b.top + rad)) / rad;
+    const m = Math.hypot(dx, dy);
+    if (m > 1) { dx /= m; dy /= m; }
+    STICK.dx = dx; STICK.dy = dy;
+    // the knob rides at most to the rim, minus its own edge
+    knob.style.transform = `translate(${dx * (rad - 30)}px,${dy * (rad - 30)}px)`;
+  };
+  el.addEventListener('pointerdown', (e) => {
+    STICK.id = e.pointerId;
+    try { el.setPointerCapture(e.pointerId); } catch (e2) {}
+    el.classList.add('held');
+    AudioSys.start();
+    grab(e); e.preventDefault(); e.stopPropagation();
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (STICK.id !== e.pointerId) return;
+    grab(e); e.preventDefault(); e.stopPropagation();
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(k2 =>
+    el.addEventListener(k2, (e) => {
+      if (STICK.id !== e.pointerId) return;
+      stickLetGo(); e.preventDefault(); e.stopPropagation();
+    }));
+}
 let showButtons = true;
 try { showButtons = localStorage.getItem('dn-buttons') !== '0'; } catch (e) {}
 function setShowButtons(on) {
   showButtons = !!on;
   touchEl.classList.toggle('hidden', !showButtons);
+  syncStick();
   try { localStorage.setItem('dn-buttons', showButtons ? '1' : '0'); } catch (e) {}
 }
 
@@ -10707,34 +10902,48 @@ function boostLogic(dt, want1, want2, want3) {
    and they must agree: the flat view draws it as part of the world, and paper
    3D has to place it on the overlay canvas from a projected head position. */
 const BOOST_UP = 88;   // sprite pixels above the feet, in both views
-function boostGauge() {
-  if (!save.gadgets.jetboots) return null;
-  if (P.boost >= BOOST_MAX && P.boostCd <= 0) return null;   // full: nothing to say
-  return P.boostCd > 0
-    ? { color: '#ff7a2f', frac: 1 - P.boostCd / BOOST_CD }
-    : { color: '#ffd12e', frac: P.boost / BOOST_MAX };
+/* Everything with something to say above somebody's head, top to bottom.
+
+   The boots belong to whoever is being steered. The ability cooldown belongs
+   to the character, so in co-op two heroes can be cooling independently and
+   each wants their own bar over their own head — which is why this takes the
+   actor rather than reading P the way the boots gauge used to. */
+function gaugesFor(A) {
+  const out = [];
+  if (A === P && save.gadgets.jetboots && !(P.boost >= BOOST_MAX && P.boostCd <= 0)) {
+    out.push(P.boostCd > 0
+      ? { color: '#ff7a2f', frac: 1 - P.boostCd / BOOST_CD }
+      : { color: '#ffd12e', frac: P.boost / BOOST_MAX });
+  }
+  const cd = abilityCd(A.char);
+  if (cd > 0) out.push({ color: ABILITY_COL[A.char] || '#9ad0ff', frac: 1 - cd / ABILITY_CD });
+  return out;
 }
-function drawBoostGauge(c, cx, cy, s) {
-  const g = boostGauge();
-  if (!g) return;
-  const bw = 40 * s, bh = 5 * s, bx = cx - bw / 2;
-  c.fillStyle = 'rgba(20,17,15,.75)';
-  c.fillRect(bx - 2 * s, cy - 2 * s, bw + 4 * s, bh + 4 * s);
-  c.fillStyle = g.color;
-  c.fillRect(bx, cy, bw * g.frac, bh);
+function boostGauge() { return gaugesFor(P)[0] || null; }
+function drawBoostGauge(c, cx, cy, s, A) {
+  const gs = gaugesFor(A || P);
+  gs.forEach((g, i) => {
+    const bw = 40 * s, bh = 5 * s, bx = cx - bw / 2, by = cy + i * (bh + 5 * s);
+    c.fillStyle = 'rgba(20,17,15,.75)';
+    c.fillRect(bx - 2 * s, by - 2 * s, bw + 4 * s, bh + 4 * s);
+    c.fillStyle = g.color;
+    c.fillRect(bx, by, bw * g.frac, bh);
+  });
 }
 /* In paper 3D the world is WebGL and the world drawing never reaches the
    screen, so the gauge has to be put on the clear overlay by hand — otherwise
    there is simply nothing above the hero's head to look at. */
 function drawBoostOverlay3d(c) {
-  if (!boostGauge() || !R3 || !R3.spriteScreen) return;
-  for (const a of (isCoop() ? [P, FOLLOW] : [P])) {
-    for (const p of R3.spriteScreen(a, BOOST_UP)) drawBoostGauge(c, p.x, p.y, p.s);
+  if (!R3 || !R3.spriteScreen) return;
+  const cast = isCoop3() ? [P, FOLLOW, LIMEY] : isCoop() ? [P, FOLLOW] : [P];
+  for (const a of cast) {
+    if (!gaugesFor(a).length) continue;
+    for (const p of R3.spriteScreen(a, BOOST_UP)) drawBoostGauge(c, p.x, p.y, p.s, a);
   }
 }
 
 /* shared walking logic for any hero */
-function moveActor(A, dx, dy, dashActive) {
+function moveActor(A, dx, dy, dashActive, scale) {
   A.moving = !!(dx || dy);
   if (dx) A.facing = dx > 0 ? 1 : -1;
   // walking away from the camera shows the hero's back (no moonwalking!)
@@ -10742,7 +10951,10 @@ function moveActor(A, dx, dy, dashActive) {
   if (!A.moving) { A.walk = 0; return; }
   A.walk += 0.26;
   const len = Math.hypot(dx, dy) || 1;
-  const sp = SPEED * (dashActive ? 1.75 : 1);
+  /* Never below about half speed, however gently the stick is pushed: a
+     crawl through a doorway reads as the game being stuck rather than as
+     fine control. */
+  const sp = SPEED * (dashActive ? 1.75 : 1) * Math.max(0.45, Math.min(1, scale === undefined ? 1 : scale));
   const mx = dx / len * sp, my = dy / len * sp;
   if (dashActive && Math.floor(G.t * 20) % 3 === 0) {
     G.particles.push({ x: A.x, y: A.y - 4, vx: -mx * 0.2, vy: -my * 0.2, life: 0.35, max: 0.35, color: '#ffd12e', r: 4, grav: 0 });
@@ -10885,6 +11097,10 @@ function updatePlayer(dt) {
   if (riseWalk(P)) return;         // still climbing out of bed
   let dx = ((keys.right || GP[0].right) ? 1 : 0) - ((keys.left || GP[0].left) ? 1 : 0);
   let dy = ((keys.down || GP[0].down) ? 1 : 0) - ((keys.up || GP[0].up) ? 1 : 0);
+  // the thumbstick, which is analogue — a small push is a small walk
+  let stickScale = 1;
+  const st = stickVec();
+  if (!dx && !dy && st) { dx = st.dx; dy = st.dy; stickScale = 0.45 + st.m * 0.55; }
   // hold-pointer steering (analog)
   if (!dx && !dy && pointer.active) {
     const [wx, wy] = pointerWorldSolo();
@@ -10892,7 +11108,7 @@ function updatePlayer(dt) {
     if (d > 18) { dx = ox / d; dy = oy / d; }
   }
   const [dash] = boostLogic(dt, !!((keys.dash || GP[0].dash) && (dx || dy)), false);
-  moveActor(P, dx, dy, dash);
+  moveActor(P, dx, dy, dash, stickScale);
   if (P.moving) { G.tutMove = (G.tutMove || 0) + 4; if (G.tutMove > 220) markTut('move'); }
   if (P.moving && G.t - lastStep > 0.27) { lastStep = G.t; AudioSys.sfx('step'); }
   if (P.inv > 0) P.inv -= dt;
@@ -11251,6 +11467,11 @@ function doSwitch(who) {
 const PULSE_R = 180;
 const pulseRange = () => (save && save.gadgets.amplifier) ? 265 : PULSE_R;
 function doAbility(char, ox, oy) {
+  /* Still cooling. Say so with a sound and the bar over their head rather
+     than a toast: this is a key somebody is leaning on, and a message every
+     time they lean on it would be worse than the spamming was. */
+  if (!abilityReady(char)) { AudioSys.sfx('bump'); return false; }
+  abilityCds()[char] = ABILITY_CD;
   markTut('ability');
   dailyProg('pulse', 1);
   P.pulse = 1; P.pulseChar = char; P.pulseX = ox; P.pulseY = oy; P.pulseLvl = G.levelId;
@@ -11275,7 +11496,7 @@ function doAbility(char, ox, oy) {
     if (!LIMEY.moving) LIMEY.bored = { kind: 'wiggle', t: 0 }; // happy dance
     toast(coins ? `🖍️ Crayon Cheer! ${coins} coin${coins > 1 ? 's' : ''} rolled over to see the colors!`
       : '🖍️ Crayon Cheer! (nearby coins cannot resist it)');
-    return;
+    return true;
   }
   const targets = char === 'diction' ? 'hc' : 'HX';
   let hit = 0, clue = null;
@@ -11305,6 +11526,7 @@ function doAbility(char, ox, oy) {
   } else if (hit) {
     toast(char === 'diction' ? '✨ Word Wisdom revealed something!' : '✨ Sketch Vision revealed something!');
   }
+  return true;
 }
 
 /* Coins come back.
@@ -14723,9 +14945,11 @@ function openPause() {
       <div class="panel-card"><b>P2 — ${charName(FOLLOW.char)}</b><br>Arrows walk · Enter talk/use · Shift ability${save.gadgets.jetboots ? ' · / dash' : ''}${isCoop3() ? '' : " · ' swap with " + charName(LIMEY.char)}</div>
       ${isCoop3() ? `<div class="panel-card"><b>P3 — ${charName(LIMEY.char)}</b><br>IJKL walk · U talk/use · Y ability${save.gadgets.jetboots ? ' · O dash' : ''}</div>`
         : `<div class="panel-card"><b>🖍️ ${charName(LIMEY.char)} tags along</b><br>Swap either player with them any time — C or '</div>`}` : `
-      <div class="panel-card"><b>Walk</b><br>Arrow keys / WASD — or hold-click and drag toward where you want to go</div>
-      <div class="panel-card"><b>Tap / click</b><br>Talk, use doors, dig — when something is close</div>
-      <div class="panel-card"><b>Ability</b><br>X — Diction reveals green paths &amp; lore; Nina reveals pink paths &amp; treasure; Limey rolls coins in with Crayon Cheer</div>
+      <div class="panel-card"><b>Walk</b><br>${mobileMode
+        ? 'The stick in the bottom corner — push it the way you want to go'
+        : 'Arrow keys / WASD — or hold-click and drag toward where you want to go'}</div>
+      <div class="panel-card"><b>${mobileMode ? 'Tap' : 'Tap / click'}</b><br>Talk, use doors, dig — when something is close</div>
+      <div class="panel-card"><b>Ability</b><br>X — Diction reveals green paths &amp; lore; Nina reveals pink paths &amp; treasure; Limey rolls coins in with Crayon Cheer<br><small>Takes ${ABILITY_CD} seconds to come back — watch the bar over their head</small></div>
       <div class="panel-card"><b>Switch hero</b><br>C — Diction → Nina → Limey → Diction</div>
       <div class="panel-card"><b>Talk / use / dig</b><br>E</div>`}
       <div class="panel-card"><b>Dash</b><br>${save.gadgets.jetboots ? '5s of boost, then a short cooldown' : 'Needs Jet Boots from Penny'}</div>
@@ -14742,7 +14966,8 @@ function openPause() {
       <div class="panel-card"><b>🖥️ Display</b><br><button class="big-btn secondary" id="btn-fs" style="margin-top:4px">Fullscreen</button>
         <button class="big-btn secondary" id="btn-3d" style="margin-top:4px">🎥 View: ${VIEW_LABEL[VIEWMODE]}</button>
         <button class="big-btn secondary" id="btn-buttons" style="margin-top:4px">🎛️ On-screen buttons: ${showButtons ? 'On' : 'Off'}</button>
-        <button class="big-btn secondary" id="btn-speed" style="margin-top:4px">🐢 Speed check</button></div>
+        <button class="big-btn secondary" id="btn-speed" style="margin-top:4px">🐢 Speed check</button>
+        <button class="big-btn secondary" id="btn-mobile" style="margin-top:4px">📱 Touch mode: ${mobileMode ? 'On' : 'Off'}</button></div>
     </div>
     ${padPickerHtml()}
     <button class="big-btn" id="resume">Resume (Esc)</button>
@@ -14767,6 +14992,13 @@ function openPause() {
     openPause();
   };
   panelEl.querySelector('#btn-speed').onclick = speedCheckPanel;
+  panelEl.querySelector('#btn-mobile').onclick = () => {
+    setMobileMode(!mobileMode);
+    AudioSys.sfx('select');
+    toast(mobileMode ? '📱 Touch mode on — stick, and no keys to remember'
+      : '⌨️ Touch mode off — keys are back');
+    openPause();
+  };
   panelEl.querySelector('#btn-3d').onclick = () => {
     setViewMode(VIEWMODE === 'paper' ? 'flat' : 'paper');
     AudioSys.sfx('select');
@@ -16602,6 +16834,14 @@ function updateHint() {
   // one source of truth: the hint describes exactly what E would do
   const it = withWorld(P.lvl, () => bestInteract(P.x, P.y));
   let hint = '';
+  /* …and on a phone, exactly what a tap would do. Every one of these lines
+     is built as "E — <the thing>", so the thing itself is already right and
+     only the instruction in front of it is wrong. */
+  /* A word rather than a pointing-finger emoji: iconize turns every
+     pictograph it does not have a drawing for into a grey "unknown" dot, and
+     it has no drawing for that one — so the hint read as a dot and a
+     sentence. */
+  const touchify = (h) => (mobileMode ? h.replace(/^(E|Enter|U) — /, 'Tap — ') : h);
   if (it) {
     switch (it.kind) {
       case 'npc': hint = `E — talk to ${NPCS[it.npc.id].name}`; break;
@@ -16632,7 +16872,7 @@ function updateHint() {
       case 'lore': hint = has(save.cluesRead, it.k) ? 'E — re-read lore stone' : 'A lore stone… (Diction: press X)'; break;
     }
   }
-  el.innerHTML = iconize(hint);
+  el.innerHTML = iconize(touchify(hint));
 }
 
 /* ---------------- render ---------------- */
@@ -16856,6 +17096,7 @@ function renderWorldView(v) {
       if (LIMEY.inv > 0 && Math.floor(G.t * 12) % 2 === 0) bctx.globalAlpha = 0.45;
       drawPartyMember(bctx, LIMEY);
       bctx.globalAlpha = 1;
+      drawBoostGauge(bctx, LIMEY.x, LIMEY.y - BOOST_UP, 1, LIMEY);   // his Cheer, cooling
     } });
   }
   if (save.flags.scribbleFriend && SCRIB.lvl === G.levelId) {
@@ -16901,14 +17142,14 @@ function renderWorldView(v) {
     if (FOLLOW.inv > 0 && Math.floor(G.t * 12) % 2 === 0) bctx.globalAlpha = 0.45;
     drawPartyMember(bctx, FOLLOW);
     bctx.globalAlpha = 1;
-    if (isCoop()) drawBoostGauge(bctx, FOLLOW.x, FOLLOW.y - BOOST_UP, 1);
+    if (isCoop()) drawBoostGauge(bctx, FOLLOW.x, FOLLOW.y - BOOST_UP, 1, FOLLOW);
   } });
   // player (blinks briefly after an ink hit)
   if (P.lvl === G.levelId) draws.push({ x: P.x, y: sortY(P), fn: () => {
     if (P.inv > 0 && Math.floor(G.t * 12) % 2 === 0) bctx.globalAlpha = 0.45;
     drawPartyMember(bctx, P);
     bctx.globalAlpha = 1;
-    drawBoostGauge(bctx, P.x, P.y - BOOST_UP, 1);   // Jet Boots, when not full
+    drawBoostGauge(bctx, P.x, P.y - BOOST_UP, 1, P);   // boots, and the pulse cooling
   } });
 
   draws.sort((a, b) => a.y - b.y);
@@ -18770,7 +19011,14 @@ function frameInner(ts) {
   if (profOn) profFrames++;
   fpsTick(ts);
   applyPX();
-  const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
+  let dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
+  /* Held still for a measurement. Any test that reads the frame twice and
+     subtracts one from the other is claiming the two reads are of the same
+     picture, and until now nothing made that true: the weather drifted, the
+     cast breathed and blinked, and the difference it measured had the world
+     living in it. A frame of no elapsed time draws exactly what the last one
+     did. */
+  if (stillHold) dt = 0;
   lastTs = ts;
   G.t += dt;
   G.dt = dt;   // how long this frame was, for everything that eases
@@ -18833,6 +19081,7 @@ function frameInner(ts) {
       if (G.state === 'play') updateCat(dt);   // Marmalade pottering about at home
     }));
     if (profOn) profMark('update', performance.now() - t_update);
+    if (G.state === 'play') tickAbilityCd(dt);
     G.fade = Math.max(0, G.fade - dt * 2.2);
     // cameras: solo follows the leader; co-op split screen follows each hero
     const clampAxis = (target, world, view) =>
@@ -19067,6 +19316,13 @@ window.DN = {
   easeK: (k, dt) => ease(k, dt),
   /* what the frame is actually being made of, and what the machine can manage */
   pxWanted: () => wantPX,
+  /* how long until each hero may use their ability again, and the wait itself
+     so a test need not hard-code it */
+  abilityCd: () => Object.assign({ max: ABILITY_CD }, abilityCds()),
+  ability: (who) => {
+    const A = who === 'f' ? FOLLOW : who === 'l' ? LIMEY : P;
+    return withWorld(A.lvl, () => doAbility(A.char, A.x, A.y - 10));
+  },
   // how many frames a second are really happening, and the worst second of play
   fps: () => ({ now: fpsNow, low: fpsLow }),
   gfx: () => Object.assign({ px: PX, canvas: [canvas.width, canvas.height] },
@@ -19091,6 +19347,21 @@ window.DN = {
      the two halves of the measurement are then of two different frames. 0
      hands the decision back to the game. */
   pxHold(px) { pxPin = px || 0; if (pxPin) wantPX = pxPin; return pxPin; },
+  /* tools seam: stop the clock the whole world runs on, so two reads of the
+     frame are two reads of the same picture rather than of two moments. */
+  still: (on) => { stillHold = on !== false; return stillHold; },
+  /* mobile mode, and the stick — pushed by hand so a test need not own a thumb */
+  mobile: (on) => (on === undefined ? mobileMode : setMobileMode(on)),
+  stick: (dx, dy) => {
+    if (dx === undefined) return { dx: STICK.dx, dy: STICK.dy, live: !!stickVec() };
+    if (dx === null) { stickLetGo(); return { dx: 0, dy: 0, live: false }; }
+    STICK.dx = dx; STICK.dy = dy || 0;
+    return { dx: STICK.dx, dy: STICK.dy, live: !!stickVec() };
+  },
+  stickShown: () => {
+    const el = document.getElementById('tc-stick');
+    return !!el && !el.classList.contains('hidden');
+  },
   /* tools seam: what a frame is made of, in milliseconds, averaged over every
      frame since it was switched on. Pass true to start (which clears), false
      to stop, nothing to read. */
@@ -19676,6 +19947,8 @@ dressThePage();   // the stylesheet gets the page's own grain
 save = loadSave() || freshSave();
 rebuildKeymap();   // whatever this save's players chose to drive with
 buildControls();
+stickSetup();
+setMobileMode(mobileMode);
 setShowButtons(showButtons);   // everybody gets the buttons, not just touchscreens
 const bootNote = document.getElementById('boot-note');
 if (bootNote) bootNote.remove(); // scripts are alive — the "can't run" note may go
