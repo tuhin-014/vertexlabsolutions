@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support — VertexLab Solutions</title>
+<meta name="description" content="Help with any VertexLab app: cancel a subscription or free trial, request a refund, restore a purchase, or contact support.">
+<link rel="canonical" href="https://vertexlabsolutions.com/support">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+<style>
+  :root{
+    --bg:#fbf8f3; --card:#ffffff; --ink:#1f1b2e; --ink2:#463f5c; --dim:#766f8a;
+    --line:#ebe4f5; --accent:#6d4ae0; --accentbg:#f1ecfd;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#15131f; --card:#1e1b2c; --ink:#f3f0fa; --ink2:#cfc8e2; --dim:#9b93b5;
+      --line:#2e2944; --accent:#b7a4ff; --accentbg:#2a2344;
+    }
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    max-width:760px;margin:0 auto;padding:40px 20px 80px;line-height:1.65;font-size:17px}
+  a{color:var(--accent)}
+  h1{font-size:2rem;line-height:1.15;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--dim);margin:0 0 32px;font-size:1.02rem}
+  h2{font-size:1.18rem;margin:38px 0 10px;letter-spacing:-.01em;
+     padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:1rem;margin:22px 0 4px}
+  p,li{color:var(--ink2)}
+  p{margin:0 0 12px}
+  ul{padding-left:20px;margin:0 0 12px}
+  li{margin-bottom:5px}
+  b,strong{color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:18px 0}
+  .mail{background:var(--accentbg);border:1px solid var(--accent);border-radius:12px;padding:20px 22px;margin:18px 0}
+  .mail a{font-weight:600;font-size:1.08rem}
+  .steps{counter-reset:s;list-style:none;padding-left:0}
+  .steps li{counter-increment:s;position:relative;padding-left:30px;margin-bottom:8px}
+  .steps li::before{content:counter(s);position:absolute;left:0;top:1px;
+    width:21px;height:21px;border-radius:50%;background:var(--accentbg);color:var(--accent);
+    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  select{font:inherit;font-size:16px;width:100%;max-width:420px;padding:10px 12px;
+    border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);
+    margin:4px 0 14px}
+  select:focus{outline:2px solid var(--accent);outline-offset:1px}
+  label{display:block;font-size:14px;color:var(--dim);font-weight:600;margin-bottom:2px}
+  .appnote{font-size:15px;color:var(--dim);margin:0}
+  footer{margin-top:46px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:14px}
+</style>
+</head>
+<body>
+
+<h1>Support</h1>
+<p class="sub">Help with any VertexLab app. Most answers are on this page — if you still need us, there's an email link below.</p>
+
+<h2>Cancel a subscription or free trial</h2>
+<p>This is the most common reason people write to us, so it's first. <b>Apple bills every subscription and free trial, not us</b>, which means we're not able to cancel one for you — but you can do it yourself in about twenty seconds:</p>
+<ol class="steps">
+  <li>Open the <b>Settings</b> app on your iPhone or iPad</li>
+  <li>Tap <b>your name</b> at the very top</li>
+  <li>Tap <b>Subscriptions</b></li>
+  <li>Tap the app you want to cancel</li>
+  <li>Tap <b>Cancel Subscription</b>, then confirm</li>
+</ol>
+<p><b>Cancel before the trial ends and you are not charged anything.</b> You keep access until the last day of the trial or the period you've already paid for, and nothing on your device is deleted.</p>
+<p>If you don't see the app listed under Subscriptions, it was either already cancelled or bought with a different Apple Account — check that you're signed in with the one used to subscribe.</p>
+
+<h2>Refunds</h2>
+<p>Apple handles all App Store refunds, so we can't issue one directly. Request a refund at <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a>: sign in with your Apple Account, find the charge, and choose <b>Request a refund</b>. Apple decides these, usually within a couple of days.</p>
+<p>If something didn't work as described, please tell us as well — a refund fixes your bill, but only a bug report fixes the app.</p>
+
+<h2>Restore a purchase</h2>
+<p>If you've paid before and the app is asking you to pay again, look for <b>Restore Purchases</b> on the app's subscribe or settings screen. Make sure the device is signed in with the Apple Account that originally paid. If it still doesn't unlock, email us with that Apple Account address and we'll look into it.</p>
+
+<h2>Email us</h2>
+<p>Pick your app first — it tells us which of our apps you're writing about, so we can answer without having to ask.</p>
+
+<div class="mail">
+  <label for="app">Which app are you using?</label>
+  <select id="app" aria-describedby="picked">
+    <option value="">Select an app…</option>
+  </select>
+  <p style="margin:0 0 6px"><!--email_off--><a id="mail" href="mailto:support@vertexlabsolutions.com">support@vertexlabsolutions.com</a><!--/email_off--></p>
+  <p class="appnote" id="picked">We read everything and usually reply within 48 hours. Telling us your iPhone model and iOS version helps us fix things faster.</p>
+</div>
+
+<div class="card" id="dedicated" hidden>
+  <p style="margin:0"><b>There's a detailed help page for this app:</b> <a id="dedlink" href="#">open it</a> — it covers subscriptions, restoring purchases and what's free.</p>
+</div>
+
+<h2>Privacy and your data</h2>
+<p>Our apps are built to keep your data on your device wherever possible. Each app's privacy policy is linked from its App Store listing. To request deletion of anything we hold, email us with the app name and we'll confirm when it's done.</p>
+
+<footer>
+  <p>VertexLab Solutions · <a href="/">vertexlabsolutions.com</a></p>
+</footer>
+
+<script>
+// App list mirrors the live App Store catalogue. `page` is set only where a
+// dedicated support page exists, so the picker can hand people the better page.
+var APPS = [
+  ["Anatomly: Anatomy Quiz Game","/anatomly/support"],
+  ["BabyCue: Baby & Feed Tracker","/babycue/support"],
+  ["Bake Along",""],
+  ["Bedtime Adventure Stories",""],
+  ["BizShield: Compliance & Tax",""],
+  ["BudgetQuest","/budgetquest/support"],
+  ["CleanVerify - Cleaning Proof",""],
+  ["ClearScan - Doc Scanner & Sign",""],
+  ["Cosmos: Space Exploration",""],
+  ["CrewDay: Daily Report Log",""],
+  ["DeenBoard",""],
+  ["DepositGuard",""],
+  ["DopaFlow - ADHD Focus Timer",""],
+  ["Drawtopia: Kids Learn to Draw","/drawtopia/support"],
+  ["DriftOff: Better Sleep",""],
+  ["Emberwell: Perimenopause","/emberwell/support"],
+  ["FamilyBridge: Care & Connect",""],
+  ["Foldly: Origami for Kids","/foldly/support"],
+  ["HalalWise - Halal Food Scanner",""],
+  ["HomeBase - Home Inventory",""],
+  ["LandlordFlow: Rent Tracker",""],
+  ["LeanFast-Fasting & Weight Loss",""],
+  ["MoodBit",""],
+  ["MuslimWise - Islamic Companion",""],
+  ["NerveCalm - Vagus Nerve","/nervecalm/support"],
+  ["PawLife",""],
+  ["PillFlow Pro",""],
+  ["PixelFix - AI Photo Tools",""],
+  ["Plainfact: Custody & Kid Log","/plainfact/support.html"],
+  ["PopHood — Mobile Mechanic Pro",""],
+  ["PrepWing: AI Interview Prep",""],
+  ["ProteinDose: GLP-1 Tracker",""],
+  ["QuitTrack — Quit Any Bad Habit",""],
+  ["QuranKids-Learn Quran Reading",""],
+  ["Settle: Probate & Executor",""],
+  ["Shape Playground 3D",""],
+  ["SideHustle Boss: Mileage & Tax",""],
+  ["Skincare Scanner: Skin Log",""],
+  ["StudySnap: AI Tutor Homework",""],
+  ["SubWatch-Subscription Tracker",""],
+  ["TradeInvoice for Contractors",""],
+  ["Unplug: Digital Detox Tracker",""]
+];
+(function(){
+  var sel = document.getElementById('app');
+  var mail = document.getElementById('mail');
+  var ded = document.getElementById('dedicated');
+  var dedlink = document.getElementById('dedlink');
+  var note = document.getElementById('picked');
+  var baseNote = note.textContent;
+
+  APPS.forEach(function(a){
+    var o = document.createElement('option');
+    o.value = a[0]; o.textContent = a[0];
+    o.setAttribute('data-page', a[1]);
+    sel.appendChild(o);
+  });
+
+  sel.addEventListener('change', function(){
+    var name = sel.value;
+    if (!name){
+      mail.href = 'mailto:support@vertexlabsolutions.com';
+      ded.hidden = true;
+      note.textContent = baseNote;
+      return;
+    }
+    // Subject carries the app name so the reply doesn't start with "which app?"
+    mail.href = 'mailto:support@vertexlabsolutions.com?subject='
+              + encodeURIComponent(name + ' — Support');
+    note.textContent = 'Writing to us about ' + name + '. ' + baseNote;
+    var page = sel.options[sel.selectedIndex].getAttribute('data-page');
+    if (page){ dedlink.href = page; ded.hidden = false; }
+    else { ded.hidden = true; }
+  });
+})();
+</script>
+</body>
+</html>
