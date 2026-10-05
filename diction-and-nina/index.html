@@ -199,7 +199,7 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
 /* The thumbstick, bottom left, where a thumb already is when a phone is held
    the long way round. Big: this is aimed at a seven-year-old's thumb, not a
    mouse pointer. See-through, because it is sitting on top of the land. */
-#tc-stick {
+.tc-stick {
   position:absolute; left:16px; bottom:16px;
   width:124px; height:124px; border-radius:50%;
   border:3px solid rgba(20,17,15,.66); background:rgba(255,252,242,.30);
@@ -207,14 +207,33 @@ canvas#gl { position:absolute; left:0; top:0; width:100%; height:100%; border-ra
   pointer-events:auto; touch-action:none; -webkit-user-select:none; user-select:none;
   box-shadow:0 2px 0 rgba(0,0,0,.14);
 }
-#tc-stick.hidden { display:none; }
-#tc-knob {
+/* two or three people round one screen get one each: player one under the
+   left thumb, player two under the right, and the third in the middle where
+   a third pair of hands can reach it. */
+.tc-stick-right { left:auto; right:16px; }
+.tc-stick-mid {
+  left:50%; right:auto; bottom:10px; transform:translateX(-50%);
+  width:104px; height:104px;
+}
+.tc-stick.hidden { display:none; }
+.tc-knob {
   width:58px; height:58px; border-radius:50%;
   border:3px solid #14110f; background:rgba(255,223,94,.92);
   pointer-events:none; will-change:transform;
   transition:transform .06s linear;
 }
-#tc-stick.held #tc-knob { transition:none; background:#ffd12e; }
+.tc-stick-right .tc-knob { background:rgba(255,168,216,.92); }
+.tc-stick-mid .tc-knob { width:50px; height:50px; background:rgba(242,138,28,.92); }
+.tc-stick.held .tc-knob { transition:none; filter:brightness(1.12); }
+/* the talk button lives in the bottom right corner, which in two-player is
+   where player two's thumb is — so it moves up out of their way */
+/* clear of the right-hand stick, which in co-op sits 46px up and is 124
+   tall — so anything below 170 would be under player two's thumb */
+body.dn-two-sticks .tc-right { bottom:184px; }
+/* in co-op each pane wears its player's name along its bottom edge, so the
+   sticks come up off the floor to leave it readable */
+body.dn-two-sticks .tc-stick { bottom:46px; }
+body.dn-two-sticks .tc-stick-mid { bottom:34px; }
 /* A phone has no keys, so it should not be shown any. */
 body.dn-mobile .tc-menu .tc-key { display:none; }
 /* and the rack moves up out of the corner, which now belongs to the stick */
@@ -611,7 +630,9 @@ body.dn-mobile .tc-menu .tc-ic { font-size:17px; }
     <!-- you can always walk by holding anywhere on the world and dragging,
          but only if somebody has told you so. On a touch screen there is a
          stick in the corner as well, which is a thing you can see. -->
-    <div id="tc-stick" class="hidden" aria-label="Walk"><div id="tc-knob"></div></div>
+    <div id="tc-stick" class="tc-stick hidden" aria-label="Walk"><div class="tc-knob"></div></div>
+    <div id="tc-stick2" class="tc-stick tc-stick-right hidden" aria-label="Walk (player 2)"><div class="tc-knob"></div></div>
+    <div id="tc-stick3" class="tc-stick tc-stick-mid hidden" aria-label="Walk (player 3)"><div class="tc-knob"></div></div>
     <!-- every other control, generated from the CONTROLS table in game.js -->
     <div id="tc-rack"></div>
     <div class="tc-right">
@@ -9662,6 +9683,8 @@ const PX_SLOW = 0.030;               // a frame this long is under ~33 a second
 let pxWatch = { t: 0, n: 0, acc: 0, floor: 1 };
 let pxPin = 0;                       // a resolution held by hand; 0 is nobody's
 let stillHold = false;               // the world holding its breath for a measurement
+let lastTs0 = 0;                     // the real clock, for movement's own frame length
+let lastStickCount = -1;             // so the sticks follow the party size
 
 /* Where a frame actually goes.
 
@@ -9731,8 +9754,36 @@ function applyPX() {
 }
 
 const SPEED = 3.6;
+/* Walking measured in seconds rather than in frames.
+
+   Everything that moved did so by a fixed number of pixels per FRAME. SPEED
+   is 3.6, so sixty frames a second is 216 pixels a second — and twenty frames
+   a second is seventy-two. On a machine that cannot keep up, the whole game
+   played in slow motion: not a stutter, which is what drawing fewer pixels
+   fixes, but the entire thing running at a third speed. Four versions of work
+   on being laggy went past this without seeing it.
+
+   The cat already knew — `CAT_SPEED * 60 * dt` — and nobody else did.
+
+   frameK is how many sixtieths of a second this frame lasted, so multiplying
+   a per-frame stride by it makes it a per-second one. At sixty frames a
+   second it is exactly 1 and nothing changes at all. G.dt is capped at a
+   twentieth of a second, so below twenty frames a second the game still
+   slows — but that cap is also what stops a frame dropped behind a tab
+   teleporting everybody across the land, and twenty is where the quality
+   ladder is aiming anyway. */
+/* Movement gets its own, longer cap than everything else. G.dt is held to a
+   twentieth of a second so that a frame dropped behind a tab cannot advance
+   every timer in the game at once — but a Chromebook drawing fifteen frames a
+   second is not a dropped frame, it is Tuesday, and capping its stride at a
+   twentieth leaves it still walking at three quarters speed. Movement can
+   afford the longer cap because every step is taken a pixel at a time against
+   the walls, and the followers and villagers never step past what they were
+   walking towards. */
+const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
+function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v145 · A stick you can see, a pulse that waits, and three books in chalk";
+const GAME_VERSION = "v147 · A slow machine was playing the whole game in slow motion";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -9849,7 +9900,11 @@ function easedStep(A, want) { // ease speed changes so the walk cycle stays even
    the tile lookup. */
 function followStep(A, d, room) {
   if (!(d > 0.001)) { A.spd = 0; return 0; }   // also catches a NaN distance
-  return easedStep(A, Math.min(d, SPEED * 1.9, room));
+  /* The eased speed is a stride per frame, so it is stretched to the length
+     of the frame — and then capped again by how far there actually is to go,
+     because a long frame on a slow machine would otherwise stride straight
+     past the person it is following. */
+  return Math.min(d, room, easedStep(A, Math.min(d, SPEED * 1.9, room)) * frameK());
 }
 let trail = [];
 /* first open spot near (px,py) that isn't on top of anyone — so the family
@@ -10237,57 +10292,92 @@ function setMobileMode(on) {
   try { localStorage.setItem('dn-mobile', mobileMode ? '1' : '0'); } catch (e) {}
   return mobileMode;
 }
-/* The stick only exists where it is wanted: in mobile mode, with the
-   on-screen controls on. */
-function syncStick() {
-  const el = document.getElementById('tc-stick');
-  if (el) el.classList.toggle('hidden', !(mobileMode && showButtons));
-  if (!(mobileMode && showButtons)) stickLetGo();
-}
-/* The thumbstick itself. Analogue: a small push is a small walk, which is
-   what makes a stick better than four arrows for getting through a doorway. */
-const STICK = { id: null, dx: 0, dy: 0 };
+/* The thumbsticks. Analogue: a small push is a small walk, which is what
+   makes a stick better than four arrows for getting through a doorway.
+
+   One per player, not one for the game. The first of these was wired into
+   updatePlayer alone — and two or three people sharing a screen are moved by
+   updateCoop, which reads the keyboard and the gamepads and knew nothing
+   about any stick. So in co-op the stick did nothing whatever, which is
+   exactly what it looked like. */
+const STICKS = [{ id: null, dx: 0, dy: 0 }, { id: null, dx: 0, dy: 0 }, { id: null, dx: 0, dy: 0 }];
+const STICK_IDS = ['tc-stick', 'tc-stick2', 'tc-stick3'];
 const STICK_DEAD = 0.22;        // below this it is a thumb resting, not steering
-function stickVec() {
-  const m = Math.hypot(STICK.dx, STICK.dy);
-  if (m < STICK_DEAD) return null;
-  return { dx: STICK.dx, dy: STICK.dy, m: Math.min(1, m) };
+/* How many sticks this game wants: one each, up to however many are playing. */
+function stickCount() {
+  if (!mobileMode || !showButtons) return 0;
+  if (isCoop3()) return save.flags.limeyJoined ? 3 : 2;
+  return isCoop() ? 2 : 1;
 }
-function stickLetGo() {
-  STICK.id = null; STICK.dx = 0; STICK.dy = 0;
-  const el = document.getElementById('tc-stick'), k = document.getElementById('tc-knob');
-  if (el) el.classList.remove('held');
-  if (k) k.style.transform = 'translate(0px,0px)';
+function stickVec(slot) {
+  const S2 = STICKS[slot || 0];
+  if (!S2) return null;
+  const m = Math.hypot(S2.dx, S2.dy);
+  if (m < STICK_DEAD) return null;
+  return { dx: S2.dx, dy: S2.dy, m: Math.min(1, m) };
+}
+/* What a stick is worth as a walking speed: never below about half, however
+   gently it is pushed, so fine control never reads as being stuck. */
+function stickScaleOf(slot) {
+  const v = stickVec(slot);
+  return v ? 0.45 + v.m * 0.55 : 1;
+}
+function stickLetGo(slot) {
+  const S2 = STICKS[slot];
+  if (!S2) return;
+  S2.id = null; S2.dx = 0; S2.dy = 0;
+  const el = document.getElementById(STICK_IDS[slot]);
+  if (el) {
+    el.classList.remove('held');
+    const k = el.firstElementChild;
+    if (k) k.style.transform = 'translate(0px,0px)';
+  }
+}
+function stickLetGoAll() { for (let i = 0; i < STICKS.length; i++) stickLetGo(i); }
+/* The sticks that should be on screen, and the talk button getting out of the
+   way of the one on the right. */
+function syncStick() {
+  const want = stickCount();
+  STICK_IDS.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const on = i < want;
+    el.classList.toggle('hidden', !on);
+    if (!on) stickLetGo(i);
+  });
+  document.body.classList.toggle('dn-two-sticks', want >= 2);
 }
 function stickSetup() {
-  const el = document.getElementById('tc-stick'), knob = document.getElementById('tc-knob');
-  if (!el || !knob) return;
-  const grab = (e) => {
-    const b = el.getBoundingClientRect();
-    const rad = b.width / 2;
-    let dx = (e.clientX - (b.left + rad)) / rad, dy = (e.clientY - (b.top + rad)) / rad;
-    const m = Math.hypot(dx, dy);
-    if (m > 1) { dx /= m; dy /= m; }
-    STICK.dx = dx; STICK.dy = dy;
-    // the knob rides at most to the rim, minus its own edge
-    knob.style.transform = `translate(${dx * (rad - 30)}px,${dy * (rad - 30)}px)`;
-  };
-  el.addEventListener('pointerdown', (e) => {
-    STICK.id = e.pointerId;
-    try { el.setPointerCapture(e.pointerId); } catch (e2) {}
-    el.classList.add('held');
-    AudioSys.start();
-    grab(e); e.preventDefault(); e.stopPropagation();
+  STICK_IDS.forEach((id, slot) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const knob = el.firstElementChild;
+    const grab = (e) => {
+      const b = el.getBoundingClientRect();
+      const rad = b.width / 2;
+      let dx = (e.clientX - (b.left + rad)) / rad, dy = (e.clientY - (b.top + rad)) / rad;
+      const m = Math.hypot(dx, dy);
+      if (m > 1) { dx /= m; dy /= m; }
+      STICKS[slot].dx = dx; STICKS[slot].dy = dy;
+      if (knob) knob.style.transform = `translate(${dx * (rad - 30)}px,${dy * (rad - 30)}px)`;
+    };
+    el.addEventListener('pointerdown', (e) => {
+      STICKS[slot].id = e.pointerId;
+      try { el.setPointerCapture(e.pointerId); } catch (e2) {}
+      el.classList.add('held');
+      AudioSys.start();
+      grab(e); e.preventDefault(); e.stopPropagation();
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (STICKS[slot].id !== e.pointerId) return;
+      grab(e); e.preventDefault(); e.stopPropagation();
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(k2 =>
+      el.addEventListener(k2, (e) => {
+        if (STICKS[slot].id !== e.pointerId) return;
+        stickLetGo(slot); e.preventDefault(); e.stopPropagation();
+      }));
   });
-  el.addEventListener('pointermove', (e) => {
-    if (STICK.id !== e.pointerId) return;
-    grab(e); e.preventDefault(); e.stopPropagation();
-  });
-  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(k2 =>
-    el.addEventListener(k2, (e) => {
-      if (STICK.id !== e.pointerId) return;
-      stickLetGo(); e.preventDefault(); e.stopPropagation();
-    }));
 }
 let showButtons = true;
 try { showButtons = localStorage.getItem('dn-buttons') !== '0'; } catch (e) {}
@@ -10949,12 +11039,14 @@ function moveActor(A, dx, dy, dashActive, scale) {
   // walking away from the camera shows the hero's back (no moonwalking!)
   if (A.moving) A.back = backFacing(A, dx, dy);
   if (!A.moving) { A.walk = 0; return; }
-  A.walk += 0.26;
+  const k = frameK();
+  A.walk += 0.26 * k;
   const len = Math.hypot(dx, dy) || 1;
   /* Never below about half speed, however gently the stick is pushed: a
      crawl through a doorway reads as the game being stuck rather than as
      fine control. */
-  const sp = SPEED * (dashActive ? 1.75 : 1) * Math.max(0.45, Math.min(1, scale === undefined ? 1 : scale));
+  const sp = SPEED * (dashActive ? 1.75 : 1)
+    * Math.max(0.45, Math.min(1, scale === undefined ? 1 : scale)) * k;
   const mx = dx / len * sp, my = dy / len * sp;
   if (dashActive && Math.floor(G.t * 20) % 3 === 0) {
     G.particles.push({ x: A.x, y: A.y - 4, vx: -mx * 0.2, vy: -my * 0.2, life: 0.35, max: 0.35, color: '#ffd12e', r: 4, grav: 0 });
@@ -11099,8 +11191,8 @@ function updatePlayer(dt) {
   let dy = ((keys.down || GP[0].down) ? 1 : 0) - ((keys.up || GP[0].up) ? 1 : 0);
   // the thumbstick, which is analogue — a small push is a small walk
   let stickScale = 1;
-  const st = stickVec();
-  if (!dx && !dy && st) { dx = st.dx; dy = st.dy; stickScale = 0.45 + st.m * 0.55; }
+  const st = stickVec(0);
+  if (!dx && !dy && st) { dx = st.dx; dy = st.dy; stickScale = stickScaleOf(0); }
   // hold-pointer steering (analog)
   if (!dx && !dy && pointer.active) {
     const [wx, wy] = pointerWorldSolo();
@@ -11386,8 +11478,14 @@ function updateCoop(dt) {
      is the only place that knows which hand belongs to whom. */
   const ax = (slot) => {
     const m = padFor(slot).move, g = GP[slot] || {};
-    return [((raw[m[3]] || g.right) ? 1 : 0) - ((raw[m[1]] || g.left) ? 1 : 0),
-            ((raw[m[2]] || g.down) ? 1 : 0) - ((raw[m[0]] || g.up) ? 1 : 0)];
+    const dx = ((raw[m[3]] || g.right) ? 1 : 0) - ((raw[m[1]] || g.left) ? 1 : 0);
+    const dy = ((raw[m[2]] || g.down) ? 1 : 0) - ((raw[m[0]] || g.up) ? 1 : 0);
+    // …and this player's own stick, if they are steering with a thumb
+    if (!dx && !dy) {
+      const v = stickVec(slot);
+      if (v) return [v.dx, v.dy];
+    }
+    return [dx, dy];
   };
   riseWalk(P); riseWalk(FOLLOW); riseWalk(LIMEY);   // anybody still climbing out
   const [d1x, d1y] = ax(0);
@@ -11415,19 +11513,19 @@ function updateCoop(dt) {
   } else { handsOff = [0, 0, 0]; }
   // each player walks inside their own land
   withWorld(P.lvl, () => {
-    if (!carriedNow(P) && !busyNow(P)) moveActor(P, d1x, d1y, dash1);
+    if (!carriedNow(P) && !busyNow(P)) moveActor(P, d1x, d1y, dash1, stickScaleOf(0));
     if (P.inv > 0) P.inv -= dt;
     actorHazards(P); actorPickups(P);
   });
   withWorld(FOLLOW.lvl, () => {
     if (carriedNow(FOLLOW) || busyNow(FOLLOW)) { /* off the ground, or busy */ }
-    else if (!(towed[1] && tagAlong(FOLLOW, 44))) moveActor(FOLLOW, d2x, d2y, dash2);
+    else if (!(towed[1] && tagAlong(FOLLOW, 44))) moveActor(FOLLOW, d2x, d2y, dash2, stickScaleOf(1));
     if (FOLLOW.inv > 0) FOLLOW.inv -= dt;
     actorHazards(FOLLOW); actorPickups(FOLLOW);
   });
   if (p3) withWorld(LIMEY.lvl, () => {
     if (carriedNow(LIMEY) || busyNow(LIMEY)) { /* off the ground, or busy */ }
-    else if (!(towed[2] && tagAlong(LIMEY, 82))) moveActor(LIMEY, d3x, d3y, dash3);
+    else if (!(towed[2] && tagAlong(LIMEY, 82))) moveActor(LIMEY, d3x, d3y, dash3, stickScaleOf(2));
     if (LIMEY.inv > 0) LIMEY.inv -= dt;
     actorHazards(LIMEY); actorPickups(LIMEY);
   });
@@ -11854,7 +11952,7 @@ function updateNPCs(dt) {
     }
     const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
     if (d < 5) { a.tx = null; a.wait = 1.5 + Math.random() * 4; a.moving = false; a.walk = 0; continue; }
-    const sp = SPEED * 0.42;
+    const sp = Math.min(d, SPEED * 0.42 * frameK());
     const nx = a.x + dx / d * sp, ny = a.y + dy / d * sp;
     let moved = false;
     if (!boxBlocked(nx, a.y)) { a.x = nx; moved = true; }
@@ -11862,7 +11960,7 @@ function updateNPCs(dt) {
     if (!moved) { a.tx = null; a.wait = 1.2; a.moving = false; continue; }
     if (Math.abs(dx) > 2) a.facing = dx > 0 ? 1 : -1;
     a.moving = true;
-    a.walk += 0.2;
+    a.walk += 0.2 * frameK();
   }
 }
 /* Somebody who has been asked over: they make their own way to the fire, take
@@ -11949,7 +12047,9 @@ function followRoute(a, st, goal, sp, dt) {
   if (onRoute) { if (d < 7) { route.shift(); return false; } }
   else if (d < 4) { a.moving = false; a.walk = 0; return true; }
   const wasX = a.x, wasY = a.y;
-  const nx = a.x + (dx / d) * sp, ny = a.y + (dy / d) * sp;
+  // the caller hands a stride per frame; make it a stride per second
+  const spk = Math.min(d, sp * frameK());
+  const nx = a.x + (dx / d) * spk, ny = a.y + (dy / d) * spk;
   if (!boxBlocked(nx, a.y)) a.x = nx;
   if (!boxBlocked(a.x, ny)) a.y = ny;
   /* Rubbing along a wall means the route is out of date — somebody stood in a
@@ -11958,7 +12058,7 @@ function followRoute(a, st, goal, sp, dt) {
   if (got < 0.4) st.replan = 0;
   st.stall = got < 0.4 ? (st.stall || 0) + dt : 0;
   if (Math.abs(dx) > 2) a.facing = dx > 0 ? 1 : -1;
-  a.moving = true; a.walk += 0.2;
+  a.moving = true; a.walk += 0.2 * frameK();
   return false;
 }
 function walkGuest(a, dt) {
@@ -12139,7 +12239,12 @@ function dlgTick() {
   if (!dlgActive()) return;
   const line = dlgQueue[dlgIdx];
   if (dlgShown < line.text.length) {
-    dlgShown = Math.min(line.text.length, dlgShown + 1.6);
+    /* Letters a second, not letters a frame. At 1.6 a frame, sixty frames a
+       second types ninety-six letters a second and fifteen types twenty-four
+       — so on a slow machine everybody also *spoke* in slow motion, and a
+       test that waited half a second for a sentence got most of a sentence.
+       Which is how this was found. */
+    dlgShown = Math.min(line.text.length, dlgShown + 1.6 * frameK());
     dlgText.textContent = line.text.slice(0, Math.floor(dlgShown));
     if (Math.floor(dlgShown) % 3 === 0) AudioSys.sfx('talk');
   } else if (line.choices && !dlgChoices.childElementCount) {
@@ -18998,7 +19103,15 @@ function showCrash(msg) {
 }
 window.addEventListener('error', (ev) => showCrash(ev.message || 'unknown error'));
 let lastTs = 0;
+let fpsCap = 0, capLast = 0;         // tools seam: pretend to be a slower machine
 function frame(ts) {
+  if (fpsCap) {
+    if (ts - capLast < 1000 / fpsCap - 1) { requestAnimationFrame(frame); return; }
+    capLast = ts;
+  }
+  return frameReal(ts);
+}
+function frameReal(ts) {
   try {
     frameInner(ts);
   } catch (e) {
@@ -19019,6 +19132,10 @@ function frameInner(ts) {
      living in it. A frame of no elapsed time draws exactly what the last one
      did. */
   if (stillHold) dt = 0;
+  /* what the frame really lasted, for the things that have to cover the same
+     ground per second whatever the frame rate */
+  G.dtMove = stillHold ? 0 : Math.min(DT_MOVE_MAX, Math.max(0, (ts - (lastTs0 || ts)) / 1000) || 1 / 60);
+  lastTs0 = ts;
   lastTs = ts;
   G.t += dt;
   G.dt = dt;   // how long this frame was, for everything that eases
@@ -19082,6 +19199,8 @@ function frameInner(ts) {
     }));
     if (profOn) profMark('update', performance.now() - t_update);
     if (G.state === 'play') tickAbilityCd(dt);
+    // the number of players can change mid-game, and the sticks follow it
+    if (stickCount() !== lastStickCount) { lastStickCount = stickCount(); syncStick(); }
     G.fade = Math.max(0, G.fade - dt * 2.2);
     // cameras: solo follows the leader; co-op split screen follows each hero
     const clampAxis = (target, world, view) =>
@@ -19350,16 +19469,31 @@ window.DN = {
   /* tools seam: stop the clock the whole world runs on, so two reads of the
      frame are two reads of the same picture rather than of two moments. */
   still: (on) => { stillHold = on !== false; return stillHold; },
+  /* tools seam: run at this many frames a second however fast this machine
+     is, so that what a slow one does can be measured on a quick one. 0 is
+     as fast as it will go. */
+  fpsCap: (n) => { fpsCap = n || 0; capLast = 0; return fpsCap; },
+  // how long the last frame was, as movement sees it
+  frameK: () => Math.round(frameK() * 1000) / 1000,
+  /* tools seam: put a line on the screen and watch it being typed out, which
+     happens at a rate that used to be counted in frames */
+  says: (text) => { say([{ who: 'narrator', text: String(text) }]); return !!dlgActive(); },
   /* mobile mode, and the stick — pushed by hand so a test need not own a thumb */
   mobile: (on) => (on === undefined ? mobileMode : setMobileMode(on)),
-  stick: (dx, dy) => {
-    if (dx === undefined) return { dx: STICK.dx, dy: STICK.dy, live: !!stickVec() };
-    if (dx === null) { stickLetGo(); return { dx: 0, dy: 0, live: false }; }
-    STICK.dx = dx; STICK.dy = dy || 0;
-    return { dx: STICK.dx, dy: STICK.dy, live: !!stickVec() };
+  stick: (dx, dy, slot) => {
+    const i = slot || 0, S2 = STICKS[i];
+    if (dx === undefined) return { dx: S2.dx, dy: S2.dy, live: !!stickVec(i) };
+    if (dx === null) { stickLetGo(i); return { dx: 0, dy: 0, live: false }; }
+    S2.dx = dx; S2.dy = dy || 0;
+    return { dx: S2.dx, dy: S2.dy, live: !!stickVec(i) };
   },
-  stickShown: () => {
-    const el = document.getElementById('tc-stick');
+  // how many sticks are on screen, and whether a given one is
+  sticksShown: () => STICK_IDS.filter(id => {
+    const el = document.getElementById(id);
+    return el && !el.classList.contains('hidden');
+  }).length,
+  stickShown: (slot) => {
+    const el = document.getElementById(STICK_IDS[slot || 0]);
     return !!el && !el.classList.contains('hidden');
   },
   /* tools seam: what a frame is made of, in milliseconds, averaged over every
