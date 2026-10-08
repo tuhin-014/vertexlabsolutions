@@ -8617,13 +8617,11 @@ window.R3Factory = function (env) {
       L.smoke.push({ x: chx, y: hh + 2.4, z: chz, off: (d.col * 0.7 + d.row * 0.31) % 3, puffs });
       L.group.add(bod);
       L.occluders.push(bod);
-      /* One storybook ink line round the whole house. It used to be three —
-         walls, roof and door each got their own — and the house is now one
-         mesh, so three would be three copies of the same outline sitting on
-         top of each other. */
-      const hull = inkHull(bod, 0.24);
-      L.group.add(hull);
-      L.occluders.push(hull);   // fades in step with the wall it hugs
+      /* No ink line round the house. It was drawn as a fattened copy of the
+         whole thing turned inside out, which reads as a heavy black edge
+         round the silhouette — and the house has quoins, a fascia, sills and
+         a ridge of its own now, so the shape is legible without one being
+         drawn round the outside of it. A draw call per house back, too. */
       if (d.label) {
         const tx = canvasTex(256, 48, (c2) => {
           c2.fillStyle = '#fffcf2'; c2.fillRect(0, 0, 256, 48);
@@ -10074,7 +10072,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v148 · Turned, not stacked — and a town for forty fewer draw calls";
+const GAME_VERSION = "v149 · The houses do not need a line drawn round them";
 
 /* ---------------- state ---------------- */
 const G = {
