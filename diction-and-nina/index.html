@@ -7260,85 +7260,237 @@ window.R3Factory = function (env) {
     const g = new THREE.Group();
     const TG = THEME_G[theme] || THEME_G.town;
     if (type === 'T') {
-      /* A trunk does not meet the ground at a right angle — it flares into it,
-         and that flare is most of what tells you a tree is growing rather than
-         standing in a pot. Three balls on a stick is a lollipop; foliage is
-         clumps of different sizes in two greens, because a canopy catches the
-         light unevenly. */
-      const flare = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.30, 0.22, 9), M(0x7d5126));
-      flare.position.y = 0.11;
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, 0.9, 9), M(0x8a5a2b));
-      trunk.position.y = 0.55;
-      g.add(flare, trunk);
-      [[0, 1.42, 0, 0.5, 0], [-0.40, 1.13, 0.06, 0.36, 1], [0.40, 1.16, -0.05, 0.36, 0],
-       [0.16, 1.62, 0.18, 0.28, 1], [-0.22, 1.50, -0.20, 0.26, 0], [0.05, 1.05, 0.30, 0.24, 1]]
-        .forEach(([x, y, z, r, dark]) => {
-          const s = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10),
-            M(dark ? 0x35894a : 0x4bb05c));
-          s.position.set(x, y, z); g.add(s);
-        });
+      /* A trunk turned from a profile: a buttress flare where it meets the
+         ground, a swell where the first limb leaves, a taper to the crown.
+         Three balls on a stick is a lollipop and a cylinder in the grass is
+         a fence post. */
+      const BARK = 0x7d5126, BARK2 = 0x8d5f2e;
+      const parts = [put(turned([
+        [0, 0], [0.34, 0], [0.30, 0.06], [0.235, 0.14], [0.195, 0.24],
+        [0.168, 0.40], [0.152, 0.58], [0.150, 0.72], [0.138, 0.92], [0.120, 1.12], [0.098, 1.34],
+      ], 11), BARK, 0, 0, 0)];
+      // roots running out into the grass
+      [0.4, 2.5, 4.4].forEach(a => {
+        const q = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(Math.PI / 2 - 0.3, 0, -a + Math.PI / 2, 'ZXY'));
+        parts.push({ geo: CYLG(0.055, 0.135, 0.42, 6), color: BARK,
+          matrix: new THREE.Matrix4().compose(
+            new THREE.Vector3(Math.cos(a) * 0.22, 0.06, Math.sin(a) * 0.22), q,
+            new THREE.Vector3(1, 1, 1)) });
+      });
+      // two limbs going up, so the leaves have something to sit on
+      [[0.9, 0.55, -1], [3.9, 0.48, 1]].forEach(([a, len, side]) => {
+        parts.push(put(CYLG(0.042, 0.075, len, 6), BARK2,
+          Math.cos(a) * 0.12, 1.22, Math.sin(a) * 0.12, 0, 0, side * 0.55));
+      });
+      g.add(vcMesh(parts));
+      /* The canopy: clumps of three greens, knocked about so no two are the
+         same ball, and one mesh for the lot of them. */
+      const LEAF = 0x4bb05c, LEAF2 = 0x35894a, LEAF3 = 0x5cc06a;
+      g.add(vcMesh([
+        [0, 1.62, 0, 0.52, LEAF], [-0.42, 1.34, 0.10, 0.37, LEAF2], [0.44, 1.38, -0.08, 0.38, LEAF],
+        [0.18, 1.86, 0.20, 0.30, LEAF3], [-0.24, 1.76, -0.24, 0.28, LEAF2], [0.06, 1.22, 0.34, 0.26, LEAF2],
+        [-0.30, 1.98, 0.14, 0.22, LEAF3], [0.34, 1.70, 0.26, 0.24, LEAF],
+      ].map(([x, y, z, r, c], i) => put(roughen(SPHG(r, 8, 6), 0.26, i * 97 + 3), c,
+        x, y, z, 0, i * 0.7, 0, 1, 0.88, 1))));
       g.add(shadowBlob(0.42));
     } else if (type === 'm') {
-      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.3, 8), M(0xf5ead2));
-      st.position.y = 0.15;
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(0xd94f3d));
-      cap.position.y = 0.28; cap.scale.y = 0.75;
-      g.add(st, cap, shadowBlob(0.26));
+      // a toadstool with a rolled rim, and spots sitting on the dome
+      const parts = [
+        put(turned([[0, 0], [0.145, 0], [0.125, 0.045], [0.088, 0.10], [0.078, 0.20],
+          [0.082, 0.30], [0.095, 0.36], [0, 0.37]], 12), 0xf5ead2, 0, 0, 0),
+        put(turned([[0, 0.545], [0.085, 0.535], [0.175, 0.50], [0.255, 0.435], [0.295, 0.365],
+          [0.30, 0.325], [0.268, 0.318], [0.205, 0.345], [0.12, 0.36], [0, 0.362]], 14), 0xd94f3d, 0, 0, 0),
+      ];
+      [[0, 0.54, 0, 0.055], [0.16, 0.495, 0.06, 0.042], [-0.12, 0.48, 0.13, 0.038],
+       [0.05, 0.47, -0.17, 0.040], [-0.17, 0.455, -0.08, 0.034]].forEach(([x, y, z, r]) =>
+        parts.push(put(SPHG(r, 8, 6), 0xfff6e6, x, y, z, 0, 0, 0, 1, 0.45, 1)));
+      g.add(vcMesh(parts), shadowBlob(0.26));
     } else if (type === 'R') {
-      const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.42, 0), M(TG.wallTop === '#68727f' ? 0x8b95a1 : 0x9aa4ae));
-      rock.position.y = 0.32; rock.scale.y = 0.75; rock.rotation.y = 0.7;
-      g.add(rock, shadowBlob(0.4));
+      /* A boulder, weathered rather than shattered: subdivided twice and
+         knocked about gently. One subdivision and a lot of displacement does
+         not make a rock, it makes broken glass — every facet is big enough to
+         read as a facet and they all point different ways. */
+      const grey = TG.wallTop === '#68727f' ? 0x8b95a1 : 0x9aa4ae;
+      const parts = [put(roughen(new THREE.IcosahedronGeometry(0.44, 1), 0.17, 11), grey,
+        0, 0.29, 0, 0.18, 0.7, 0.12, 1.08, 0.74, 0.96)];
+      [[0.40, 0.11, 0.20, 0.155, 7], [-0.36, 0.09, -0.21, 0.125, 23], [0.12, 0.07, -0.38, 0.10, 41]]
+        .forEach(([x, y, z, r, sd]) => parts.push(put(
+          roughen(new THREE.IcosahedronGeometry(r, 1), 0.22, sd), 0x8b95a1,
+          x, y, z, 0.4, sd, 0.2, 1, 0.78, 1)));
+      g.add(vcMesh(parts), shadowBlob(0.4));
     } else if (type === 'C') {
-      [[0, 0.55, 0, 0.5], [0.26, 0.32, 0.1, 0.3], [-0.24, 0.28, -0.06, 0.26]].forEach(([x, h, z, r]) => {
-        const cr = new THREE.Mesh(new THREE.ConeGeometry(r * 0.42, h * 1.7, 6),
-          M(0x7fd7f0, { emissive: 0x2b7d94, transparent: true, opacity: 0.92 }));
-        cr.position.set(x, h * 0.85, z);
-        g.add(cr);
-      });
-    } else if (type === 'c') {
-      const st = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.8, 0.3), M(0x7d8896));
-      st.position.y = 0.4;
-      const rune = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.44, 0.05), M(0x9fe8c0, { emissive: 0x3a7d5c }));
-      rune.position.set(0, 0.46, 0.16);
-      g.add(st, rune, shadowBlob(0.3));
-    } else if (type === 'A') {
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.5, 0.28), M(0x6b5136));
-      frame.position.y = 0.75;
-      const door = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.16, 0.3), M(0x4a3826));
-      door.position.set(0, 0.6, 0.02);
-      const glyph = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.035, 8, 16), M(0xffd12e, { emissive: 0x8a6d10 }));
-      glyph.position.set(0, 0.78, 0.18);
-      g.add(frame, door, glyph);
-    } else if (type === 'G') {
-      for (let i = 0; i < 5; i++) {
-        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.25, 6), M(0x777f8a));
-        bar.position.set(-0.4 + i * 0.2, 0.62, 0);
-        g.add(bar);
+      // faceted spires standing out of a bed of chips
+      const bed = [];
+      for (let i = 0; i < 7; i++) {
+        const a = i / 7 * Math.PI * 2 + 0.4;
+        bed.push(put(new THREE.ConeGeometry(0.07, 0.16, 5), 0x4a7f92,
+          Math.cos(a) * 0.32, 0.07, Math.sin(a) * 0.32,
+          (hash1(i) - 0.5) * 0.5, i, (hash1(i + 9) - 0.5) * 0.5));
       }
-      const top = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.12, 0.16), M(0x59616c));
-      top.position.y = 1.22; g.add(top);
+      g.add(vcMesh(bed));
+      [[0, 0.56, 0, 0.17, 0.05], [0.26, 0.34, 0.1, 0.11, -0.12], [-0.24, 0.30, -0.06, 0.10, 0.14]]
+        .forEach(([x, h, z, r, tilt]) => {
+          const cr = new THREE.Mesh(new THREE.ConeGeometry(r, h * 1.9, 6),
+            M(0x7fd7f0, { emissive: 0x2b7d94, transparent: true, opacity: 0.92 }));
+          cr.position.set(x, h * 0.9, z); cr.rotation.z = tilt; cr.rotation.y = x * 4;
+          g.add(cr);
+        });
+    } else if (type === 'c') {
+      // a standing stone, cut, bedded and carved
+      const parts = [put(roughen(new THREE.BoxGeometry(0.62, 0.84, 0.3), 0.10, 5), 0x7d8896, 0, 0.44, 0),
+        put(BOXG, 0x6a737e, 0, 0.06, 0, 0, 0, 0, 0.82, 0.13, 0.46)];
+      [[0, 0.21, 0.40, 0.04], [0, -0.21, 0.40, 0.04], [-0.19, 0, 0.04, 0.46], [0.19, 0, 0.04, 0.46]]
+        .forEach(([x, y, w2, h2]) => parts.push(put(BOXG, 0x6a737e, x, 0.48 + y, 0.155, 0, 0, 0, w2, h2, 0.03)));
+      const rune = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.38, 0.04), M(0x9fe8c0, { emissive: 0x3a7d5c }));
+      rune.position.set(0, 0.48, 0.15);
+      g.add(vcMesh(parts), rune, shadowBlob(0.3));
+    } else if (type === 'A') {
+      // a doorway with a real arch over it, keystone and all
+      const STONE = 0x6b5136, STONE2 = 0x7d6244, DOOR = 0x4a3826;
+      const parts = [];
+      [-0.48, 0.48].forEach(x => parts.push(put(BOXG, STONE, x, 0.78, 0, 0, 0, 0, 0.22, 1.56, 0.34)));
+      for (let i = 0; i <= 6; i++) {
+        const a = Math.PI * (0.08 + (i / 6) * 0.84);
+        parts.push(put(BOXG, i === 3 ? STONE2 : STONE,
+          Math.cos(a) * 0.55, 1.52 + Math.sin(a) * 0.30, 0, 0, 0, a - Math.PI / 2, 0.19, 0.26, 0.34));
+      }
+      parts.push(put(BOXG, STONE2, 0, 0.06, 0.1, 0, 0, 0, 1.3, 0.12, 0.6));
+      parts.push(put(BOXG, DOOR, 0, 0.66, -0.02, 0, 0, 0, 0.72, 1.28, 0.1));
+      for (let i = -1; i <= 1; i++) parts.push(put(BOXG, 0x3a2a1c, i * 0.2, 0.66, 0.035, 0, 0, 0, 0.03, 1.18, 0.03));
+      [[-0.26, 1.12], [-0.26, 0.26]].forEach(([x, y]) =>
+        parts.push(put(BOXG, 0x2b2b2b, x, y, 0.04, 0, 0, 0, 0.3, 0.07, 0.04)));
+      const glyph = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.032, 8, 18), M(0xffd12e, { emissive: 0x8a6d10 }));
+      glyph.position.set(0, 0.86, 0.06);
+      g.add(vcMesh(parts), glyph);
+    } else if (type === 'G') {
+      // a gate with capped posts, spear heads and a latch
+      const IRON = 0x777f8a, IRON2 = 0x59616c;
+      const parts = [];
+      [-0.58, 0.58].forEach(x => parts.push(put(turned([[0, 0], [0.11, 0], [0.105, 0.05], [0.082, 0.12],
+        [0.078, 1.22], [0.105, 1.26], [0.098, 1.32], [0, 1.37]], 8), IRON2, x, 0, 0)));
+      for (let i = 0; i < 5; i++) {
+        const x = -0.4 + i * 0.2;
+        parts.push(put(CYLG(0.028, 0.030, 1.16, 6), IRON, x, 0.60, 0));
+        parts.push(put(new THREE.ConeGeometry(0.048, 0.14, 6), IRON2, x, 1.25, 0));
+      }
+      [0.34, 1.02].forEach(y => parts.push(put(BOXG, IRON2, 0, y, 0, 0, 0, 0, 0.92, 0.07, 0.05)));
+      parts.push(put(BOXG, IRON2, 0.42, 0.70, 0.045, 0, 0, 0.3, 0.20, 0.05, 0.04));
+      parts.push(put(SPHG(0.04, 8, 6), 0xffd12e, 0.50, 0.70, 0.06));
+      g.add(vcMesh(parts));
     } else if (type === 'F') {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.6, 6), M(0x8a5a2b));
-      pole.position.y = 0.8;
+      const parts = [
+        put(turned([[0, 0], [0.075, 0], [0.070, 0.05], [0.040, 0.12], [0.036, 1.50],
+          [0.052, 1.56], [0, 1.62]], 8), 0x8a5a2b, 0, 0, 0),
+      ];
+      g.add(vcMesh(parts));
       const flagShape = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.4, 4), M(0xf2199c));
       flagShape.rotation.z = -Math.PI / 2;
       flagShape.position.set(0.24, 1.42, 0);
-      g.add(pole, flagShape, shadowBlob(0.16));
+      g.add(flagShape, shadowBlob(0.16));
     } else if (type === 'D' || type === 'f' || type === 'n') {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6), M(0x8a5a2b));
-      pole.position.y = 0.4;
-      const board = new THREE.Mesh(new THREE.BoxGeometry(type === 'n' ? 1.0 : 0.72, 0.5, 0.09),
-        M(type === 'D' ? 0xffd12e : (type === 'f' ? 0x67c6e8 : 0xb98d5a)));
-      board.position.y = 0.86;
-      g.add(pole, board, shadowBlob(0.2));
-      if (type === 'n') { // pinned notes
-        [[-0.3, 0.94, '#fff3b0'], [0, 0.82, '#ffd6ea'], [0.28, 0.92, '#d6ecff']].forEach(([x, y, col]) => {
-          const note = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.02), M(col));
-          note.position.set(x, y, 0.06); g.add(note);
+      /* A signpost that has stood in the weather: a chamfered post bedded in
+         stones, a framed board, cleats on the back of it. */
+      const WOOD = 0x8a5a2b, WOOD2 = 0x6b4420;
+      const face = type === 'D' ? 0xffd12e : (type === 'f' ? 0x67c6e8 : 0xb98d5a);
+      const bw = type === 'n' ? 1.12 : 0.82;
+      const parts = [put(turned([[0, 0], [0.085, 0], [0.082, 0.06], [0.070, 0.14], [0.066, 0.70],
+        [0.072, 1.02], [0.060, 1.06], [0, 1.07]], 8), WOOD2, 0, 0, 0)];
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * Math.PI * 2 + 0.3;
+        parts.push(put(SPHG(0.065, 6, 5), 0xa89f8c, Math.cos(a) * 0.14, 0.03, Math.sin(a) * 0.14, 0, 0, 0, 1, 0.6, 1));
+      }
+      parts.push(put(BOXG, WOOD2, 0, 0.86, 0, 0, 0, 0, bw + 0.08, 0.56, 0.07));
+      parts.push(put(BOXG, face, 0, 0.86, 0.025, 0, 0, 0, bw, 0.48, 0.06));
+      [-0.2, 0.2].forEach(y => parts.push(put(BOXG, WOOD, 0, 0.86 + y, -0.045, 0, 0, 0, bw * 0.9, 0.07, 0.03)));
+      if (type === 'n') {
+        [[-0.34, 0.94, 0xfff3b0], [0, 0.82, 0xffd6ea], [0.32, 0.92, 0xd6ecff]].forEach(([x, y, c]) => {
+          parts.push(put(BOXG, c, x, y, 0.065, 0, 0, (x * 3) % 0.3, 0.2, 0.22, 0.015));
+          parts.push(put(SPHG(0.018, 6, 5), 0xc0392b, x, y + 0.08, 0.075));
         });
       }
+      g.add(vcMesh(parts), shadowBlob(0.2));
     }
     return g;
+  }
+
+  /* ---------- building shapes out of parts, and paying for one ----------
+
+     Everything in here used to be a Group of boxes, cylinders and cones: a
+     lamp post was six stacked cylinders, a tree was three balls on a stick.
+     That is cheap to write and expensive to look at, and it is also expensive
+     to draw, because every mesh in a group is its own draw call and there are
+     a lot of lamp posts in a town.
+
+     So: build a prop out of as many pieces as it deserves, each carrying its
+     own colour, and weld the lot into ONE mesh with the colours baked into
+     the vertices. More detail and fewer draw calls at the same time. Three's
+     own merge helper is not in this build, so this is it — non-indexed, which
+     costs a few more vertices and removes every chance of getting an index
+     offset wrong. */
+  function mergeParts(parts) {
+    const pos = [], nor = [], col = [];
+    const c = new THREE.Color();
+    parts.forEach(pt => {
+      if (!pt) return;
+      const g2 = pt.geo.index ? pt.geo.toNonIndexed() : pt.geo.clone();
+      if (pt.matrix) g2.applyMatrix4(pt.matrix);
+      const p2 = g2.getAttribute('position');
+      let n2 = g2.getAttribute('normal');
+      if (!n2) { g2.computeVertexNormals(); n2 = g2.getAttribute('normal'); }
+      c.set(pt.color === undefined ? 0xffffff : pt.color);
+      for (let i = 0; i < p2.count; i++) {
+        pos.push(p2.getX(i), p2.getY(i), p2.getZ(i));
+        nor.push(n2.getX(i), n2.getY(i), n2.getZ(i));
+        col.push(c.r, c.g, c.b);
+      }
+      g2.dispose();
+    });
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    out.computeBoundingBox(); out.computeBoundingSphere();
+    return out;
+  }
+  /* one piece, placed. Scale defaults to uniform from sx. */
+  function put(geo, color, x, y, z, rx, ry, rz, sx, sy, sz) {
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0));
+    const u = sx === undefined ? 1 : sx;
+    const sc = new THREE.Vector3(u, sy === undefined ? u : sy, sz === undefined ? u : sz);
+    const m = new THREE.Matrix4().compose(new THREE.Vector3(x || 0, y || 0, z || 0), q, sc);
+    return { geo, color, matrix: m };
+  }
+  /* A profile turned about its axis — which is how anything that was made on
+     a lathe or cast in a mould actually got its shape, and how you get a
+     plinth, a swell, a taper and a collar for the price of one mesh. */
+  function turned(profile, seg) {
+    return new THREE.LatheGeometry(profile.map(([x, y]) => new THREE.Vector2(x, y)), seg || 12);
+  }
+  /* The finished thing. A material each, not one shared: the ghosting that
+     fades whatever stands between you and the hero reaches into a material
+     and sets its opacity, and a shared one would fade the whole town. */
+  function vcMesh(parts) {
+    const m = new THREE.Mesh(mergeParts(parts), new THREE.MeshLambertMaterial({ vertexColors: true }));
+    m.castShadow = true; m.receiveShadow = true;
+    return m;
+  }
+  const BOXG = new THREE.BoxGeometry(1, 1, 1);
+  const CYLG = (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s || 8);
+  const SPHG = (r, w, h) => new THREE.SphereGeometry(r, w || 10, h || 8);
+  /* A seeded wobble, so a rock is the same rock every time the land is built
+     rather than a different one each visit. */
+  function hash1(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  function roughen(geo, amt, seed) {
+    const p2 = geo.getAttribute('position');
+    for (let i = 0; i < p2.count; i++) {
+      const k = seed + i * 3;
+      p2.setXYZ(i, p2.getX(i) * (1 + (hash1(k) - 0.5) * amt),
+                   p2.getY(i) * (1 + (hash1(k + 1) - 0.5) * amt),
+                   p2.getZ(i) * (1 + (hash1(k + 2) - 0.5) * amt));
+    }
+    geo.computeVertexNormals(); geo.computeBoundingBox();
+    return geo;
   }
 
   /* gable roof: triangular prism with the ridge running along the width */
@@ -7733,16 +7885,31 @@ window.R3Factory = function (env) {
       const k2 = k1.clone(); k2.position.x = dx2 + 0.12;
       g.add(frame, dl, dr, k1, k2);
     } else if (d.type === 'fountain') {
-      const basin = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.25, 0.36, 18), M(0xb8c4d4));
-      basin.position.set(cx, 0.18, cz);
-      const water = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.06, 18),
+      /* A turned basin with a course of blocks round it, a turned pedestal
+         and a rolled bowl — built, rather than moulded out of three tubes. */
+      const STONE = 0xb8c4d4, STONE2 = 0xa6b2c2, STONE3 = 0xc9d4e2;
+      const parts = [
+        put(turned([[0, 0], [1.34, 0], [1.34, 0.10], [1.28, 0.16], [1.26, 0.34], [1.30, 0.40],
+          [1.30, 0.46], [1.16, 0.50], [1.14, 0.44], [1.06, 0.40], [1.04, 0.14], [0, 0.12]], 14), STONE, 0, 0, 0),
+        put(turned([[0, 0.12], [0.30, 0.12], [0.28, 0.20], [0.20, 0.28], [0.165, 0.46],
+          [0.155, 0.74], [0.175, 0.92], [0.24, 1.00], [0.235, 1.06], [0, 1.06]], 10), STONE2, 0, 0, 0),
+        put(turned([[0, 1.06], [0.20, 1.06], [0.22, 1.12], [0.40, 1.24], [0.46, 1.34], [0.46, 1.40],
+          [0.38, 1.40], [0.36, 1.30], [0.20, 1.20], [0, 1.18]], 12), STONE3, 0, 0, 0),
+      ];
+      for (let i = 0; i < 10; i++) {
+        const a2 = i / 10 * Math.PI * 2;
+        parts.push(put(BOXG, i % 2 ? STONE2 : STONE, Math.cos(a2) * 1.31, 0.24, Math.sin(a2) * 1.31,
+          0, -a2, 0, 0.10, 0.17, 0.30));
+      }
+      const stoneM = vcMesh(parts);
+      stoneM.position.set(cx, 0, cz);
+      const water = new THREE.Mesh(new THREE.CylinderGeometry(1.03, 1.03, 0.06, 20),
         M(0x5aaae6, { transparent: true, opacity: 0.85 }));
-      water.position.set(cx, 0.38, cz);
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.85, 10), M(0xb8c4d4));
-      col.position.set(cx, 0.75, cz);
-      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.2, 0.2, 12), M(0xc9d4e2));
-      bowl.position.set(cx, 1.2, cz);
-      g.add(basin, water, col, bowl);
+      water.position.set(cx, 0.42, cz);
+      const topw = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.05, 16),
+        M(0x74bdee, { transparent: true, opacity: 0.85 }));
+      topw.position.set(cx, 1.36, cz);
+      g.add(stoneM, water, topw);
     } else if (d.type === 'banner') {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.3, 6), M(0x8a5a2b));
       pole.position.set(d.col, 1.65, cz);
@@ -7755,84 +7922,153 @@ window.R3Factory = function (env) {
       });
     } else if (d.type === 'lamp') {
       const lx2 = d.col + 0.5;   // the pole stands in the middle of its own tile
-      /* A pole coming straight out of flat pavement looks pushed into it. A
-         lamp post has a plinth it is bolted to, a swell where the casting
-         thickens, a collar, and a little shoulder under the lantern — and the
-         glass sits ON something rather than hovering with a hat above it. */
-      const IRON = M(0x3a3f46), IRON2 = M(0x2e333a);
-      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.22, 0.12, 10), IRON2);
-      plinth.position.set(lx2, 0.06, cz);
-      const swell = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.15, 0.26, 10), IRON);
-      swell.position.set(lx2, 0.22, cz);
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.085, 2.15, 9), IRON);
-      pole.position.set(lx2, 1.32, cz);
-      const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.07, 10), IRON2);
-      collar.position.set(lx2, 1.05, cz);
-      const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.07, 0.16, 10), IRON);
-      shoulder.position.set(lx2, 2.33, cz);
-      const lampb = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10),
-        M(0xffefa8, { emissive: 0x9a8430 }));
-      lampb.position.set(lx2, 2.55, cz);
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.22, 10), IRON);
-      cap.position.set(lx2, 2.85, cz);
-      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), IRON2);
-      finial.position.set(lx2, 2.99, cz);
+      /* One casting, not six stacked cylinders: a plinth it is bolted to, an
+         ogee swell where the metal thickens, a long taper, a collar and a
+         scroll shoulder under the lantern — all of it a profile turned about
+         its axis, which is how the real thing got its shape too. */
+      const IRONC = 0x3a3f46, IRONC2 = 0x2b3037;
+      const ribs = [
+        put(turned([
+          [0, 0], [0.26, 0], [0.26, 0.06], [0.235, 0.085], [0.235, 0.12],
+          [0.175, 0.17], [0.148, 0.26], [0.132, 0.38], [0.118, 0.52],
+          [0.098, 0.84], [0.086, 1.24], [0.078, 1.62],
+          [0.104, 1.68], [0.104, 1.75], [0.079, 1.80],
+          [0.082, 1.98], [0.112, 2.10], [0.165, 2.20], [0.185, 2.26], [0.185, 2.31], [0.150, 2.345],
+        ], 10), IRONC, 0, 0, 0),
+        put(turned([[0, 2.76], [0.215, 2.78], [0.16, 2.90], [0.05, 2.97], [0, 2.975]], 10), IRONC, 0, 0, 0),
+        put(SPHG(0.052), IRONC2, 0, 3.01, 0),
+        put(CYLG(0.018, 0.018, 0.09, 6), IRONC2, 0, 3.07, 0),
+      ];
+      for (let i = 0; i < 4; i++) {
+        const a2 = i / 4 * Math.PI * 2;
+        ribs.push(put(BOXG, IRONC2, Math.cos(a2) * 0.168, 2.56, Math.sin(a2) * 0.168,
+          0, -a2, 0, 0.022, 0.40, 0.022));
+      }
+      const postM = vcMesh(ribs);
+      postM.position.set(lx2, 0, cz);
+      // the glass sits ON the shoulder rather than hovering with a hat above it
+      const lampb = new THREE.Mesh(turned([
+        [0, 2.35], [0.145, 2.37], [0.195, 2.50], [0.185, 2.66], [0.13, 2.76], [0, 2.78],
+      ], 10), M(0xffefa8, { emissive: 0x9a8430 }));
+      lampb.position.set(lx2, 0, cz);
       // a real lamp, so the pavement under it goes warm as the evening comes on
       const halo = new THREE.PointLight(0xffdc9a, 0, 8, 1.7);
-      halo.position.set(lx2, 2.4, cz);
+      halo.position.set(lx2, 2.5, cz);
       const pool = glowDisc(lx2, cz, 2.4, 0xffd089);
-      g.add(plinth, swell, pole, collar, shoulder, lampb, cap, finial, halo, pool);
+      g.add(postM, lampb, halo, pool);
       LIT.push({ mesh: lampb, lamp: halo, pool });
     } else if (d.type === 'ruin') {
-      [[-1.2, 0.9], [0, 1.6], [1.1, 0.6]].forEach(([dx, h]) => {
-        const c3 = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, h, 8), M(0xb8b2a2));
-        c3.position.set(cx + dx, h / 2, cz);
-        g.add(c3);
-      });
-      const fallen = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 1.3, 8), M(0xa8a292));
-      fallen.rotation.z = Math.PI / 2;
-      fallen.position.set(cx + 0.4, 0.24, cz + 0.8);
-      g.add(fallen);
+      /* Columns built out of drums with flutes down them and a broken
+         capital, standing on a stylobate — a ruin is a thing that was made of
+         pieces and has come apart, which three plain tubes cannot say. */
+      const STONE = 0xb8b2a2, STONE2 = 0xa8a292, STONE3 = 0xc6c0b0;
+      const parts = [];
+      const column = (x, h, broken) => {
+        parts.push(put(BOXG, STONE2, x, 0.07, 0, 0, 0, 0, 0.78, 0.14, 0.78));
+        parts.push(put(turned([[0, 0.14], [0.33, 0.14], [0.31, 0.22], [0.27, 0.30], [0.27, 0.34]], 10), STONE, x, 0, 0));
+        const drums = Math.max(1, Math.round((h - 0.4) / 0.42));
+        const dh = (h - 0.44) / drums;
+        for (let i = 0; i < drums; i++) {
+          const r = 0.255 - (i / drums) * 0.03;
+          parts.push(put(CYLG(r, r + 0.012, dh - 0.02, 12), i % 2 ? STONE : STONE3, x, 0.34 + i * dh + dh / 2, 0));
+        }
+        for (let i = 0; i < 5; i++) {
+          const a2 = i / 5 * Math.PI * 2;
+          parts.push(put(BOXG, STONE2, x + Math.cos(a2) * 0.245, 0.4 + (h - 0.5) / 2, Math.sin(a2) * 0.245,
+            0, -a2, 0, 0.035, h - 0.5, 0.05));
+        }
+        if (!broken) {
+          parts.push(put(turned([[0, h - 0.1], [0.26, h - 0.1], [0.33, h - 0.02], [0.33, h], [0, h]], 10), STONE3, x, 0, 0));
+          parts.push(put(BOXG, STONE3, x, h + 0.06, 0, 0, 0, 0, 0.74, 0.12, 0.74));
+        }
+      };
+      column(-1.2, 0.95, true); column(0, 1.7, false); column(1.1, 0.62, true);
+      // a fallen drum and a piece of architrave lying in the grass
+      parts.push(put(CYLG(0.25, 0.25, 0.9, 12), STONE2, 0.5, 0.25, 0.85, 0, 0.2, Math.PI / 2));
+      parts.push(put(BOXG, STONE3, -0.8, 0.09, 0.9, 0, 0.5, 0.04, 1.1, 0.18, 0.4));
+      const ruinM = vcMesh(parts);
+      ruinM.position.set(cx, 0, cz);
+      g.add(ruinM);
     } else if (d.type === 'ship') {
-      const hull = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.9, 1.5), M(0x8a5a2b));
-      hull.position.set(cx + 0.5, 0.55, cz - 0.6);
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.16, 1.7), M(0x6e4520));
-      rail.position.set(cx + 0.5, 1.02, cz - 0.6);
-      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.6, 8), M(0x6e4520));
-      mast.position.set(cx + 0.5, 2.3, cz - 0.6);
-      const sail = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.15, 0.05), M(0xfffcf2));
-      sail.position.set(cx + 0.5, 2.5, cz - 0.5);
-      const flag = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.4, 4), M(0x1d1d1d));
-      flag.rotation.z = -Math.PI / 2;
-      flag.position.set(cx + 0.75, 3.5, cz - 0.6);
-      g.add(hull, rail, mast, sail, flag);
-    } else if (d.type === 'reeds') {
+      /* Planks that narrow towards bow and stern, stem and stern posts
+         rising, a deck, a rail on posts, a yard and rigging — rather than a
+         box with a mast in it. */
+      const HULL = 0x8a5a2b, HULL2 = 0x6e4520, DECK = 0xa87440;
+      const parts = [];
       for (let i = 0; i < 6; i++) {
-        const h = 0.7 + (i % 3) * 0.22;
-        const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, h, 5), M(0x4f9e58));
-        reed.position.set(d.col + (i % 3) * 0.3 - 0.3, h / 2, cz + ((i * 7) % 3) * 0.22 - 0.2);
-        reed.rotation.z = ((i % 5) - 2) * 0.06;
-        g.add(reed);
+        const t = i / 5;
+        parts.push(put(BOXG, i % 2 ? HULL : HULL2, 0, 0.16 + i * 0.145, 0, 0, 0, 0,
+          3.6 - t * 0.5, 0.15, 1.5 - t * 0.42));
+      }
+      parts.push(put(BOXG, HULL2, 1.78, 0.78, 0, 0, 0, -0.34, 0.20, 1.25, 0.34));
+      parts.push(put(BOXG, HULL2, -1.78, 0.68, 0, 0, 0, 0.26, 0.20, 1.0, 0.34));
+      parts.push(put(BOXG, DECK, 0, 0.92, 0, 0, 0, 0, 3.3, 0.08, 1.2));
+      for (let i = 0; i < 7; i++) {
+        const x = -1.5 + i * 0.5;
+        [-0.58, 0.58].forEach(z => parts.push(put(BOXG, HULL2, x, 1.06, z, 0, 0, 0, 0.07, 0.22, 0.07)));
+      }
+      [-0.58, 0.58].forEach(z => parts.push(put(BOXG, HULL2, 0, 1.17, z, 0, 0, 0, 3.3, 0.07, 0.1)));
+      parts.push(put(CYLG(0.05, 0.08, 2.6, 8), HULL2, 0, 2.25, 0));
+      parts.push(put(CYLG(0.035, 0.035, 1.5, 6), HULL2, 0, 3.02, 0, 0, 0, Math.PI / 2));
+      [-1, 1].forEach(sg => parts.push(put(CYLG(0.012, 0.012, 2.0, 4), HULL2, sg * 0.62, 2.1, 0, 0, 0, sg * 0.42)));
+      const shipM = vcMesh(parts);
+      shipM.position.set(cx + 0.5, 0, cz - 0.6);
+      const sail = new THREE.Mesh(new THREE.BoxGeometry(1.44, 1.18, 0.05), M(0xfffcf2));
+      sail.position.set(cx + 0.5, 2.4, cz - 0.55);
+      const flag = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.42, 4), M(0x1d1d1d));
+      flag.rotation.z = -Math.PI / 2; flag.position.set(cx + 0.74, 3.5, cz - 0.6);
+      g.add(shipM, sail, flag);
+    } else if (d.type === 'reeds') {
+      // a clump that grew, each stem its own height and lean
+      const parts = [];
+      for (let i = 0; i < 11; i++) {
+        const h = 0.55 + hash1(i * 3) * 0.55;
+        const x = d.col + (hash1(i * 5) - 0.5) * 0.66, z = cz + (hash1(i * 7 + 2) - 0.5) * 0.52;
+        const lean = (hash1(i * 11) - 0.5) * 0.34;
+        parts.push(put(CYLG(0.016, 0.032, h, 5), i % 3 ? 0x4f9e58 : 0x5fae62, x, h / 2, z, 0, 0, lean));
         if (i % 2 === 0) {
-          const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.22, 6), M(0x6e4520));
-          tip.position.set(reed.position.x, h + 0.1, reed.position.z);
-          g.add(tip);
+          parts.push(put(turned([[0, 0], [0.052, 0.03], [0.058, 0.14], [0.03, 0.22], [0, 0.23]], 7),
+            0x6e4520, x + Math.sin(lean) * h * 0.5, h, z, 0, 0, lean));
         }
       }
+      g.add(vcMesh(parts));
     } else if (d.type === 'palm') {
-      for (let i = 0; i < 3; i++) {
-        const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.12 - i * 0.015, 0.14 - i * 0.015, 0.62, 8), M(0x9a6a34));
-        seg.position.set(d.col + i * 0.14, 0.3 + i * 0.58, cz);
-        seg.rotation.z = -0.16;
-        g.add(seg);
+      /* A palm trunk is a curve with the scars of old fronds ringed up it,
+         and it leans, because it grew towards the light. */
+      const pts = [];
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        pts.push(new THREE.Vector3(t * t * 0.52, t * 2.05, Math.sin(t * 2) * 0.06));
       }
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2;
-        const frond = new THREE.Mesh(new THREE.ConeGeometry(0.16, 1.1, 5), M(0x3f9e4d));
-        frond.position.set(d.col + 0.32 + Math.cos(a) * 0.5, 1.95, cz + Math.sin(a) * 0.5);
-        frond.rotation.set(Math.sin(a) * 1.25, 0, -Math.cos(a) * 1.25);
-        g.add(frond);
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const trunk = new THREE.TubeGeometry(curve, 14, 0.135, 8, false);
+      // taper it by hand: a tube is one radius all the way up
+      const pa = trunk.getAttribute('position');
+      for (let i = 0; i < pa.count; i++) {
+        const y = pa.getY(i), k = 1 - 0.42 * Math.min(1, y / 2.05);
+        const c3 = curve.getPoint(Math.min(1, Math.max(0, y / 2.05)));
+        pa.setX(i, c3.x + (pa.getX(i) - c3.x) * k);
+        pa.setZ(i, c3.z + (pa.getZ(i) - c3.z) * k);
       }
+      trunk.computeVertexNormals();
+      const parts = [put(trunk, 0x9a6a34, 0, 0, 0)];
+      for (let i = 1; i <= 7; i++) {
+        const t = i / 8, c3 = curve.getPoint(t);
+        parts.push(put(CYLG(0.145 - t * 0.055, 0.145 - t * 0.055, 0.035, 8), 0x875c2c, c3.x, c3.y, c3.z, 0, 0, 0.1));
+      }
+      const crown = curve.getPoint(1);
+      for (let i = 0; i < 7; i++) {
+        const a2 = (i / 7) * Math.PI * 2 + 0.3;
+        const droop = 0.95 + (i % 3) * 0.18;
+        parts.push(put(new THREE.ConeGeometry(0.17, 1.15, 4), i % 2 ? 0x3f9e4d : 0x4fb05c,
+          crown.x + Math.cos(a2) * 0.52, crown.y + 0.08, crown.z + Math.sin(a2) * 0.52,
+          Math.sin(a2) * droop, -a2, -Math.cos(a2) * droop, 1, 1, 0.34));
+      }
+      [0.3, 2.1, 4.0].forEach(a2 => parts.push(put(SPHG(0.085, 8, 6), 0x6b4420,
+        crown.x + Math.cos(a2) * 0.14, crown.y - 0.06, crown.z + Math.sin(a2) * 0.14)));
+      const palmM = vcMesh(parts);
+      palmM.position.set(d.col, 0, cz);
+      g.add(palmM);
     } else if (d.type === 'snowdrift') {
       const s1 = new THREE.Mesh(new THREE.SphereGeometry(1.15, 14, 10), M(0xffffff));
       s1.position.set(cx, 0.12, cz); s1.scale.y = 0.32;
@@ -8288,34 +8524,88 @@ window.R3Factory = function (env) {
         return;
       }
       const w = d.w || 4, hh = (d.hh || 4) * 0.6;
-      const bod = new THREE.Mesh(new THREE.BoxGeometry(w * 0.96, hh, 2.6), M(d.color || '#e8c47f'));
-      bod.position.set(d.col + w / 2, hh / 2, d.row - 1);
-      const roof = gableRoofMesh(w * 0.96 + 0.55, 2.6 + 0.55, 1.25, 0xc0392b);
-      roof.position.set(d.col + w / 2, hh, d.row - 1);
-      const doorM = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.08), M(0x8a5a2b));
-      doorM.position.set(d.col + w / 2, 0.45, d.row + 0.32);
-      bod.castShadow = true; roof.castShadow = true;
-      // warm-lit windows either side of the door
+      /* A house somebody lives in, rather than a box with a lid.
+
+         A wall that meets the grass with nothing at its foot looks dropped
+         there, so there is a plinth course standing proud of it and dressed
+         quoins up the corners. The roof has a real overhang with a fascia
+         board hanging off the eaves, courses across the pitch and a ridge
+         capping the join — a bare triangular prism is a tent. The door stands
+         in a frame under a lintel with a worn step in front of it, and the
+         chimney corbels out at the top the way brick does.
+
+         All of it welded into one mesh, so a street of these costs fewer draw
+         calls than the plain boxes did. */
+      const WALL = d.color || '#e8c47f';
+      const TRIM = 0xfff6e2, QSTONE = 0xcbbfa6, ROOFC = 0xc0392b, ROOFC2 = 0xa83024;
+      const WOODC = 0x8a5a2b, WOODC2 = 0x6b4420;
+      const bw = w * 0.96, bd = 2.6, hx = d.col + w / 2, hz = d.row - 1;
+      const parts = [];
+      parts.push(put(BOXG, QSTONE, 0, 0.11, 0, 0, 0, 0, bw + 0.14, 0.22, bd + 0.14));
+      parts.push(put(BOXG, WALL, 0, 0.22 + (hh - 0.22) / 2, 0, 0, 0, 0, bw, hh - 0.22, bd));
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+        for (let i = 0; i < 3 && 0.40 + i * 0.44 < hh - 0.2; i++) {
+          const wide = i % 2 === 0;
+          parts.push(put(BOXG, QSTONE, sx * (bw / 2 - (wide ? 0.13 : 0.08)), 0.40 + i * 0.44, sz * (bd / 2 + 0.02),
+            0, 0, 0, wide ? 0.30 : 0.20, 0.34, 0.06));
+          parts.push(put(BOXG, QSTONE, sx * (bw / 2 + 0.02), 0.40 + i * 0.44, sz * (bd / 2 - (wide ? 0.13 : 0.08)),
+            0, 0, 0, 0.06, 0.34, wide ? 0.30 : 0.20));
+        }
+      });
+      const rw = bw + 0.52, rd = bd + 0.52, rh = 1.25;
+      const slope = Math.atan2(rh, rd / 2), slopeLen = Math.hypot(rh, rd / 2);
+      [1, -1].forEach(sz => {
+        parts.push(put(BOXG, ROOFC, 0, hh + rh / 2, sz * rd / 4, sz * slope, 0, 0, rw, 0.09, slopeLen));
+        for (let i = 1; i <= 3; i++) {
+          const t = i / 4;
+          parts.push(put(BOXG, ROOFC2, 0, hh + rh * (1 - t) + 0.045, sz * (rd / 2) * t * 0.98,
+            sz * slope, 0, 0, rw * 0.995, 0.055, 0.045));
+        }
+        parts.push(put(BOXG, TRIM, 0, hh - 0.055, sz * (rd / 2 + 0.03), 0, 0, 0, rw, 0.12, 0.07));
+      });
+      /* Gable ends: a real triangle, flush with the wall. Stacking boxes of
+         decreasing width to approximate one leaves every step's corners
+         poking out through the slope, which from the front reads as a row of
+         pale teeth along the roof edge. */
+      const gshape = new THREE.Shape();
+      gshape.moveTo(-bd / 2, 0); gshape.lineTo(bd / 2, 0); gshape.lineTo(0, rh); gshape.closePath();
+      const ggeo = new THREE.ExtrudeGeometry(gshape, { depth: 0.1, bevelEnabled: false });
+      [1, -1].forEach(sx => parts.push(put(ggeo, WALL, sx * (bw / 2 - 0.05), hh, 0, 0, sx * Math.PI / 2, 0)));
+      parts.push(put(BOXG, ROOFC2, 0, hh + rh + 0.03, 0, 0, 0, 0, rw * 1.01, 0.10, 0.16));
+      const dz = bd / 2 + 0.02;
+      parts.push(put(BOXG, WOODC2, 0, 0.52, dz, 0, 0, 0, 0.86, 1.04, 0.10));
+      parts.push(put(BOXG, WOODC, 0, 0.47, dz + 0.04, 0, 0, 0, 0.68, 0.94, 0.08));
+      [-0.15, 0.15].forEach(x => parts.push(put(BOXG, WOODC2, x, 0.47, dz + 0.09, 0, 0, 0, 0.04, 0.84, 0.02)));
+      parts.push(put(BOXG, TRIM, 0, 1.06, dz + 0.02, 0, 0, 0, 0.98, 0.10, 0.14));
+      parts.push(put(SPHG(0.045, 8, 6), 0xffd12e, 0.22, 0.52, dz + 0.10));
+      parts.push(put(BOXG, QSTONE, 0, 0.045, dz + 0.17, 0, 0, 0, 0.98, 0.09, 0.34));
+      // window frames and sills ride with the walls; the glass lights up, so it is its own
       [-1.1, 1.1].forEach(dx => {
-        const win = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.06),
+        parts.push(put(BOXG, TRIM, dx, hh * 0.52, dz, 0, 0, 0, 0.66, 0.66, 0.08));
+        parts.push(put(BOXG, TRIM, dx, hh * 0.52 - 0.37, dz + 0.03, 0, 0, 0, 0.78, 0.08, 0.16));
+        parts.push(put(BOXG, TRIM, dx, hh * 0.52, dz + 0.06, 0, 0, 0, 0.05, 0.56, 0.03));
+        parts.push(put(BOXG, TRIM, dx, hh * 0.52, dz + 0.06, 0, 0, 0, 0.56, 0.05, 0.03));
+      });
+      const chx0 = bw * 0.30, chz0 = -0.3;
+      parts.push(put(BOXG, 0xa2634a, chx0, hh + 0.95, chz0, 0, 0, 0, 0.46, 2.1, 0.46));
+      parts.push(put(BOXG, 0x8a5038, chx0, hh + 1.92, chz0, 0, 0, 0, 0.58, 0.12, 0.58));
+      parts.push(put(BOXG, 0x8a5038, chx0, hh + 2.02, chz0, 0, 0, 0, 0.52, 0.10, 0.52));
+      parts.push(put(turned([[0, 0], [0.15, 0], [0.145, 0.16], [0.125, 0.24], [0.105, 0.26],
+        [0.105, 0.04], [0, 0.04]], 10), 0x7a4630, chx0, hh + 2.07, chz0));
+      const bod = vcMesh(parts);
+      bod.position.set(hx, 0, hz);
+      [-1.1, 1.1].forEach(dx => {
+        const win = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.54, 0.05),
           M(0xffe9a0, { emissive: 0x9a7c28 }));
-        win.position.set(d.col + w / 2 + dx, hh * 0.45, d.row + 0.32);
+        win.position.set(hx + dx, hh * 0.52, hz + dz + 0.02);
         L.group.add(win);
         L.occluders.push(win);
         LIT.push({ mesh: win, lamp: null });   // somebody's light, coming on at dusk
       });
-      /* A chimney with smoke coming out of it. A street of shut-up boxes reads
-         as scenery; a thread of smoke over a roof says somebody is in there
-         with the kettle on. The puffs are remembered so the frame loop can
-         send them up, each house on its own offset so the whole town is not
-         puffing in time. */
-      const chx = d.col + w * 0.78, chz = d.row - 1.3;
-      const stack = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.9, 0.46), M(0xa2634a));
-      stack.position.set(chx, hh + 1.2, chz); stack.castShadow = true;   // clear of the ridge
-      const pot = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.18, 0.58), M(0x8a5038));
-      pot.position.set(chx, hh + 2.22, chz);
-      L.group.add(stack, pot);
-      L.occluders.push(stack, pot);
+      /* A chimney with smoke coming out of it. A street of shut-up boxes
+         reads as scenery; a thread of smoke over a roof says somebody is in
+         there with the kettle on. */
+      const chx = hx + chx0, chz = hz + chz0;
       const puffs = [];
       for (let i = 0; i < 3; i++) {
         const s2 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6),
@@ -8325,14 +8615,15 @@ window.R3Factory = function (env) {
         puffs.push(s2);
       }
       L.smoke.push({ x: chx, y: hh + 2.4, z: chz, off: (d.col * 0.7 + d.row * 0.31) % 3, puffs });
-      L.group.add(bod, roof, doorM);
-      L.occluders.push(bod, roof, doorM);
-      // storybook ink lines around the walls, roof and door
-      [[bod, 0.24], [roof, 0.24], [doorM, 0.09]].forEach(([m, t]) => {
-        const hull = inkHull(m, t);
-        L.group.add(hull);
-        L.occluders.push(hull); // fades in step with the wall it hugs
-      });
+      L.group.add(bod);
+      L.occluders.push(bod);
+      /* One storybook ink line round the whole house. It used to be three —
+         walls, roof and door each got their own — and the house is now one
+         mesh, so three would be three copies of the same outline sitting on
+         top of each other. */
+      const hull = inkHull(bod, 0.24);
+      L.group.add(hull);
+      L.occluders.push(hull);   // fades in step with the wall it hugs
       if (d.label) {
         const tx = canvasTex(256, 48, (c2) => {
           c2.fillStyle = '#fffcf2'; c2.fillRect(0, 0, 256, 48);
@@ -9783,7 +10074,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v147 · A slow machine was playing the whole game in slow motion";
+const GAME_VERSION = "v148 · Turned, not stacked — and a town for forty fewer draw calls";
 
 /* ---------------- state ---------------- */
 const G = {
