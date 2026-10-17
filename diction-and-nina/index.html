@@ -7512,39 +7512,20 @@ window.R3Factory = function (env) {
     return m;
   }
 
-  /* ink outline: a slightly fatter copy of the mesh drawn inside-out, so its
-     back faces peek out around the silhouette like a hand-drawn line */
-  const INK3 = 0x14110f;
-  function inkHull(mesh, t = 0.13) {
-    const geo = mesh.geometry;
-    if (!geo.boundingBox) geo.computeBoundingBox();
-    const size = new THREE.Vector3();
-    geo.boundingBox.getSize(size);
-    const o = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: INK3, side: THREE.BackSide }));
-    o.position.copy(mesh.position);
-    o.rotation.copy(mesh.rotation);
-    o.scale.set(
-      size.x > 0.01 ? (size.x + t) / size.x : 1,
-      size.y > 0.01 ? (size.y + t) / size.y : 1,
-      size.z > 0.01 ? (size.z + t) / size.z : 1);
-    o.renderOrder = -1;
-    o.userData.outline = true;
-    return o;
-  }
-  /* outline a whole built structure, skipping tiny trim and ground blobs */
-  function outlineGroup(grp, t = 0.16, minSize = 0.45) {
-    const add = [];
-    grp.traverse(o => {
-      if (!o.isMesh || o.userData.blob || o.userData.outline) return;
-      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-      const sz = new THREE.Vector3();
-      o.geometry.boundingBox.getSize(sz);
-      if (Math.max(sz.x, sz.y, sz.z) < minSize) return;
-      add.push([o, inkHull(o, t)]);
-    });
-    add.forEach(([o, hull]) => { if (o.parent) o.parent.add(hull); });
-    return add.map(([, hull]) => hull);
-  }
+  /* There used to be an ink outline here: a slightly fatter copy of each
+     mesh drawn inside-out, so its back faces peeked round the silhouette
+     like a hand-drawn line. It earned its keep when everything in this view
+     was a plain box or tube with no edges of its own.
+
+     Nothing is a plain box any more — the houses have quoins and sills, the
+     ruin has fluted drums, the fountain a course of blocks — so the line was
+     drawing a heavy black edge round shapes that already read, and putting a
+     dark border on every window. Removed, along with the draw call each one
+     of them cost.
+
+     `userData.outline` is still tested where meshes are picked over, because
+     it costs nothing and anything that ever sets it again should still be
+     skipped there. */
 
   /* ---------- decorative structures (real geometry) ---------- */
   function buildDecoModel(d) {
@@ -7633,19 +7614,6 @@ window.R3Factory = function (env) {
           parts.push(log);
         });
         parts.forEach(m => g.add(m));
-        // the storybook ink line, on the masses big enough to carry one
-        parts.forEach((m) => {
-          if (m.material === dark) return;                 // a hole has no outline
-          const sz = new THREE.Vector3();
-          if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-          m.geometry.boundingBox.getSize(sz);
-          if (Math.max(sz.x, sz.y, sz.z) < 0.5) return;
-          const hull = inkHull(m, 0.11);
-          g.add(hull);
-          // a brick that ghosts out with its ink line left behind still has a
-          // hard black edge across the head it was supposed to stop hiding
-          if (over.indexOf(m) !== -1) over.push(hull);
-        });
         g.userData.hearthFront = zf;
         g.userData.hearth = true;
         g.userData.overhead = over;
@@ -7747,16 +7715,12 @@ window.R3Factory = function (env) {
         toe.scale.set(1, 0.3, 1);
         g.add(toe);
       });
-      outlineGroup(g, 0.035, 0.2);
     } else if (d.type === 'yarn') {
       // the ball of wool, with strands wound round it and an end trailing off
       const yx = d.col + 0.5, yz = cz + 0.05;
       const ball = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), M(0x4a7fb0));
       ball.position.set(yx, 0.22, yz); ball.castShadow = true;
       g.add(ball);
-      // only the ball gets an ink line: an outline thicker than the thread it
-      // is drawn round swallows the thread and leaves a loose black squiggle
-      outlineGroup(g, 0.03, 0.16);
       for (let i = 0; i < 4; i++) {
         const wind = new THREE.Mesh(new THREE.TorusGeometry(0.225, 0.022, 5, 16), M(0x35618c));
         wind.position.set(yx, 0.22, yz);
@@ -8516,10 +8480,6 @@ window.R3Factory = function (env) {
             o.userData.ghostTo = 0.45;
             L.occluders.push(o);
           });
-          // the big built things get the same ink treatment as houses
-          if (['ship', 'arcade', 'stage', 'ruin', 'fountain', 'lectern', 'pedestal'].indexOf(d.type) !== -1) {
-            outlineGroup(m).forEach(h => L.occluders.push(h));
-          }
         }
         return;
       }
@@ -10072,7 +10032,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v149 · The houses do not need a line drawn round them";
+const GAME_VERSION = "v150 · Nothing has a line drawn round it any more";
 
 /* ---------------- state ---------------- */
 const G = {
