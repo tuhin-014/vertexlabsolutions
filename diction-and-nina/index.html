@@ -10351,7 +10351,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v154 · The phone asked a question down a wire that was not there yet";
+const GAME_VERSION = "v155 · A test that races the thing it is testing is not a test";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -14518,8 +14518,12 @@ function phoneBePanel() {
         msg.innerHTML = '<b>Connecting…</b>';
         try {
           G.wantPad = true;
-          await Net.joinRoom(box.value);
+          /* Listening first, knocking second. joinRoom comes back long before
+             the wire opens, so there is no real window here — but the bug
+             this whole dance is fixing was a message arriving before anything
+             was ready for it, and the cheapest cure is to be ready first. */
           G.onPadOk = (m) => { G.onPadOk = null; padScreen(m.slot, m.name); };
+          await Net.joinRoom(box.value);
           /* If the wire happens to be open already, ask now; otherwise
              Net.onOpen asks the moment it opens. */
           padAsk();
@@ -20968,12 +20972,12 @@ window.DN = {
   // the phone's question, and the wiring it needs, for a test with two pages
   wantPad: (v) => { if (v !== undefined) G.wantPad = !!v; return !!G.wantPad; },
   padAsk: () => padAsk(),
-  /* Wait for the screen's answer the way the phone waits for it. Resolves
-     null if it never arrives, which is exactly the bug this watches for. */
-  padWait: (ms) => new Promise((res) => {
-    const t = setTimeout(() => { G.onPadOk = null; res(null); }, ms || 6000);
-    G.onPadOk = (m) => { clearTimeout(t); G.onPadOk = null; res({ slot: m.slot, name: m.name }); };
-  }),
+  /* The screen's answer as the phone recorded it. Read rather than waited
+     for, because a test that arms a listener is racing the wire: on a quiet
+     box the wire opens slowly and the listener wins, on a busy one it opens
+     before the listener is armed and the test fails for no reason at all.
+     This is set by the padok handler whether anybody is listening or not. */
+  padAnswer: () => ({ slot: NET.padSlot, name: NET.padName }),
   netWire: () => netWireCallbacks(),
   padScreenOn: () => !document.getElementById('padpad').classList.contains('hidden'),
   /* Pretend a controller is plugged in, so the whole of it can be driven from
