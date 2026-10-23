@@ -7190,9 +7190,46 @@ window.R3Factory = function (env) {
      out over a head — a mantelshelf, a lintel — are dealt with the way this
      game deals with a house standing in front of you: they ghost out. */
   const HELD_NEAR = 0.5;
+  /* How many texture pixels a cutout is drawn with.
+
+     A cutout is the flat drawing on a sheet standing in the 3D world, and it
+     was always drawn at one texel per *logical* game pixel. That is exactly
+     right when the round view renders one buffer pixel per game pixel, and
+     half the resolution it deserves when the screen has asked for two —
+     which is why the cast were the soft thing in an otherwise sharp picture.
+     Everything else out there is real geometry, drawn at whatever the screen
+     is actually made of; only the people were stuck at the old size.
+
+     Scaling the sheet's pixels and the drawing on them by the same number
+     leaves SPRITE_U — and with it every measurement the 2D overlay makes
+     above somebody's head — exactly where it was. */
+  const SHEETS = [];
+  /* Never below one. Letting this follow a software renderer's half-pixel
+     all the way down would make the cast blurrier than they have always
+     been, and the point is to make them better, not to find a machine to
+     make them worse on. Drawing them costs nothing measurable either way —
+     at quality 2 the frame rate is identical with the big sheets and the
+     small ones, because the fill rate of the view swamps them. */
+  function artK() { return Math.max(1, Math.min(2, quality)); }
+  /* The ladder moves the round view's resolution while the game is running,
+     so the sheets follow it rather than being stuck at whatever it happened
+     to be when they were first made. */
+  function resheet(grp) {
+    const ud = grp.userData, b = ud && ud.base;
+    if (!b) return;
+    const k = artK();
+    const w = Math.max(16, Math.round(b.texW * k)), h = Math.max(16, Math.round(b.texH * k));
+    if (ud.texW === w && ud.texH === h) return;
+    ud.cv.width = w; ud.cv.height = h;
+    ud.texW = w; ud.texH = h; ud.artScale = b.artScale * k;
+    ud.tx.needsUpdate = true;
+    ud.lastKey = null;             // so it is drawn again at its new size
+  }
+  function resheetAll() { SHEETS.forEach(resheet); }
   function paperActor(wU, hU, texW, texH, artScale, blobR) {
     const cv = document.createElement('canvas');
-    cv.width = texW; cv.height = texH;
+    const k = artK();
+    cv.width = Math.round(texW * k); cv.height = Math.round(texH * k);
     const c2 = cv.getContext('2d');
     const tx = new THREE.CanvasTexture(cv);
     tx.encoding = THREE.sRGBEncoding;
@@ -7205,8 +7242,10 @@ window.R3Factory = function (env) {
     const grp = new THREE.Group();
     const blob = shadowBlob(blobR || 0.34);
     grp.add(mesh, blob);
-    grp.userData = { cv, c2, tx, artScale, texW, texH, mesh, blob, wU, hU };
+    grp.userData = { cv, c2, tx, artScale: artScale * k, texW: cv.width, texH: cv.height,
+      mesh, blob, wU, hU, base: { texW, texH, artScale } };
     PAPER.push(mesh);
+    SHEETS.push(grp);
     scene.add(grp);
     return grp;
   }
@@ -8933,6 +8972,7 @@ window.R3Factory = function (env) {
     if (want >= quality - 0.001) return false;
     quality = want;
     try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    resheetAll();   // the cast is drawn at the resolution the view is
     return true;
   }
   let perfManual = false;          // a test is driving it instead of the clock
@@ -8961,6 +9001,7 @@ window.R3Factory = function (env) {
       if (perf.rung === 0 && mean < PERF_FAST && quality < QUALITY_ASK) {
         quality = Math.min(QUALITY_ASK, quality + 0.5);
         try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+        resheetAll();   // the cast is drawn at the resolution the view is
       }
       return;
     }
@@ -9034,6 +9075,7 @@ window.R3Factory = function (env) {
     perfOff.ghost = false;
     quality = QUALITY0;
     try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    resheetAll();   // the cast is drawn at the resolution the view is
     return R.perf();
   };
 
@@ -9047,6 +9089,7 @@ window.R3Factory = function (env) {
   R.force = function (px) {
     quality = Math.max(0.25, px || 1);
     try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+    resheetAll();   // the cast is drawn at the resolution the view is
     perfPinned = true;                // and do not quietly take it away again
     return quality;
   };
@@ -9078,6 +9121,7 @@ window.R3Factory = function (env) {
     if (quality > QUALITY_ASK) {
       quality = QUALITY_ASK;
       try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
+      resheetAll();   // the cast is drawn at the resolution the view is
     }
   };
 
@@ -9603,6 +9647,13 @@ window.R3Factory = function (env) {
      fraction of how tall they came out — [0, 0.22] is a pair of legs. `col` of
      null takes any ink at all, which is how you ask how far apart the legs
      are. */
+  /* tools seam: how many texture pixels a cutout is really painted with,
+     as against the sheet's own coordinates that sheetPaint reports in. */
+  R.sheetPx = function (who) {
+    const g = who === 'limey' ? dynamic.limeyF : who === 'scribble' ? dynamic.scribF
+      : (L.npcs && L.npcs[who]) ? L.npcs[who] : heroFor(who);
+    return g && g.userData ? g.userData.texH : 0;
+  };
   R.sheetPaint = function (who, col, tol, band) {
     /* Limey is not drawn from the hero art — he has a cutout of his own, and so
        does everybody else standing about in the land. */
@@ -9650,9 +9701,19 @@ window.R3Factory = function (env) {
         if (cur > run) run = cur;
       }
     }
-    return { texW: ud.texW, texH: ud.texH, ink, sheetTop: iTop, sheetBot: iBot, tall,
-      n, top: n ? top : -1, bot: n ? bot : -1, left: n ? left : -1, right: n ? right : -1,
-      wide: n ? right - left + 1 : 0, run };
+    /* Reported in the sheet's own pixels, whatever resolution the sheet is
+       actually drawn at. The cutouts follow the round view's quality now, so
+       a machine that asks for two pixels per game pixel paints them twice
+       the size — and anything measuring "how far apart are his ankles" would
+       get double the answer on that machine and half of it on a slower one.
+       The number means the same thing everywhere this way. */
+    const k = ud.base ? ud.texH / ud.base.texH : 1;
+    const un = (v) => (v < 0 ? v : Math.round(v / k));
+    return { texW: un(ud.texW), texH: un(ud.texH), ink: Math.round(ink / (k * k)),
+      sheetTop: un(iTop), sheetBot: un(iBot), tall: un(tall),
+      n: Math.round(n / (k * k)), top: un(n ? top : -1), bot: un(n ? bot : -1),
+      left: un(n ? left : -1), right: un(n ? right : -1),
+      wide: n ? un(right - left + 1) : 0, run: un(run) };
   };
   /* The land as it was drawn: the whole level painted onto one canvas at forty
      pixels to the tile, no camera and no zoom in the way. It is the very same
@@ -10032,7 +10093,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v150 · Nothing has a line drawn round it any more";
+const GAME_VERSION = "v151 · The cast were the soft thing in a sharp picture";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -19878,6 +19939,7 @@ window.DN = {
   },
   // and what is painted on somebody's own cutout out in the round view
   sheetPaint: (who, col, tol, band) => (R3 && R3.sheetPaint ? R3.sheetPaint(who, col, tol, band) : null),
+  sheetPx: (who) => (R3 && R3.sheetPx ? R3.sheetPx(who) : 0),
   // and how the land itself was painted, in its own coordinates
   landPaint: (x, y, w, h, col, tol) => (R3 && R3.landPaint ? R3.landPaint(x, y, w, h, col, tol) : null),
   // everybody standing about in this land, as the view running has them
