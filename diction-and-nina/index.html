@@ -534,6 +534,11 @@ body.dn-mobile .tc-menu .tc-ic { font-size:17px; }
   #turnme .tm-small { font-size:13px; opacity:.62; }
   /* and the game itself is not merely covered — nothing of it is reachable */
   #game-wrap, #touch, #padpad { visibility:hidden !important; pointer-events:none !important; }
+  /* …except when this phone is not playing the game but being a controller
+     for one. Then there is no sideways picture to see, only a stick, and it
+     is held whichever way its owner likes. */
+  body.dn-pad #turnme { display:none; }
+  body.dn-pad #padpad { visibility:visible !important; pointer-events:auto !important; }
   /* a phone, turning */
   .tm-phone {
     width:132px; height:auto; animation:tm-turn 2.4s ease-in-out infinite;
@@ -10351,7 +10356,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v155 · A test that races the thing it is testing is not a test";
+const GAME_VERSION = "v156 · The controller put itself away fifty milliseconds after it arrived";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -14600,16 +14605,29 @@ function padScreen(slot, name) {
   const off = document.getElementById('pp-off');
   if (off) off.onclick = () => { padStop(); };
   if (padSend) clearInterval(padSend);
+  /* Guarded on the wire, not on the game. NET.on means "there is another
+     world on the other end of this", and a phone is not another world — the
+     whole point of the phone path is that it returns out of Net.onOpen before
+     any of that machinery starts, so NET.on is false on a phone and always
+     will be. Fifty milliseconds after the pad appeared, this decided the game
+     was over, hid the pad and hung up the call. */
   padSend = setInterval(() => {
-    if (!NET.on) { padStop(); return; }
+    if (!Net.isOpen()) { padStop(); return; }
     Net.send({ t: 'pad', ax: st.ax, ay: st.ay, b: st.b });
   }, 50);
   G.padding = true;
+  /* A controller is not a game being played sideways: it is a stick and three
+     buttons, and it works whichever way up the phone is held. Without this it
+     inherits the game's "turn your phone sideways" screen, which hides the
+     pad itself — so a player holding their controller upright, which is how
+     you hold a controller, is told to turn it and then given nothing. */
+  document.body.classList.add('dn-pad');
 }
 function padStop() {
   if (padSend) { clearInterval(padSend); padSend = null; }
   const el = document.getElementById('padpad');
   if (el) el.classList.add('hidden');
+  document.body.classList.remove('dn-pad');
   G.padding = false;
   Net.hangUp();
 }
@@ -20965,6 +20983,10 @@ window.DN = {
   phone(slot, st) { if (slot === null) { NET.pad = null; phoneSet(0, null); phoneSet(1, null); phoneSet(2, null); return null; }
     NET.pad = slot; phoneSet(slot, st); return { slot, live: phoneSlots() }; },
   phoneSlots: () => phoneSlots(),
+  /* What the screen is actually being told by the phone's thumb. The slots
+     alone only say a phone is there; this says it is sending something. */
+  padSeen: (slot) => { const p = PHONE[Math.max(0, Math.min(2, slot | 0))];
+    return p ? { ax: p.axes[0], ay: p.axes[1] } : null; },
   /* The two flags that decide whether an incoming connection is a second
      player or a phone pretending to be a joystick. They are the whole of the
      difference between "your friend joined" and nothing happening at all. */
