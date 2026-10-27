@@ -10356,7 +10356,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v157 · The Controller is its own app, and nothing was watching it";
+const GAME_VERSION = "v158 · Counting footsteps measures the frame rate, not the footpath";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -20410,6 +20410,11 @@ window.DN = {
   /* What each of the family is attending to and how far over they are
      leaning, as the art layer is about to read it. */
   trail: () => trailP.length,
+  /* The footsteps themselves, so a test can ask how far they reach rather
+     than how many there are. One is written per frame, so counting them
+     measures the frame rate; measuring the path they cover measures the
+     path. */
+  trailPts: () => trailP.map((q) => ({ x: Math.round(q.x), y: Math.round(q.y) })),
   liveliness: () => SLOTS().map(A => ({ char: A.char, moving: !!A.moving, facing: A.facing,
     look: A.look ? { x: Math.round(A.look.x * 1000) / 1000, y: Math.round(A.look.y * 1000) / 1000 } : null,
     /* where they are as well, so a test asking why somebody is not leaning
