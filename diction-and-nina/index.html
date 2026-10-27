@@ -10356,7 +10356,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v156 · The controller put itself away fifty milliseconds after it arrived";
+const GAME_VERSION = "v157 · The Controller is its own app, and nothing was watching it";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -14504,6 +14504,10 @@ function padAsk() {
   if (!G.wantPad) return false;
   return Net.send({ t: 'padhello' });
 }
+/* How long a phone waits for the wire before being told it is not coming. A
+   connection between two devices on the same wifi takes a second or two. */
+const PAD_WIRE_MS = 25000;
+function padWaitOff() { if (G.padWait) { clearTimeout(G.padWait); G.padWait = null; } }
 function phoneBePanel() {
   netWireCallbacks();
   netPanel(`
@@ -14527,12 +14531,27 @@ function phoneBePanel() {
              the wire opens, so there is no real window here — but the bug
              this whole dance is fixing was a message arriving before anything
              was ready for it, and the cheapest cure is to be ready first. */
-          G.onPadOk = (m) => { G.onPadOk = null; padScreen(m.slot, m.name); };
+          G.onPadOk = (m) => { G.onPadOk = null; padWaitOff(); padScreen(m.slot, m.name); };
           await Net.joinRoom(box.value);
           /* If the wire happens to be open already, ask now; otherwise
              Net.onOpen asks the moment it opens. */
           padAsk();
           msg.innerHTML = '<b>Found the game — waiting for the wire…</b>';
+          /* And if it never opens, say so. This waited for ever, and somebody
+             sat and watched it do that. Nothing here can tell a code nobody is
+             showing from two devices that cannot reach each other — a meeting
+             point holds a message for a name that has not arrived rather than
+             turning it away — so it says both. */
+          padWaitOff();
+          G.padWait = setTimeout(() => {
+            G.padWait = null;
+            if (Net.isOpen()) return;
+            G.wantPad = false; G.onPadOk = null; Net.hangUp();
+            msg.innerHTML = `<b>Could not get through to their game.</b><br>
+              Either that code is not on their screen any more, or this phone
+              and their screen could not reach each other. Both on the same
+              wifi is the best chance.`;
+          }, G.padWireMs || PAD_WIRE_MS);
         } catch (e) {
           msg.innerHTML = '<b>' + (e && e.message === 'no-room'
             ? 'No game is showing that code.' : 'Could not connect — check the code.') + '</b>';
@@ -20993,6 +21012,8 @@ window.DN = {
   padFlags: () => ({ pad: NET.pad, wantPad: !!G.wantPad }),
   // the phone's question, and the wiring it needs, for a test with two pages
   wantPad: (v) => { if (v !== undefined) G.wantPad = !!v; return !!G.wantPad; },
+  // so a test need not sit through the real wait for the wire
+  padWireMs: (ms) => { if (ms !== undefined) G.padWireMs = ms; return G.padWireMs || PAD_WIRE_MS; },
   padAsk: () => padAsk(),
   /* The screen's answer as the phone recorded it. Read rather than waited
      for, because a test that arms a listener is racing the wire: on a quiet
