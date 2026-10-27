@@ -166,6 +166,7 @@ html, body {
   <p id="pad-msg"></p>
   <p class="small">Nothing is stored and nothing goes through us — this talks
     straight to their game.</p>
+  <p class="small" id="pad-ver"></p>
 </div>
 <div id="pad-face" class="hidden">
   <div id="pad-who"></div>
@@ -1294,14 +1295,35 @@ const Net = (() => {
    back, so this end never has to be told anything twice.
    ============================================================ */
 (() => {
+  /* Printed in the small print on the way in. The Controller is a page a phone
+     keeps in its cache, so "has this phone got the new one?" is a real
+     question with no way to answer it otherwise. */
+  const PAD_VERSION = 'Controller v2 — asks when the wire opens';
   const $ = (id) => document.getElementById(id);
   const join = $('pad-join'), face = $('pad-face');
   const msg = $('pad-msg'), box = $('pad-room'), who = $('pad-who');
   const stick = $('pad-stick'), nub = $('pad-nub');
   let sending = null;
   const st = { ax: 0, ay: 0, b: {} };
+  /* How long to wait for the wire before saying so. A connection between two
+     devices on the same wifi takes a second or two; twenty-five is long enough
+     that a slow one is not called a failure, and short enough that nobody sits
+     watching one line of text wondering whether it is broken. It used to wait
+     for ever, which is what somebody actually sat through. */
+  let wireWait = 25000, waiting = null;
+  const unwait = () => { if (waiting) { clearTimeout(waiting); waiting = null; } };
+  /* Said when the wire never opens. Both halves are worth saying: nothing in
+     here can tell a code nobody is showing from two devices that cannot reach
+     each other, because a meeting point holds a message for a name that has
+     not arrived rather than turning it away. */
+  const NO_WIRE = `<b>Could not get through to their game.</b><br>
+    Either that code is not on their screen any more, or your phone and their
+    screen could not reach each other. Both on the same wifi is the best
+    chance.`;
 
   const say = (t) => { msg.innerHTML = t; };
+  const stamp = $('pad-ver');
+  if (stamp) stamp.textContent = PAD_VERSION;
 
   /* ---- the surface ---- */
   let grabbed = null;
@@ -1368,6 +1390,8 @@ const Net = (() => {
   }
 
   function live(slot, name, quiet) {
+    unwait();
+    say('');                      // nothing is being asked any more
     join.classList.add('hidden');
     face.classList.remove('hidden');
     who.textContent = `Player ${slot + 1} — ${name}`;
@@ -1382,6 +1406,7 @@ const Net = (() => {
     }, 50);
   }
   function stop(why) {
+    unwait();
     if (sending) { clearInterval(sending); sending = null; }
     face.classList.add('hidden');
     join.classList.remove('hidden');
@@ -1393,6 +1418,23 @@ const Net = (() => {
     if (m && m.t === 'padok') live(m.slot | 0, m.name || 'a player');
   };
   Net.onClose = () => stop('The game closed the connection.');
+  /* A connection that gives up says why, instead of leaving a line of text
+     saying it is still trying. */
+  Net.onState = (s, err) => {
+    if (s === 'failed') stop('<b>' + (err || "The two devices couldn't reach each other.") + '</b>');
+  };
+  /* Ask which player this is when the wire opens, and not before.
+
+     joinRoom() comes back when the ROOM CODE has been accepted; the wire
+     itself opens a few seconds later, once the two ends have found a way to
+     each other. Net.send returns false and says nothing at all when the
+     channel is not open yet, so asking the instant joinRoom returned meant
+     the question went nowhere, the screen never answered, and this sat on
+     "asking which player you are" for ever. Which is exactly what it did.
+
+     Asked twice is harmless: the screen answers the same thing both times. */
+  function padAsk() { return Net.send({ t: 'padhello' }); }
+  Net.onOpen = () => { padAsk(); say('Connected — asking which player you are…'); };
 
   async function go() {
     const code = Net.tidyRoomCode(box.value);
@@ -1401,8 +1443,12 @@ const Net = (() => {
     say('Connecting…');
     try {
       await Net.joinRoom(code);
-      Net.send({ t: 'padhello' });
-      say('Connected — asking which player you are…');
+      /* If the wire happens to be open already, ask now; otherwise Net.onOpen
+         asks the moment it opens. */
+      padAsk();
+      say('Found the game — waiting for the wire…');
+      unwait();
+      waiting = setTimeout(() => { if (!Net.isOpen()) stop(NO_WIRE); }, wireWait);
     } catch (e) {
       say('<b>' + (e && e.message === 'no-room'
         ? "No game is showing that code. Check it, and that their game is still waiting."
@@ -1417,6 +1463,8 @@ const Net = (() => {
   // for tests: the same surface, driven without a real connection
   window.PAD = { state: () => ({ ax: st.ax, ay: st.ay, b: Object.assign({}, st.b) }),
     live, stop, connected: () => !face.classList.contains('hidden'),
+    // so a test need not sit through the real wait
+    wireWait: (ms) => { if (ms !== undefined) wireWait = ms; return wireWait; },
     // the surface with no wire behind it, so it can be looked at and pressed
     show: (slot, name) => live(slot || 0, name || 'a player', true) };
 })();
