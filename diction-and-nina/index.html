@@ -554,6 +554,18 @@ body.dn-mobile .tc-menu .tc-ic { font-size:17px; }
   @media (max-height:620px) { .tm-draw { display:none; } }
 }
 
+/* ---- the QR code on the controller-hosting panel ----
+   White behind it and a border of its own: a code drawn straight onto the
+   paper background reads, but a camera finds it faster when the quiet zone is
+   plainly a quiet zone. Big, because it is being read from across a room. */
+.pad-qr {
+  display:block; margin:10px auto 6px; width:min(300px, 72vw); height:auto;
+  background:#fff; padding:8px; border-radius:10px;
+  box-shadow:0 2px 0 rgba(0,0,0,.18);
+  image-rendering:pixelated;
+}
+.pad-qr-say { font-size:14px; opacity:.8; margin-top:0; }
+
 </style>
 </head>
 <body>
@@ -6167,6 +6179,437 @@ function drawCharCard(ctx, id, x, y, size) {
 </script>
 <script>
 /* ============================================================
+   Diction & Nina — a QR code, drawn
+   ------------------------------------------------------------
+   Typing a hundred and twenty characters into a phone is not a
+   thing anybody does twice. A phone's own camera reads a QR code
+   without any help from us, so the screen can simply show one and
+   the phone can simply look at it.
+
+   This writes them. Byte mode, error correction level L (the most
+   room for the fewest modules), versions 1 to 9 — which carries
+   230 characters, and the thing being carried is about 180.
+
+   Every part of this is checked against `segno`, an independent
+   implementation, in tools/test-qr.js: the version chosen, the mask
+   chosen, and every module of the finished grid. A QR code that is
+   wrong in one module is a QR code that does not scan, and there is
+   no way to tell by looking at it.
+   ============================================================ */
+(() => {
+  const Q = {};
+
+  /* ---- the field the error correction lives in ----
+     GF(256) with 0x11d as the primitive polynomial, which is what
+     QR uses. Logs and antilogs up front: multiplication is then an
+     addition of logs, which is the whole trick. */
+  const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+  for (let i = 0, x = 1; i < 255; i++) {
+    EXP[i] = x; LOG[x] = i;
+    x <<= 1; if (x & 0x100) x ^= 0x11d;
+  }
+  for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  const mul = (a, b) => (a === 0 || b === 0) ? 0 : EXP[LOG[a] + LOG[b]];
+
+  /* The generator polynomial for n error correction codewords:
+     (x - a^0)(x - a^1)...(x - a^(n-1)), multiplied out. */
+  function genPoly(n) {
+    let g = [1];
+    for (let i = 0; i < n; i++) {
+      const next = new Array(g.length + 1).fill(0);
+      for (let j = 0; j < g.length; j++) {
+        next[j] ^= g[j];
+        next[j + 1] ^= mul(g[j], EXP[i]);
+      }
+      g = next;
+    }
+    return g;
+  }
+  /* The remainder of the data, shifted up by n, divided by the
+     generator — which is what the error correction codewords are. */
+  function ecFor(data, n) {
+    const g = genPoly(n);
+    const rem = new Array(n).fill(0);
+    for (const byte of data) {
+      const factor = byte ^ rem[0];
+      rem.shift(); rem.push(0);
+      if (factor !== 0) for (let i = 0; i < n; i++) rem[i] ^= mul(g[i + 1], factor);
+    }
+    return rem;
+  }
+
+  /* ---- how much fits, and in what shape ----
+     Level L only, versions 1 to 9: [data codewords per block,
+     error correction codewords per block, number of blocks]. Every
+     one of these versions divides into blocks of equal size, which
+     is why there is no second group here. */
+  const PLAN = {
+    1: [19, 7, 1], 2: [34, 10, 1], 3: [55, 15, 1], 4: [80, 20, 1], 5: [108, 26, 1],
+    6: [68, 18, 2], 7: [78, 20, 2], 8: [97, 24, 2], 9: [116, 30, 2],
+  };
+  // where the alignment patterns sit, by version (v1 has none)
+  const ALIGN = {
+    1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30],
+    6: [6, 34], 7: [6, 22, 38], 8: [6, 24, 42], 9: [6, 26, 46],
+  };
+  /* What fits: the codewords of the version, less the twelve bits of header
+     (four for the mode, eight for the length) and the four-bit terminator —
+     which is two bytes, not three. Three was one character short at every
+     version, so a payload that fits a version 7 code was being drawn as a
+     version 8 one: bigger than it needed to be, for no reason. */
+  const dataBytes = (v) => PLAN[v][0] * PLAN[v][2] - 2;
+  Q.capacity = () => dataBytes(9);
+
+  /* ---- the bits ---- */
+  function bitsFor(text, version) {
+    const bytes = [];
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      if (c < 0x80) bytes.push(c);
+      else if (c < 0x800) bytes.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+      else bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    }
+    const bits = [];
+    const push = (val, n) => { for (let i = n - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+    push(4, 4);                      // byte mode
+    push(bytes.length, 8);           // one byte of length, which is versions 1 to 9
+    for (const b of bytes) push(b, 8);
+    const room = PLAN[version][0] * PLAN[version][2] * 8;
+    if (bits.length > room) throw new Error('qr: too long for version ' + version);
+    // the terminator, then up to a byte boundary, then the two pad bytes in turn
+    for (let i = 0; i < 4 && bits.length < room; i++) bits.push(0);
+    while (bits.length % 8) bits.push(0);
+    const words = [];
+    for (let i = 0; i < bits.length; i += 8) {
+      let b = 0;
+      for (let j = 0; j < 8; j++) b = (b << 1) | bits[i + j];
+      words.push(b);
+    }
+    const want = PLAN[version][0] * PLAN[version][2];
+    for (let i = 0; words.length < want; i++) words.push(i % 2 ? 0x11 : 0xec);
+    return words;
+  }
+  function byteCount(text) {
+    let n = 0;
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      n += c < 0x80 ? 1 : c < 0x800 ? 2 : 3;
+    }
+    return n;
+  }
+  Q.versionFor = function (text) {
+    const n = byteCount(text);
+    for (let v = 1; v <= 9; v++) if (n <= dataBytes(v)) return v;
+    throw new Error('qr: ' + n + ' bytes is more than a version 9 code holds');
+  };
+
+  /* Blocks interleaved: a codeword from each block in turn, data
+     first and then error correction, which is how a scanner expects
+     to find them. */
+  function codewords(text, version) {
+    const [perBlock, ecLen, blocks] = PLAN[version];
+    const all = bitsFor(text, version);
+    const data = [], ec = [];
+    for (let i = 0; i < blocks; i++) {
+      const slice = all.slice(i * perBlock, (i + 1) * perBlock);
+      data.push(slice); ec.push(ecFor(slice, ecLen));
+    }
+    const out = [];
+    for (let i = 0; i < perBlock; i++) for (const d of data) out.push(d[i]);
+    for (let i = 0; i < ecLen; i++) for (const e of ec) out.push(e[i]);
+    return out;
+  }
+
+  /* ---- the grid ----
+     null means "nothing has been put here yet", which is how the
+     data placement knows what it may write on. */
+  function blank(size) {
+    const g = [];
+    for (let r = 0; r < size; r++) g.push(new Array(size).fill(null));
+    return g;
+  }
+  function putFinder(g, r0, c0) {
+    for (let r = -1; r <= 7; r++) for (let c = -1; c <= 7; c++) {
+      const r1 = r0 + r, c1 = c0 + c;
+      if (r1 < 0 || c1 < 0 || r1 >= g.length || c1 >= g.length) continue;
+      const edge = Math.max(Math.abs(r - 3), Math.abs(c - 3));
+      g[r1][c1] = (r < 0 || c < 0 || r > 6 || c > 6) ? 0 : (edge !== 2 ? 1 : 0);
+    }
+  }
+  const BCH_FMT = (bits) => {
+    let d = bits << 10;
+    for (let i = 14; i >= 10; i--) if ((d >> i) & 1) d ^= 0x537 << (i - 10);
+    return ((bits << 10) | d) ^ 0x5412;
+  };
+  const BCH_VER = (v) => {
+    let d = v << 12;
+    for (let i = 17; i >= 12; i--) if ((d >> i) & 1) d ^= 0x1f25 << (i - 12);
+    return (v << 12) | d;
+  };
+
+  function skeleton(version) {
+    const size = 17 + version * 4;
+    const g = blank(size);
+    putFinder(g, 0, 0); putFinder(g, 0, size - 7); putFinder(g, size - 7, 0);
+    for (const r of ALIGN[version]) for (const c of ALIGN[version]) {
+      if ((r <= 8 && c <= 8) || (r <= 8 && c >= size - 9) || (r >= size - 9 && c <= 8)) continue;
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+        g[r + dr][c + dc] = Math.max(Math.abs(dr), Math.abs(dc)) !== 1 ? 1 : 0;
+      }
+    }
+    for (let i = 8; i < size - 8; i++) {
+      if (g[6][i] === null) g[6][i] = i % 2 === 0 ? 1 : 0;
+      if (g[i][6] === null) g[i][6] = i % 2 === 0 ? 1 : 0;
+    }
+    g[size - 8][8] = 1;                       // the one module that is always dark
+    // the format areas are reserved now and filled in once the mask is known
+    for (let i = 0; i <= 8; i++) {
+      if (g[8][i] === null) g[8][i] = 0;
+      if (g[i][8] === null) g[i][8] = 0;
+    }
+    for (let i = 0; i < 8; i++) {
+      if (g[8][size - 1 - i] === null) g[8][size - 1 - i] = 0;
+      if (g[size - 1 - i][8] === null) g[size - 1 - i][8] = 0;
+    }
+    if (version >= 7) {
+      for (let i = 0; i < 18; i++) {
+        const r = Math.floor(i / 3), c = i % 3;
+        if (g[size - 11 + c][r] === null) g[size - 11 + c][r] = 0;
+        if (g[r][size - 11 + c] === null) g[r][size - 11 + c] = 0;
+      }
+    }
+    return g;
+  }
+
+  /* Which modules the data may be written on: everything the
+     skeleton did not claim. Worked out before the skeleton is
+     filled in, so that a zero put there by a function pattern is
+     not mistaken for free space. */
+  function freeMap(version) {
+    const g = skeleton(version);
+    return g.map(row => row.map(v => v === null));
+  }
+
+  function placeData(g, free, words) {
+    const size = g.length;
+    let bit = 0;
+    const next = () => {
+      const i = bit >> 3, b = 7 - (bit & 7);
+      bit++;
+      return i < words.length ? (words[i] >> b) & 1 : 0;
+    };
+    let up = true;
+    for (let c = size - 1; c > 0; c -= 2) {
+      if (c === 6) c--;                       // the timing column is not a data column
+      for (let n = 0; n < size; n++) {
+        const r = up ? size - 1 - n : n;
+        for (const cc of [c, c - 1]) {
+          if (free[r][cc]) g[r][cc] = next();
+        }
+      }
+      up = !up;
+    }
+  }
+
+  const MASKS = [
+    (r, c) => (r + c) % 2 === 0,
+    (r, c) => r % 2 === 0,
+    (r, c) => c % 3 === 0,
+    (r, c) => (r + c) % 3 === 0,
+    (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
+    (r, c) => ((r * c) % 2) + ((r * c) % 3) === 0,
+    (r, c) => (((r * c) % 2) + ((r * c) % 3)) % 2 === 0,
+    (r, c) => (((r + c) % 2) + ((r * c) % 3)) % 2 === 0,
+  ];
+
+  /* The fifteen format bits, written twice.
+
+     Both copies were transposed here — rows where columns belong — and the
+     code still scanned, because a reader that gets a good copy does not go
+     looking at the other one. A code read at an angle, or with a thumb over
+     a corner, is exactly when the second copy is the one that saves it.
+
+     The mapping is not guessable and was not guessed: it was read off an
+     independent implementation by asking it for the same payload under all
+     eight masks and seeing which cell carried which bit, since the format
+     bits are the only thing in the fixed patterns that the mask changes. */
+  function putFormat(g, mask) {
+    const size = g.length;
+    const bits = BCH_FMT((0b01 << 3) | mask);   // 01 is error correction level L
+    const bit = (i) => (bits >> i) & 1;
+    // first copy: down column 8, then leftwards along row 8
+    for (let i = 0; i <= 5; i++) g[i][8] = bit(i);
+    g[7][8] = bit(6);
+    g[8][8] = bit(7);
+    g[8][7] = bit(8);
+    for (let i = 9; i <= 14; i++) g[8][14 - i] = bit(i);
+    // second copy: leftwards along row 8 from the far right, then down column 8
+    for (let i = 0; i <= 7; i++) g[8][size - 1 - i] = bit(i);
+    for (let i = 8; i <= 14; i++) g[size - 15 + i][8] = bit(i);
+  }
+  function putVersion(g, version) {
+    if (version < 7) return;
+    const size = g.length;
+    const bits = BCH_VER(version);
+    for (let i = 0; i < 18; i++) {
+      const b = (bits >> i) & 1;
+      const r = Math.floor(i / 3), c = i % 3;
+      g[size - 11 + c][r] = b;
+      g[r][size - 11 + c] = b;
+    }
+  }
+
+  /* ---- choosing the mask ----
+     All eight are tried and the least ugly wins, by the four rules
+     in the specification. This matters: the rules are what keep a
+     code from growing something that looks like a finder pattern in
+     the middle of it, which is how a code that is otherwise correct
+     fails to scan. */
+  /* The four rules from the specification.
+
+     The third is the one with room to argue in it: "1:1:3:1:1 ratio pattern,
+     preceded or followed by light area 4 modules wide". One well-known
+     implementation reads that as the ratio at any scale, so 2:2:6:2:2 counts
+     too; another reads it as the literal seven modules 1011101. Rules one, two
+     and four agree to the point between them; this one moves the total by
+     forty here and there, which is enough to choose a different mask.
+
+     The literal reading is the one here, for a reason that is not a matter of
+     taste: with the other one, a code of mine failed to scan where the same
+     payload drawn by the other implementation scanned, and the only difference
+     between the two was which mask had been chosen. These rules exist to keep
+     a code readable, so the reading that produced the readable codes wins.
+     With this one the mask chosen matches that implementation on every payload
+     tried, which is also a far better test than agreeing with myself. */
+  const N1 = 3, N2 = 3, N3 = 40, N4 = 10;
+  const FINDERISH = [1, 0, 1, 1, 1, 0, 1];
+  function penalty(g) {
+    const size = g.length;
+    let score = 0;
+    const allLight = (line, from, to) => {
+      for (let i = Math.max(0, from); i < Math.min(size, to); i++) if (line[i]) return false;
+      return true;
+    };
+    const findFrom = (line, start) => {
+      for (let i = start; i + 7 <= size; i++) {
+        let hit = true;
+        for (let k = 0; k < 7; k++) if (line[i + k] !== FINDERISH[k]) { hit = false; break; }
+        if (hit) return i;
+      }
+      return -1;
+    };
+    const finderish = (line) => {
+      let got = 0, idx = findFrom(line, 0);
+      while (idx !== -1) {
+        let offset = idx + 7;
+        if (idx === 0 || idx === size - 7
+            || allLight(line, idx - 4, idx) || allLight(line, offset, offset + 4)) {
+          got += N3;
+        } else {
+          /* No light area either side: the next match cannot start before the
+             middle of this one, so carry on from there rather than from here. */
+          offset = idx + 4;
+        }
+        idx = findFrom(line, offset);
+      }
+      return got;
+    };
+    const runs = (line) => {
+      let s = 0, run = 1;
+      for (let i = 1; i < size; i++) {
+        if (line[i] === line[i - 1]) run++;
+        else { if (run >= 5) s += N1 + (run - 5); run = 1; }
+      }
+      if (run >= 5) s += N1 + (run - 5);
+      return s;
+    };
+    for (let r = 0; r < size; r++) { score += runs(g[r]); score += finderish(g[r]); }
+    for (let c = 0; c < size; c++) {
+      const col = g.map(row => row[c]);
+      score += runs(col); score += finderish(col);
+    }
+    for (let r = 0; r < size - 1; r++) for (let c = 0; c < size - 1; c++) {
+      const v = g[r][c];
+      if (v === g[r][c + 1] && v === g[r + 1][c] && v === g[r + 1][c + 1]) score += N2;
+    }
+    let dark = 0;
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) dark += g[r][c];
+    const total = size * size;
+    const k = Math.ceil(Math.abs(dark * 20 - total * 10) / total) - 1;
+    score += Math.max(0, k) * N4;
+    return score;
+  }
+
+  /* The eight penalty scores, for a test that wants to check the choice was
+     the best one by this rule rather than merely a number between 0 and 7. */
+  Q.scores = function (text) {
+    const version = Q.versionFor(text);
+    const words = codewords(text, version);
+    const free = freeMap(version);
+    const out = [];
+    for (let mask = 0; mask < 8; mask++) {
+      const g = skeleton(version);
+      placeData(g, free, words);
+      for (let r = 0; r < g.length; r++) for (let c = 0; c < g.length; c++) {
+        if (free[r][c] && MASKS[mask](r, c)) g[r][c] ^= 1;
+      }
+      putFormat(g, mask); putVersion(g, version);
+      out.push(penalty(g));
+    }
+    return out;
+  };
+
+  /* The finished grid: `size`, and rows of 1 (dark) and 0. */
+  Q.matrix = function (text, opts) {
+    const only = opts && opts.mask !== undefined ? opts.mask : null;
+    const version = Q.versionFor(text);
+    const words = codewords(text, version);
+    const free = freeMap(version);
+    let best = null;
+    for (let mask = 0; mask < 8; mask++) {
+      if (only !== null && mask !== only) continue;
+      const g = skeleton(version);
+      placeData(g, free, words);
+      for (let r = 0; r < g.length; r++) for (let c = 0; c < g.length; c++) {
+        if (free[r][c] && MASKS[mask](r, c)) g[r][c] ^= 1;
+      }
+      putFormat(g, mask);
+      putVersion(g, version);
+      const score = penalty(g);
+      if (!best || score < best.score) best = { score, mask, rows: g };
+    }
+    return { size: best.rows.length, version, mask: best.mask, rows: best.rows };
+  };
+
+  /* Drawn into a canvas, with the quiet border a scanner needs.
+     Whole pixels per module: half a pixel of blur on a module edge
+     is the difference between reading in one go and waving a phone
+     about. */
+  Q.draw = function (canvas, text, opts) {
+    const o = opts || {};
+    const m = Q.matrix(text);
+    const quiet = o.quiet === undefined ? 4 : o.quiet;
+    const total = m.size + quiet * 2;
+    const want = o.size || Math.min(canvas.width, canvas.height) || 300;
+    const px = Math.max(1, Math.floor(want / total));
+    const side = px * total;
+    canvas.width = side; canvas.height = side;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = o.light || '#fdf3dc';
+    ctx.fillRect(0, 0, side, side);
+    ctx.fillStyle = o.dark || '#2a2118';
+    for (let r = 0; r < m.size; r++) for (let c = 0; c < m.size; c++) {
+      if (m.rows[r][c]) ctx.fillRect((c + quiet) * px, (r + quiet) * px, px, px);
+    }
+    return m;
+  };
+
+  window.QR = Q;
+})();
+
+</script>
+  <script>
+/* ============================================================
    Diction & Nina — playing together over the internet
    ------------------------------------------------------------
    There is no game server behind this. Two browsers talk straight
@@ -6307,6 +6750,8 @@ const Net = (() => {
      seconds of gathering is a connection that gives up while the answer is
      still in the post. */
   const GATHER_MS = 14000;
+  /* How long after the last address arrives to decide no more are coming. */
+  const QUIET_MS = 2500;
 
   let pc = null, chan = null;
 
@@ -6762,6 +7207,11 @@ const Net = (() => {
         signalSend(from, { sdp: { type: 'answer', sdp: pc.localDescription.sdp } });
       } else if (p.sdp && p.sdp.type === 'answer' && N.role === 'host') {
         await pc.setRemoteDescription(p.sdp);
+      } else if (p.reply && N.role === 'host') {
+        /* The whole answer in one message, candidates and all, from a phone
+           that read the invite off a QR code. Nothing is trickled: both ends
+           already hold every address the other one has. */
+        await N.acceptReply(p.reply);
       } else if (p.cand) {
         await pc.addIceCandidate(p.cand);
       }
@@ -6770,16 +7220,50 @@ const Net = (() => {
 
   /* ---- connection ----------------------------------------------------- */
   function gatherAll() {
-    // ICE trickles in; take everything that arrives, but never hang on it
+    /* ICE trickles in; take everything that arrives, but never hang on it.
+
+       Two ways of noticing it has finished, not one. Gathering starts the
+       moment the local description is set, and on a machine with nothing to
+       ask — no reachable STUN, just its own addresses — it can be finished
+       before this function is even called, in which case the "no more
+       candidates" event has already been and gone and waiting for it means
+       waiting out the whole timeout. Fourteen seconds of "Getting a code…"
+       before anything appears on screen, for a code that was ready at once.
+       So: whatever is already in the local description, then the state, then
+       the events. */
     return new Promise((resolve) => {
-      const cands = [];
+      const seen = new Set();
       let done = false;
-      const finish = () => { if (!done) { done = true; resolve(cands); } };
+      const finish = () => { if (!done) { done = true; resolve(Array.from(seen)); } };
+      const take = (c) => {
+        if (c && c.indexOf(' udp ') !== -1) seen.add(c.replace(/^a=/, '').trim());
+      };
+      const sdp = (pc.localDescription && pc.localDescription.sdp) || '';
+      for (const line of String(sdp).split(/\r\n|\n/)) {
+        if (/^a=candidate:/.test(line)) take(line);
+      }
+      if (pc.iceGatheringState === 'complete') return finish();
+      /* And a quiet period, because "gathering" does not end when there is
+         nothing left to find: it ends when the browser gives up asking the
+         STUN servers, and a network that silently drops those takes the whole
+         fourteen seconds to discover it. Addresses arrive in a burst; once
+         they stop arriving for a couple of seconds there is nothing more
+         coming. Long enough that a slow answer from the far side of an ocean
+         is still waited for, short enough that nobody watches a blank screen. */
+      let quiet = null;
+      const settle = () => {
+        if (quiet) clearTimeout(quiet);
+        quiet = setTimeout(finish, QUIET_MS);
+      };
       pc.onicecandidate = (e) => {
         if (!e.candidate) return finish();
-        const c = e.candidate.candidate;
-        if (c && c.indexOf(' udp ') !== -1) cands.push(c.replace(/^a=/, ''));
+        take(e.candidate.candidate);
+        settle();
       };
+      pc.onicegatheringstatechange = () => {
+        if (pc && pc.iceGatheringState === 'complete') finish();
+      };
+      if (seen.size) settle();
       setTimeout(finish, GATHER_MS);
     });
   }
@@ -6839,6 +7323,42 @@ const Net = (() => {
     const mine = await gatherAll();
     setState('waiting');
     return encode('answer', pc.localDescription.sdp, mine);
+  };
+
+  /* ---- meeting by picture ----
+     The hand-typed codes need no meeting point at all, which is their whole
+     virtue, and they are a hundred and twenty characters, which is their
+     whole problem: nobody types that into a phone twice. A phone's camera
+     reads a QR code for free, so the screen can show the invite as one.
+
+     The way back still needs a word from the phone, and that is all the
+     meeting point is used for here: one message, one direction, with every
+     address bundled into it. Nothing is trickled, which is the part of the
+     room-code path that has a server in the middle of it at the moment two
+     devices are trying to find each other. */
+  N.hostQr = async function () {
+    N.role = 'host';
+    freshPeer();
+    setState('offering');
+    wireChannel(pc.createDataChannel('wordsville', { ordered: false, maxRetransmits: 0 }));
+    await pc.setLocalDescription(await pc.createOffer());
+    const cands = await gatherAll();
+    const invite = encode('offer', pc.localDescription.sdp, cands);
+    const code = makeRoomCode();
+    try { await signalOpen('DN-' + code, onSignal); } catch (e) { signalClose(); throw new Error('no-server'); }
+    roomCode = code;
+    setState('waiting');
+    return { code, invite };
+  };
+  /* On the phone: take the invite the camera read, and post the answer into
+     the room the same picture named. */
+  N.replyToRoom = async function (room, invite) {
+    const reply = await N.join(invite);        // the by-hand path, unchanged
+    const me = 'DNP' + makeRoomCode() + makeRoomCode();
+    try { await signalOpen(me, onSignal); } catch (e) { signalClose(); throw new Error('no-server'); }
+    signalSend('DN-' + N.tidyRoomCode(room), { reply });
+    setState('linking');
+    return true;
   };
 
   N.send = function (obj) {
@@ -10356,7 +10876,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v158 · Counting footsteps measures the frame rate, not the footpath";
+const GAME_VERSION = "v159 · A hundred and twenty characters nobody will type, as a picture a camera reads";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -14441,6 +14961,34 @@ function netRelayPanel(note) {
    the phone types the code in and turns itself into a pad. Both of them use
    the same room codes and the same wire as playing online, because it is the
    same problem — two browsers that have to find each other. */
+/* Where the Controller lives, so a QR code can point a phone at it.
+
+   Worked out from where this page is being served rather than written down,
+   because a game opened from a folder on somebody's disk and the same game on
+   the website are not at the same address — and the one address that is
+   always right is the website's, which is where a phone with a camera and no
+   copy of the game is going to have to go. */
+function padUrl() {
+  const loc = window.location;
+  if (/^https?:$/.test(loc.protocol)) {
+    const dir = (loc.origin + loc.pathname).replace(/[^/]*$/, '');
+    if (/diction-and-nina\/$/.test(dir)) return dir.replace(/diction-and-nina\/$/, 'diction-and-nina-controller/');
+    return dir + 'controller.html';
+  }
+  return 'https://vertexlabsolutions.com/diction-and-nina-controller/';
+}
+/* What the picture says: where to go, which room to answer into, and the
+   whole invite. If the invite is long enough that the two together will not
+   fit in a code a camera can read across a room, the picture carries the
+   address and the room only — the phone still has nothing to type, it just
+   takes the longer way round once it gets there. */
+function padPayload(code, invite) {
+  const url = padUrl();
+  const tight = String(invite || '').replace(/-/g, '');
+  const full = `${url}#r=${code}&i=${tight}`;
+  if (window.QR && full.length <= QR.capacity()) return { text: full, whole: true };
+  return { text: `${url}#r=${code}`, whole: false };
+}
 function phoneHostPanel() {
   netWireCallbacks();
   const pick = (NET.pad === null || NET.pad === undefined) ? 1 : NET.pad;
@@ -14469,15 +15017,28 @@ function phoneHostPanel() {
         const msg = panelEl.querySelector('#phone-msg');
         msg.innerHTML = '<b>Getting a code…</b>';
         try {
-          const code = await Net.hostRoom();
+          const { code, invite } = await Net.hostQr();
+          const pic = padPayload(code, invite);
           netPanel(`
-            <p><b>📱 On the phone, open this same game, tap ⚙️ Menu → Play Online →
-              “Be a controller”, and type:</b></p>
-            <div class="room-code">${code}</div>
+            <p><b>📱 Point the phone's camera at this</b></p>
+            <canvas id="pad-qr" width="300" height="300" class="pad-qr"></canvas>
+            <p class="pad-qr-say">${pic.whole
+              ? 'The camera will offer to open the Controller. Tap it, and that is all.'
+              : 'The camera will open the Controller with the code already in it.'}</p>
+            <p>No camera? Open <b>${padUrl().replace(/^https?:\/\//, '')}</b>
+              on the phone and type <b>${code}</b>.</p>
             <p>The phone will be <b>Player ${slot + 1} — ${whoName(SLOT_NAMES[slot])}</b>.</p>
             <p id="phone-msg2" style="min-height:22px">Waiting for the phone…</p>
             <button class="big-btn secondary" id="net-again">Stop waiting</button>`,
-            () => { panelEl.querySelector('#net-again').onclick = () => { Net.hangUp(); openOnline(); }; });
+            () => {
+              const cv = panelEl.querySelector('#pad-qr');
+              if (cv && window.QR) {
+                try { QR.draw(cv, pic.text, { size: 300 }); }
+                catch (e) { cv.replaceWith(Object.assign(document.createElement('div'),
+                  { className: 'room-code', textContent: code })); }
+              }
+              panelEl.querySelector('#net-again').onclick = () => { Net.hangUp(); openOnline(); };
+            });
         } catch (e) {
           msg.innerHTML = '<b>Could not get a code — ' + (e && e.message === 'no-server'
             ? 'the meeting point could not be reached.' : 'try again.') + '</b>';
@@ -21009,6 +21570,13 @@ window.DN = {
   phoneSlots: () => phoneSlots(),
   /* What the screen is actually being told by the phone's thumb. The slots
      alone only say a phone is there; this says it is sending something. */
+  // the room the screen is sitting in, which the panel also prints to be typed
+  padRoom: () => Net.roomCode(),
+  // what the QR on screen is pointing the phone at
+  padPic: () => {
+    const cv = document.getElementById('pad-qr');
+    return cv ? { there: true, w: cv.width, h: cv.height } : { there: false };
+  },
   padSeen: (slot) => { const p = PHONE[Math.max(0, Math.min(2, slot | 0))];
     return p ? { ax: p.axes[0], ay: p.axes[1] } : null; },
   /* The two flags that decide whether an incoming connection is a second

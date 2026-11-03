@@ -723,6 +723,8 @@ const Net = (() => {
      seconds of gathering is a connection that gives up while the answer is
      still in the post. */
   const GATHER_MS = 14000;
+  /* How long after the last address arrives to decide no more are coming. */
+  const QUIET_MS = 2500;
 
   let pc = null, chan = null;
 
@@ -1178,6 +1180,11 @@ const Net = (() => {
         signalSend(from, { sdp: { type: 'answer', sdp: pc.localDescription.sdp } });
       } else if (p.sdp && p.sdp.type === 'answer' && N.role === 'host') {
         await pc.setRemoteDescription(p.sdp);
+      } else if (p.reply && N.role === 'host') {
+        /* The whole answer in one message, candidates and all, from a phone
+           that read the invite off a QR code. Nothing is trickled: both ends
+           already hold every address the other one has. */
+        await N.acceptReply(p.reply);
       } else if (p.cand) {
         await pc.addIceCandidate(p.cand);
       }
@@ -1186,16 +1193,50 @@ const Net = (() => {
 
   /* ---- connection ----------------------------------------------------- */
   function gatherAll() {
-    // ICE trickles in; take everything that arrives, but never hang on it
+    /* ICE trickles in; take everything that arrives, but never hang on it.
+
+       Two ways of noticing it has finished, not one. Gathering starts the
+       moment the local description is set, and on a machine with nothing to
+       ask — no reachable STUN, just its own addresses — it can be finished
+       before this function is even called, in which case the "no more
+       candidates" event has already been and gone and waiting for it means
+       waiting out the whole timeout. Fourteen seconds of "Getting a code…"
+       before anything appears on screen, for a code that was ready at once.
+       So: whatever is already in the local description, then the state, then
+       the events. */
     return new Promise((resolve) => {
-      const cands = [];
+      const seen = new Set();
       let done = false;
-      const finish = () => { if (!done) { done = true; resolve(cands); } };
+      const finish = () => { if (!done) { done = true; resolve(Array.from(seen)); } };
+      const take = (c) => {
+        if (c && c.indexOf(' udp ') !== -1) seen.add(c.replace(/^a=/, '').trim());
+      };
+      const sdp = (pc.localDescription && pc.localDescription.sdp) || '';
+      for (const line of String(sdp).split(/\r\n|\n/)) {
+        if (/^a=candidate:/.test(line)) take(line);
+      }
+      if (pc.iceGatheringState === 'complete') return finish();
+      /* And a quiet period, because "gathering" does not end when there is
+         nothing left to find: it ends when the browser gives up asking the
+         STUN servers, and a network that silently drops those takes the whole
+         fourteen seconds to discover it. Addresses arrive in a burst; once
+         they stop arriving for a couple of seconds there is nothing more
+         coming. Long enough that a slow answer from the far side of an ocean
+         is still waited for, short enough that nobody watches a blank screen. */
+      let quiet = null;
+      const settle = () => {
+        if (quiet) clearTimeout(quiet);
+        quiet = setTimeout(finish, QUIET_MS);
+      };
       pc.onicecandidate = (e) => {
         if (!e.candidate) return finish();
-        const c = e.candidate.candidate;
-        if (c && c.indexOf(' udp ') !== -1) cands.push(c.replace(/^a=/, ''));
+        take(e.candidate.candidate);
+        settle();
       };
+      pc.onicegatheringstatechange = () => {
+        if (pc && pc.iceGatheringState === 'complete') finish();
+      };
+      if (seen.size) settle();
       setTimeout(finish, GATHER_MS);
     });
   }
@@ -1257,6 +1298,42 @@ const Net = (() => {
     return encode('answer', pc.localDescription.sdp, mine);
   };
 
+  /* ---- meeting by picture ----
+     The hand-typed codes need no meeting point at all, which is their whole
+     virtue, and they are a hundred and twenty characters, which is their
+     whole problem: nobody types that into a phone twice. A phone's camera
+     reads a QR code for free, so the screen can show the invite as one.
+
+     The way back still needs a word from the phone, and that is all the
+     meeting point is used for here: one message, one direction, with every
+     address bundled into it. Nothing is trickled, which is the part of the
+     room-code path that has a server in the middle of it at the moment two
+     devices are trying to find each other. */
+  N.hostQr = async function () {
+    N.role = 'host';
+    freshPeer();
+    setState('offering');
+    wireChannel(pc.createDataChannel('wordsville', { ordered: false, maxRetransmits: 0 }));
+    await pc.setLocalDescription(await pc.createOffer());
+    const cands = await gatherAll();
+    const invite = encode('offer', pc.localDescription.sdp, cands);
+    const code = makeRoomCode();
+    try { await signalOpen('DN-' + code, onSignal); } catch (e) { signalClose(); throw new Error('no-server'); }
+    roomCode = code;
+    setState('waiting');
+    return { code, invite };
+  };
+  /* On the phone: take the invite the camera read, and post the answer into
+     the room the same picture named. */
+  N.replyToRoom = async function (room, invite) {
+    const reply = await N.join(invite);        // the by-hand path, unchanged
+    const me = 'DNP' + makeRoomCode() + makeRoomCode();
+    try { await signalOpen(me, onSignal); } catch (e) { signalClose(); throw new Error('no-server'); }
+    signalSend('DN-' + N.tidyRoomCode(room), { reply });
+    setState('linking');
+    return true;
+  };
+
   N.send = function (obj) {
     if (!chan || chan.readyState !== 'open') return false;
     try { chan.send(JSON.stringify(obj)); return true; } catch (e) { return false; }
@@ -1298,7 +1375,7 @@ const Net = (() => {
   /* Printed in the small print on the way in. The Controller is a page a phone
      keeps in its cache, so "has this phone got the new one?" is a real
      question with no way to answer it otherwise. */
-  const PAD_VERSION = 'Controller v2 — asks when the wire opens';
+  const PAD_VERSION = 'Controller v3 — point it at the code on the screen';
   const $ = (id) => document.getElementById(id);
   const join = $('pad-join'), face = $('pad-face');
   const msg = $('pad-msg'), box = $('pad-room'), who = $('pad-who');
@@ -1455,16 +1532,58 @@ const Net = (() => {
         : "Couldn't connect. Check the code and try again.") + '</b>');
     }
   }
+  /* ---- arriving by camera ----
+     A phone's own camera reads the QR code on the screen and offers to open
+     this page; the invite and the room to answer into ride along in the
+     address. So there is nothing at all to type: the Controller connects as
+     it opens.
+
+     Both halves are handled. With the whole invite, the answer goes back in
+     one message and no addresses are passed through the meeting point at the
+     moment the two devices are trying to find each other. With only a room
+     code — which is what the picture carries if the invite was too long to
+     fit in it — the code is simply filled in and the ordinary way taken. */
+  async function fromAddress() {
+    const raw = String(window.location.hash || '').replace(/^#/, '');
+    if (!raw) return false;
+    let q;
+    try { q = new URLSearchParams(raw); } catch (e) { return false; }
+    const room = Net.tidyRoomCode(q.get('r') || '');
+    const invite = q.get('i') || '';
+    if (room.length < 6) return false;
+    box.value = room;
+    if (!invite) { go(); return true; }
+    if (!Net.available()) { say('<b>' + Net.unavailableReason + '</b>'); return true; }
+    say('<b>Connecting…</b>');
+    unwait();
+    waiting = setTimeout(() => { if (!Net.isOpen()) stop(NO_WIRE); }, wireWait);
+    try {
+      await Net.replyToRoom(room, invite);
+      padAsk();
+      say('Found the game — waiting for the wire…');
+    } catch (e) {
+      stop('<b>' + (e && e.message === 'no-server'
+        ? 'The meeting point could not be reached.'
+        : "That code did not make sense — ask them to show it again.") + '</b>');
+    }
+    return true;
+  }
+
   $('pad-go').onclick = go;
   box.addEventListener('input', () => { box.value = Net.tidyRoomCode(box.value); });
   box.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
   $('pad-off').onclick = () => stop('Disconnected.');
+  // and if the camera brought an invite with it, use it without being asked
+  fromAddress();
+  window.addEventListener('hashchange', fromAddress);
 
   // for tests: the same surface, driven without a real connection
   window.PAD = { state: () => ({ ax: st.ax, ay: st.ay, b: Object.assign({}, st.b) }),
     live, stop, connected: () => !face.classList.contains('hidden'),
     // so a test need not sit through the real wait
     wireWait: (ms) => { if (ms !== undefined) wireWait = ms; return wireWait; },
+    // what the camera handed over, and the chance to act on it again
+    fromAddress, said: () => msg.textContent, room: () => box.value,
     // the surface with no wire behind it, so it can be looked at and pressed
     show: (slot, name) => live(slot || 0, name || 'a player', true) };
 })();
