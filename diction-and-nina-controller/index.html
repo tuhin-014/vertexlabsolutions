@@ -725,6 +725,9 @@ const Net = (() => {
   const GATHER_MS = 14000;
   /* How long after the last address arrives to decide no more are coming. */
   const QUIET_MS = 2500;
+  /* How many times the phone says its answer, and how far apart. Long enough
+     altogether to outlast a screen getting its socket back. */
+  const REPLY_TRIES = 6, REPLY_AGAIN_MS = 2500;
 
   let pc = null, chan = null;
 
@@ -1042,6 +1045,18 @@ const Net = (() => {
   const SIGNAL_TIMEOUT_MS = 12000;
 
   let sig = null, beat = null, roomCode = null;
+  /* What it takes to get the meeting point back.
+
+     A dropped socket used to be the end of the attempt: one close and the
+     whole thing was declared failed. The free meeting point drops sockets —
+     it is busy, it gets restarted, it loses interest in an idle room — and a
+     host sitting there waiting for somebody to scan a code is idle by
+     definition. So the socket is reopened, under the same name, until either
+     it comes back or there is no point: once the wire between the two games
+     is open the meeting point is not needed at all. */
+  let sigId = null, sigSaw = null, sigWant = false, sigTry = 0, sigTimer = null;
+  const SIG_TRIES = 8;
+  N.relinks = () => sigTry;
 
   N.roomCode = () => roomCode;
   function makeRoomCode() {
@@ -1060,11 +1075,39 @@ const Net = (() => {
     return extra ? [extra].concat(SIGNAL_SERVERS) : SIGNAL_SERVERS.slice();
   }
   function signalClose() {
+    sigWant = false; sigId = null; sigSaw = null;
+    if (sigTimer) { clearTimeout(sigTimer); sigTimer = null; }
     if (beat) { clearInterval(beat); beat = null; }
     if (sig) { try { sig.onclose = null; sig.close(); } catch (e) {} sig = null; }
   }
+  /* The socket went. Decide whether anybody still needs it, and if so, go and
+     get it back rather than ending the game over it. */
+  function signalLost() {
+    if (beat) { clearInterval(beat); beat = null; }
+    sig = null;
+    if (!sigWant || !sigId || N.isOpen()) return;
+    if (sigTry >= SIG_TRIES) {
+      setState('failed', 'lost the connection to the meeting point');
+      return;
+    }
+    sigTry++;
+    /* Half a second, then one, then two: a server that has just dropped you
+       is often a server that will drop you again if you come straight back,
+       and the name you were using takes a moment to come free. */
+    const wait = Math.min(8000, 250 * Math.pow(2, sigTry));
+    setState(N.state === 'open' ? N.state : 'waiting',
+      `lost the meeting point \u2014 trying again (${sigTry})`);
+    const id = sigId, saw = sigSaw;
+    sigTimer = setTimeout(() => {
+      sigTimer = null;
+      if (!sigWant || N.isOpen()) return;
+      signalOpen(id, saw, true).catch(() => signalLost());
+    }, wait);
+  }
   /* open a signalling socket under `id`, trying each server in turn */
-  function signalOpen(id, onMessage) {
+  function signalOpen(id, onMessage, again) {
+    sigId = id; sigSaw = onMessage; sigWant = true;
+    if (!again) sigTry = 0;
     const urls = signalUrls();
     const token = Math.random().toString(36).slice(2, 10);
     // try every meeting point at once and keep the first that answers, rather
@@ -1078,7 +1121,8 @@ const Net = (() => {
         sig = ws;
         beat = setInterval(() => { try { ws.send(JSON.stringify({ type: 'HEARTBEAT' })); } catch (er) {} }, HEARTBEAT_MS);
         ws.onerror = null;
-        ws.onclose = () => setState(N.state === 'open' ? N.state : 'failed', 'lost the connection to the meeting point');
+        ws.onclose = () => signalLost();
+        if (again) setState(N.state === 'open' ? N.state : 'waiting', null);
         resolve(ws);
       };
       /* One socket, one vote. A browser reports a WebSocket that could not
@@ -1183,8 +1227,11 @@ const Net = (() => {
       } else if (p.reply && N.role === 'host') {
         /* The whole answer in one message, candidates and all, from a phone
            that read the invite off a QR code. Nothing is trickled: both ends
-           already hold every address the other one has. */
-        await N.acceptReply(p.reply);
+           already hold every address the other one has.
+
+           Sent more than once, on purpose, in case a dropped socket ate the
+           first one — so the second and third are expected, and ignored. */
+        if (!pc.currentRemoteDescription) await N.acceptReply(p.reply);
       } else if (p.cand) {
         await pc.addIceCandidate(p.cand);
       }
@@ -1329,7 +1376,21 @@ const Net = (() => {
     const reply = await N.join(invite);        // the by-hand path, unchanged
     const me = 'DNP' + makeRoomCode() + makeRoomCode();
     try { await signalOpen(me, onSignal); } catch (e) { signalClose(); throw new Error('no-server'); }
-    signalSend('DN-' + N.tidyRoomCode(room), { reply });
+    const dst = 'DN-' + N.tidyRoomCode(room);
+    /* Said again until the wire opens or there is no hope left. One message
+       through a meeting point that drops sockets is one message that can
+       simply vanish: the real server throws away anything addressed to
+       somebody who is not connected at that instant, and the screen on the
+       other end may be in the middle of getting its socket back. Saying it
+       again costs nothing, and the far end ignores the repeats. */
+    let said = 0;
+    const post = () => {
+      if (N.isOpen() || said >= REPLY_TRIES) return;
+      said++;
+      signalSend(dst, { reply });
+      setTimeout(post, REPLY_AGAIN_MS);
+    };
+    post();
     setState('linking');
     return true;
   };
@@ -1375,7 +1436,7 @@ const Net = (() => {
   /* Printed in the small print on the way in. The Controller is a page a phone
      keeps in its cache, so "has this phone got the new one?" is a real
      question with no way to answer it otherwise. */
-  const PAD_VERSION = 'Controller v3 — point it at the code on the screen';
+  const PAD_VERSION = 'Controller v4 — keeps trying when the meeting point drops';
   const $ = (id) => document.getElementById(id);
   const join = $('pad-join'), face = $('pad-face');
   const msg = $('pad-msg'), box = $('pad-room'), who = $('pad-who');
