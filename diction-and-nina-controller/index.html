@@ -1070,9 +1070,15 @@ const Net = (() => {
     .replace(/[^0-9A-Z]/g, '').slice(0, ROOM_LEN);
 
   function signalUrls() {
-    let extra = null;
-    try { extra = localStorage.getItem('dn-signal'); } catch (e) {}
-    return extra ? [extra].concat(SIGNAL_SERVERS) : SIGNAL_SERVERS.slice();
+    let extra = null, only = false;
+    try {
+      extra = localStorage.getItem('dn-signal');
+      only = !!localStorage.getItem('dn-signal-only');
+    } catch (e) {}
+    /* One of your own, or several separated by commas or spaces. */
+    const mine = String(extra || '').split(/[\s,]+/).filter(Boolean);
+    if (mine.length && only) return mine;   // yours, and nothing else
+    return mine.concat(SIGNAL_SERVERS);
   }
   function signalClose() {
     sigWant = false; sigId = null; sigSaw = null;
@@ -1149,14 +1155,57 @@ const Net = (() => {
           try { m = JSON.parse(e.data); } catch (err) { return; }
           if (m.type === 'OPEN') { if (!settled) finish(ws); return; }
           if (m.type === 'ID-TAKEN') { taken = true; try { ws.close(); } catch (er) {} return; }
-          if (ws === sig) onMessage(m);
+          if (ws === sig) {
+            const inside = unwrap(m.payload);
+            if (inside) onMessage(Object.assign({}, m, { payload: inside }));
+          }
         };
       });
       setTimeout(() => { if (!settled) { settled = true; sockets.forEach((o) => { try { o.onclose = null; o.close(); } catch (e) {} }); reject(new Error('no-server')); } }, SIGNAL_TIMEOUT_MS);
     });
   }
+  /* ---- what the meeting point will actually carry ----
+
+     The free meeting point is a PeerJS server, and it does not merely ignore
+     a message it does not recognise: it closes the socket of whoever sent it,
+     and relays nothing. Every one of the four shapes this game used to send —
+     {hello}, {sdp}, {cand}, {reply} — got the sender hung up on. So the room
+     codes have never worked against the real server, in any version, and the
+     symptom was exactly "it keeps losing connection to the meeting point":
+     the socket closes the instant the game tries to say anything.
+
+     None of this showed up in the tests, because the stub meeting point in
+     tools/peerjs-stub.js relays whatever it is handed. A stub that is kinder
+     than the real thing is a stub that lets this happen.
+
+     Asked of the real server, one shape at a time, it relays a payload that
+     carries all of `sdp`, `type`, `connectionId`, `label` and `serialization`
+     — `browser` and `reliable` it does not care about — and the `sdp` string
+     must stay short, while `label` will carry twelve thousand characters
+     without complaint. So `label` is where the game's own message rides, and
+     the rest is the envelope the server wants to see.
+
+     Wrapped always, unwrapped when the mark is there and passed through
+     untouched when it is not, so a server that relays anything — the stub,
+     or somebody's own — keeps working either way. */
+  const WRAP = 'DN1';
+  const myDc = 'dc_' + Math.random().toString(36).slice(2, 10);
+  const wrap = (payload) => ({
+    sdp: { type: 'offer', sdp: 'v=0\r\n' },
+    type: 'data',
+    connectionId: myDc,
+    serialization: 'json',
+    label: WRAP + JSON.stringify(payload),
+  });
+  function unwrap(payload) {
+    if (payload && typeof payload.label === 'string' && payload.label.slice(0, WRAP.length) === WRAP) {
+      try { return JSON.parse(payload.label.slice(WRAP.length)); } catch (e) { return null; }
+    }
+    return payload;
+  }
+  N.wrapped = (payload) => wrap(payload);          // for a test that asks what goes out
   const signalSend = (dst, payload) => {
-    if (sig && sig.readyState === 1) sig.send(JSON.stringify({ type: 'OFFER', dst, payload }));
+    if (sig && sig.readyState === 1) sig.send(JSON.stringify({ type: 'OFFER', dst, payload: wrap(payload) }));
   };
 
   /* every candidate found from here on goes straight down the wire, which
@@ -1400,6 +1449,30 @@ const Net = (() => {
     try { chan.send(JSON.stringify(obj)); return true; } catch (e) { return false; }
   };
   N.isOpen = () => !!(chan && chan.readyState === 'open');
+  /* What the connection itself is doing, for the panel that asks why two
+     devices cannot reach each other and for a test that wants to say so
+     rather than guess. Counting the addresses on both sides is the useful
+     part: a handshake that got as far as "linking" with nothing in the
+     remote list is a different problem from one with plenty on both sides. */
+  N.ice = function () {
+    if (!pc) return null;
+    const count = (d) => ((d && d.sdp) || '').split(/\r\n|\n/).filter(l => /^a=candidate:/.test(l));
+    const kinds = (list) => {
+      const out = {};
+      for (const l of list) {
+        const m = l.match(/ typ (\w+)/);
+        if (m) out[m[1]] = (out[m[1]] || 0) + 1;
+      }
+      return out;
+    };
+    const mine = count(pc.localDescription), theirs = count(pc.remoteDescription);
+    return {
+      conn: pc.connectionState, ice: pc.iceConnectionState,
+      gathering: pc.iceGatheringState, signalling: pc.signalingState,
+      mine: mine.length, theirs: theirs.length,
+      myKinds: kinds(mine), theirKinds: kinds(theirs),
+    };
+  };
   function close() {
     if (chan) { try { chan.onclose = null; chan.close(); } catch (e) {} chan = null; }
     if (pc) { try { pc.close(); } catch (e) {} pc = null; }
@@ -1436,7 +1509,7 @@ const Net = (() => {
   /* Printed in the small print on the way in. The Controller is a page a phone
      keeps in its cache, so "has this phone got the new one?" is a real
      question with no way to answer it otherwise. */
-  const PAD_VERSION = 'Controller v4 — keeps trying when the meeting point drops';
+  const PAD_VERSION = 'Controller v5 — talks to the meeting point in a language it accepts';
   const $ = (id) => document.getElementById(id);
   const join = $('pad-join'), face = $('pad-face');
   const msg = $('pad-msg'), box = $('pad-room'), who = $('pad-who');
@@ -1593,6 +1666,49 @@ const Net = (() => {
         : "Couldn't connect. Check the code and try again.") + '</b>');
     }
   }
+  /* ---- making sure this is the newest Controller ----
+     A phone keeps a copy of this page, and a kept copy is a fix nobody has:
+     everything shipped to the website is invisible to a phone still running
+     last week's file. The version in the small print was there so the
+     question could be answered; this answers it without being asked.
+
+     On load it fetches this same address with the cache told to stand aside,
+     finds the version in what comes back, and if it is not the version
+     running, loads the page again with a fresh address so the cache has
+     nothing to offer. The fragment is carried across — a Controller opened by
+     a camera has the whole invite in it, and losing that would make this
+     worse than the problem.
+
+     Three things it will not do. It will not look twice in one opening, so
+     there is no chance of a loop. It will not interrupt a Controller that is
+     already connecting or connected — being half way into a handshake and
+     then reloading is how you leave the screen holding an answer from a page
+     that no longer exists — and says so instead. And it does nothing at all
+     for a copy opened off a disk, as the app's own is, because there is
+     nowhere to check. */
+  const FRESH_KEY = 'dn-pad-looked';
+  const FRESH_MS = 2500;
+  let connecting = false;
+  async function freshen() {
+    if (!/^https?:$/.test(location.protocol)) return false;
+    try { if (sessionStorage.getItem(FRESH_KEY) === '1') return false; } catch (e) {}
+    try { sessionStorage.setItem(FRESH_KEY, '1'); } catch (e) {}
+    let text = '';
+    try {
+      const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return false;
+      text = await r.text();
+    } catch (e) { return false; }
+    const found = String(text).match(/Controller v\d+[^'"]*/);
+    if (!found || found[0] === PAD_VERSION) return false;
+    if (connecting || Net.isOpen()) {
+      say('<b>There is a newer Controller than this one \u2014 close this page and open it again.</b>');
+      return false;
+    }
+    location.replace(location.pathname + '?v=' + Date.now() + location.hash);
+    return true;
+  }
+
   /* ---- arriving by camera ----
      A phone's own camera reads the QR code on the screen and offers to open
      this page; the invite and the room to answer into ride along in the
@@ -1634,9 +1750,21 @@ const Net = (() => {
   box.addEventListener('input', () => { box.value = Net.tidyRoomCode(box.value); });
   box.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
   $('pad-off').onclick = () => stop('Disconnected.');
-  // and if the camera brought an invite with it, use it without being asked
-  fromAddress();
-  window.addEventListener('hashchange', fromAddress);
+  /* A look for a newer copy first, with a short leash on it so a slow
+     network does not keep a thumb-stick waiting, and then on with the job. */
+  (async () => {
+    let leaving = false;
+    try {
+      leaving = await Promise.race([
+        freshen(),
+        new Promise((r) => setTimeout(() => r(false), FRESH_MS)),
+      ]);
+    } catch (e) {}
+    if (leaving) return;
+    connecting = true;
+    fromAddress();
+  })();
+  window.addEventListener('hashchange', () => { connecting = true; fromAddress(); });
 
   // for tests: the same surface, driven without a real connection
   window.PAD = { state: () => ({ ax: st.ax, ay: st.ay, b: Object.assign({}, st.b) }),
@@ -1645,6 +1773,7 @@ const Net = (() => {
     wireWait: (ms) => { if (ms !== undefined) wireWait = ms; return wireWait; },
     // what the camera handed over, and the chance to act on it again
     fromAddress, said: () => msg.textContent, room: () => box.value,
+    version: () => PAD_VERSION, freshen,
     // the surface with no wire behind it, so it can be looked at and pressed
     show: (slot, name) => live(slot || 0, name || 'a player', true) };
 })();
