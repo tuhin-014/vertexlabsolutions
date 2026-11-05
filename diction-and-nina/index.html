@@ -7097,9 +7097,15 @@ const Net = (() => {
     .replace(/[^0-9A-Z]/g, '').slice(0, ROOM_LEN);
 
   function signalUrls() {
-    let extra = null;
-    try { extra = localStorage.getItem('dn-signal'); } catch (e) {}
-    return extra ? [extra].concat(SIGNAL_SERVERS) : SIGNAL_SERVERS.slice();
+    let extra = null, only = false;
+    try {
+      extra = localStorage.getItem('dn-signal');
+      only = !!localStorage.getItem('dn-signal-only');
+    } catch (e) {}
+    /* One of your own, or several separated by commas or spaces. */
+    const mine = String(extra || '').split(/[\s,]+/).filter(Boolean);
+    if (mine.length && only) return mine;   // yours, and nothing else
+    return mine.concat(SIGNAL_SERVERS);
   }
   function signalClose() {
     sigWant = false; sigId = null; sigSaw = null;
@@ -7176,14 +7182,57 @@ const Net = (() => {
           try { m = JSON.parse(e.data); } catch (err) { return; }
           if (m.type === 'OPEN') { if (!settled) finish(ws); return; }
           if (m.type === 'ID-TAKEN') { taken = true; try { ws.close(); } catch (er) {} return; }
-          if (ws === sig) onMessage(m);
+          if (ws === sig) {
+            const inside = unwrap(m.payload);
+            if (inside) onMessage(Object.assign({}, m, { payload: inside }));
+          }
         };
       });
       setTimeout(() => { if (!settled) { settled = true; sockets.forEach((o) => { try { o.onclose = null; o.close(); } catch (e) {} }); reject(new Error('no-server')); } }, SIGNAL_TIMEOUT_MS);
     });
   }
+  /* ---- what the meeting point will actually carry ----
+
+     The free meeting point is a PeerJS server, and it does not merely ignore
+     a message it does not recognise: it closes the socket of whoever sent it,
+     and relays nothing. Every one of the four shapes this game used to send —
+     {hello}, {sdp}, {cand}, {reply} — got the sender hung up on. So the room
+     codes have never worked against the real server, in any version, and the
+     symptom was exactly "it keeps losing connection to the meeting point":
+     the socket closes the instant the game tries to say anything.
+
+     None of this showed up in the tests, because the stub meeting point in
+     tools/peerjs-stub.js relays whatever it is handed. A stub that is kinder
+     than the real thing is a stub that lets this happen.
+
+     Asked of the real server, one shape at a time, it relays a payload that
+     carries all of `sdp`, `type`, `connectionId`, `label` and `serialization`
+     — `browser` and `reliable` it does not care about — and the `sdp` string
+     must stay short, while `label` will carry twelve thousand characters
+     without complaint. So `label` is where the game's own message rides, and
+     the rest is the envelope the server wants to see.
+
+     Wrapped always, unwrapped when the mark is there and passed through
+     untouched when it is not, so a server that relays anything — the stub,
+     or somebody's own — keeps working either way. */
+  const WRAP = 'DN1';
+  const myDc = 'dc_' + Math.random().toString(36).slice(2, 10);
+  const wrap = (payload) => ({
+    sdp: { type: 'offer', sdp: 'v=0\r\n' },
+    type: 'data',
+    connectionId: myDc,
+    serialization: 'json',
+    label: WRAP + JSON.stringify(payload),
+  });
+  function unwrap(payload) {
+    if (payload && typeof payload.label === 'string' && payload.label.slice(0, WRAP.length) === WRAP) {
+      try { return JSON.parse(payload.label.slice(WRAP.length)); } catch (e) { return null; }
+    }
+    return payload;
+  }
+  N.wrapped = (payload) => wrap(payload);          // for a test that asks what goes out
   const signalSend = (dst, payload) => {
-    if (sig && sig.readyState === 1) sig.send(JSON.stringify({ type: 'OFFER', dst, payload }));
+    if (sig && sig.readyState === 1) sig.send(JSON.stringify({ type: 'OFFER', dst, payload: wrap(payload) }));
   };
 
   /* every candidate found from here on goes straight down the wire, which
@@ -7427,6 +7476,30 @@ const Net = (() => {
     try { chan.send(JSON.stringify(obj)); return true; } catch (e) { return false; }
   };
   N.isOpen = () => !!(chan && chan.readyState === 'open');
+  /* What the connection itself is doing, for the panel that asks why two
+     devices cannot reach each other and for a test that wants to say so
+     rather than guess. Counting the addresses on both sides is the useful
+     part: a handshake that got as far as "linking" with nothing in the
+     remote list is a different problem from one with plenty on both sides. */
+  N.ice = function () {
+    if (!pc) return null;
+    const count = (d) => ((d && d.sdp) || '').split(/\r\n|\n/).filter(l => /^a=candidate:/.test(l));
+    const kinds = (list) => {
+      const out = {};
+      for (const l of list) {
+        const m = l.match(/ typ (\w+)/);
+        if (m) out[m[1]] = (out[m[1]] || 0) + 1;
+      }
+      return out;
+    };
+    const mine = count(pc.localDescription), theirs = count(pc.remoteDescription);
+    return {
+      conn: pc.connectionState, ice: pc.iceConnectionState,
+      gathering: pc.iceGatheringState, signalling: pc.signalingState,
+      mine: mine.length, theirs: theirs.length,
+      myKinds: kinds(mine), theirKinds: kinds(theirs),
+    };
+  };
   function close() {
     if (chan) { try { chan.onclose = null; chan.close(); } catch (e) {} chan = null; }
     if (pc) { try { pc.close(); } catch (e) {} pc = null; }
@@ -10937,7 +11010,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v161 · A test that said more than it measured";
+const GAME_VERSION = "v162 · The meeting point was hanging up on every message we ever sent";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -15046,9 +15119,13 @@ function padUrl() {
 function padPayload(code, invite) {
   const url = padUrl();
   const tight = String(invite || '').replace(/-/g, '');
-  const full = `${url}#r=${code}&i=${tight}`;
+  /* A stamp on the address, so a phone that already has a copy of the
+     Controller is handed a page it has never seen and fetches it fresh. Eight
+     characters to be sure the thing the camera opens is this week's. */
+  const stamp = Date.now().toString(36);
+  const full = `${url}?v=${stamp}#r=${code}&i=${tight}`;
   if (window.QR && full.length <= QR.capacity()) return { text: full, whole: true };
-  return { text: `${url}#r=${code}`, whole: false };
+  return { text: `${url}?v=${stamp}#r=${code}`, whole: false };
 }
 function phoneHostPanel() {
   netWireCallbacks();
