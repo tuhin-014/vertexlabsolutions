@@ -12,7 +12,7 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CrewDay — Construction Daily Log App for Subcontractors | Your Daily Log. Your Protection.</title>
-    <meta name="description" content="CrewDay turns 60 seconds at the end of your day into a branded, timestamped daily report — voice-first, offline-first, one flat price for the whole crew. Built for subcontractors and small crews.">
+    <meta name="description" content="CrewDay turns the end of your day into a branded, timestamped daily report — voice-first, offline-first, one flat price for the whole crew. Built for subcontractors and small crews.">
     <meta name="keywords" content="construction daily log app, daily report app, subcontractor daily log, construction daily report template, jobsite documentation, site diary app, contractor daily log, back charge dispute">
     <link rel="canonical" href="https://vertexlabsolutions.com/crewday/">
     <meta property="og:title" content="CrewDay — Your Daily Log. Your Protection.">
@@ -66,7 +66,7 @@
           "name": "How is CrewDay different from CompanyCam or Raken?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "CompanyCam is photo storage — great photos, but no structured daily report with manpower, materials and delays. Raken, Procore and Fieldwire are built for general contractors and charge per user. CrewDay is the sub's own daily log: a complete GC-ready report in 60 seconds, at one flat price for the whole crew."
+            "text": "CompanyCam is photo storage — great photos, but no structured daily report with manpower, materials and delays. Raken, Procore and Fieldwire are built for general contractors and charge per user. CrewDay is the sub's own daily log: a complete GC-ready report, at one flat price for the whole crew."
           }
         },
         {
@@ -82,7 +82,7 @@
           "name": "What does CrewDay cost?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "One flat price for your whole crew — planned at $9.99/month or $79.99/year, with a free tier to try it. No per-user seats, no per-report fees."
+            "text": "One flat price for your whole crew — $9.99/month or $79.99/year, with a free tier to try it on a real job first. No per-user seats, no per-report fees."
           }
         }
       ]
@@ -117,6 +117,11 @@
         .waitlist input:focus{border-color:var(--amber)}
         .waitlist button{padding:14px 26px;background:var(--amber);color:#231a05;border:none;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;transition:transform .15s}
         .waitlist button:hover{transform:translateY(-2px)}
+        .store-cta{margin:0 0 14px}
+        .store-btn{display:inline-block;padding:16px 34px;background:#fff;color:#111;border-radius:12px;
+          font-size:17px;font-weight:800;text-decoration:none;transition:transform .15s;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+        .store-btn:hover{transform:translateY(-2px)}
+        .waitlist-note a{color:var(--amber)}
         .waitlist-note{font-size:13px!important;color:rgba(255,255,255,.5)!important;margin:14px auto 0!important}
         .waitlist-msg{font-size:14px!important;font-weight:600;margin:14px auto 0!important;display:none}
 
@@ -183,15 +188,16 @@
 
 <header class="hero">
   <div class="emoji-icon">🦺</div>
-  <div><span class="badge">For subcontractors &amp; small crews · iOS · coming soon</span></div>
+  <div><span class="badge">For subcontractors &amp; small crews · on the App Store</span></div>
   <h1>Your daily log.<br><em>Your protection.</em></h1>
-  <p>When the GC disputes your hours, back-charges your crew, or "never got" your work — the sub without records loses. CrewDay turns 60 seconds at the end of your day into a branded, timestamped daily report you keep.</p>
+  <p>When the GC disputes your hours, back-charges your crew, or "never got" your work — the sub without records loses. CrewDay turns the end of your day into a branded, timestamped daily report you keep.</p>
   <!-- Early-access waitlist — posts to the shared VertexLab subscribe API, tagged product:'CrewDay'. -->
+  <p class="store-cta"><a class="store-btn" href="https://apps.apple.com/app/id6790033899">Download on the App Store</a></p>
   <form class="waitlist" id="waitlist-form" onsubmit="return handleWaitlist(event)">
     <input type="email" id="wl-email" placeholder="you@email.com" required aria-label="Email address">
-    <button type="submit" id="wl-btn">Get early access</button>
+    <button type="submit" id="wl-btn">Email me the free template</button>
   </form>
-  <p class="waitlist-note" id="wl-note">Everyone on the list gets our free printable daily-log PDF template — today, before the app ships.</p>
+  <p class="waitlist-note" id="wl-note">Not ready to install? Grab the <a href="/crewday/template">free printable daily-log template</a> — no email needed.</p>
   <p class="waitlist-msg" id="wl-msg"></p>
 </header>
 
@@ -202,12 +208,12 @@
     <div class="card">
       <div class="ico">🎙️</div>
       <h3>Say it, don't type it</h3>
-      <p>Talk through what happened — crew, work done, delays, deliveries. CrewDay turns it into a structured report. Done in 60 seconds, gloves on.</p>
+      <p>Talk through what happened — crew, work done, delays, deliveries. CrewDay turns it into a structured report you review before it goes anywhere. Done at the truck, gloves on.</p>
     </div>
     <div class="card">
       <div class="ico">🌦️</div>
-      <h3>Weather logged automatically</h3>
-      <p>Date, time, location and site weather auto-filled on every log. Rain-day delays get proven, not argued about.</p>
+      <h3>Weather on the record</h3>
+      <p>Capture the site weather with a tap, or type it in. Every reading is stamped with the time it was taken — so a rain day is documented, not argued about.</p>
     </div>
     <div class="card">
       <div class="ico">📄</div>
@@ -236,7 +242,7 @@
   <div class="steps">
     <div class="step">
       <h3>Open on today's log</h3>
-      <p>Weather's already filled in. Yesterday's crew carried over. Photos pull straight from your camera roll.</p>
+      <p>Yesterday's crew is already carried over. Photos pull straight from your camera roll, timestamps and GPS intact.</p>
     </div>
     <div class="step">
       <h3>Talk through your day</h3>
@@ -255,7 +261,7 @@
   <div class="compare">
     <table>
       <tr><th></th><th>CrewDay</th><th>CompanyCam</th><th>Raken / Fieldwire</th><th>Paper</th></tr>
-      <tr><td>Structured daily report</td><td class="y hl">Yes — 60 seconds</td><td class="n">Photos only</td><td class="y">Yes, per-seat $</td><td class="n">If you have time</td></tr>
+      <tr><td>Structured daily report</td><td class="y hl">Yes</td><td class="n">Photos only</td><td class="y">Yes, per-seat $</td><td class="n">If you have time</td></tr>
       <tr><td>Works fully offline</td><td class="y hl">Yes</td><td class="n">Partial</td><td class="n">Spotty</td><td class="y">Yes</td></tr>
       <tr><td>You own the record</td><td class="y hl">Yes, timestamped</td><td class="y">Yes</td><td class="n">GC's account</td><td class="n">Until it's lost</td></tr>
       <tr><td>Holds up in a dispute</td><td class="y hl">Timestamps + GPS</td><td class="y">Photos do</td><td class="n">Not your data</td><td class="n">Easily questioned</td></tr>
@@ -273,11 +279,11 @@
     </details>
     <details>
       <summary>I already take photos of everything. Isn't that enough?</summary>
-      <p>Photos prove what things looked like — they don't record manpower, hours, deliveries, or why the schedule slipped. A photo of a flooded slab doesn't say who was on site, what got done anyway, and how many hours were lost. The report does. CrewDay attaches your photos to it automatically.</p>
+      <p>Photos prove what things looked like — they don't record manpower, hours, deliveries, or why the schedule slipped. A photo of a flooded slab doesn't say who was on site, what got done anyway, and how many hours were lost. The report does. CrewDay keeps your photos attached to it.</p>
     </details>
     <details>
       <summary>What will it cost?</summary>
-      <p>One flat price for your whole crew — planned at $9.99/month or $79.99/year, with a free tier so you can try it on a real job first. No per-user seats, no per-report fees.</p>
+      <p>One flat price for your whole crew — $9.99/month or $79.99/year, with a free tier so you can try it on a real job first. No per-user seats, no per-report fees.</p>
     </details>
     <details>
       <summary>Is it iOS only?</summary>
@@ -288,10 +294,11 @@
 
 <section class="cta-final">
   <h2>Never eat another back-charge you didn't deserve</h2>
-  <p>Join the early-access list and get our free printable daily-log PDF template right away — start protecting yourself before the app even ships.</p>
+  <p>CrewDay is on the App Store now. Start with one job, free — or take the <a href="/crewday/template">free printable template</a> and do it on paper tonight.</p>
+  <p class="store-cta"><a class="store-btn" href="https://apps.apple.com/app/id6790033899">Download on the App Store</a></p>
   <form class="waitlist" onsubmit="return handleWaitlist(event, 'wl-email-2','wl-btn-2','wl-msg-2')">
     <input type="email" id="wl-email-2" placeholder="you@email.com" required aria-label="Email address">
-    <button type="submit" id="wl-btn-2">Get early access</button>
+    <button type="submit" id="wl-btn-2">Email me the free template</button>
   </form>
   <p class="waitlist-msg" id="wl-msg-2" style="display:none"></p>
 </section>
@@ -344,7 +351,7 @@ async function handleWaitlist(e, emailId, btnId, msgId){
     msg.style.color='#f87171';
   }
   msg.style.display='block';
-  btn.textContent='Get early access'; btn.disabled=false;
+  btn.textContent='Email me the free template'; btn.disabled=false;
   return false;
 }
 (function(){
