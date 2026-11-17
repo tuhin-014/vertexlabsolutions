@@ -65,7 +65,7 @@
   }
   document.getElementById("game").textContent = titles[g];
   var score = document.getElementById("score");
-  score.textContent = Number(p).toLocaleString("en-US").replace(/,/g, "");
+  score.textContent = Number(p).toLocaleString("en-US");
   score.hidden = false;
   document.getElementById("sub").textContent = "Score to beat. Same round, same questions.";
   var app = "neurolark://c?g=" + encodeURIComponent(g) + "&l=" + encodeURIComponent(l) +
