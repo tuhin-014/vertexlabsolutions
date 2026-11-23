@@ -1,0 +1,30 @@
+# What must never reach the public site.
+#
+# .gitignore protects the REPO. It does not protect a `vercel --prod`
+# deploy, which uploads the working directory — ignored files included.
+# Every path below is present on disk, git-ignored, and was one CLI deploy
+# away from being served at vertexlabsolutions.com. Checked 2026-11-22:
+# none of it is live. Keep it that way.
+
+# Credentials. The reason this file exists.
+.credentials.env
+*.env
+
+# Operational reports — the same list as .gitignore, for the same reason.
+marketing-reports
+health-reports
+revenue-reports
+build-reports
+ceo-briefings
+seo-reports
+market-research
+aso-reports
+revival-reports
+
+# Session closeouts: objectives, decisions, findings, next actions.
+docs
+
+# Not a published page — one stray file, no index.
+neurolark
+
+.vercel
