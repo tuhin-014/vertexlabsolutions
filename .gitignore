@@ -12,5 +12,11 @@ seo-reports
 market-research
 aso-reports
 revival-reports
+
+# Session closeouts. These WERE committed here and served publicly from
+# raw.githubusercontent.com — objectives, portfolio audits, next actions.
+# The path was missing from the list above, which is the whole reason it
+# happened.
+docs
 .vercel
 .vercel
