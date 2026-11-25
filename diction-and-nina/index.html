@@ -11040,7 +11040,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v165 · A game that has stopped should be able to say so";
+const GAME_VERSION = "v167 · Only the one who opened the map flies, and the dog picks his own person";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -11155,13 +11155,19 @@ function easedStep(A, want) { // ease speed changes so the walk cycle stays even
    the eased speed takes eight frames to fall under the "moving" threshold. Park
    it instead, or those frames divide by that zero and hand NaN coordinates to
    the tile lookup. */
-function followStep(A, d, room) {
+/* The fastest a follower nobody is steering may go: not quite twice walking
+   pace, so a sibling tagging along on their own can catch up after you have
+   dashed off across the square. A character who HAS a player gets a slower
+   cap, passed in — see tagAlong. */
+const FOLLOW_TOP = SPEED * 1.9;
+function followStep(A, d, room, top) {
   if (!(d > 0.001)) { A.spd = 0; return 0; }   // also catches a NaN distance
   /* The eased speed is a stride per frame, so it is stretched to the length
      of the frame — and then capped again by how far there actually is to go,
      because a long frame on a slow machine would otherwise stride straight
      past the person it is following. */
-  return Math.min(d, room, easedStep(A, Math.min(d, SPEED * 1.9, room)) * frameK());
+  const want = top === undefined ? FOLLOW_TOP : top;
+  return Math.min(d, room, easedStep(A, Math.min(d, want, room)) * frameK());
 }
 let trail = [];
 /* first open spot near (px,py) that isn't on top of anyone — so the family
@@ -12122,7 +12128,8 @@ function playersHere() {
 function syncFollowerLevels() {
   if (!isCoop()) { FOLLOW.lvl = P.lvl; LIMEY.lvl = P.lvl; SCRIB.lvl = P.lvl; return; }
   if (!isCoop3()) LIMEY.lvl = ninaActor().lvl;
-  SCRIB.lvl = save.flags.limeyJoined ? LIMEY.lvl : P.lvl;
+  SCRIB.lvl = isCoop() ? scribLead().lvl
+    : save.flags.limeyJoined ? LIMEY.lvl : P.lvl;
 }
 
 /* ---------------- level loading ---------------- */
@@ -12524,6 +12531,65 @@ function markTrail() {
     if (trailP.length > 90) trailP.shift();
   }
 }
+/* Who Scribble is walking behind.
+
+   On your own there is a line and it never changes: Nina behind Diction,
+   Limey behind Nina, Scribble behind Limey. With two or three players there
+   is no line — everybody goes where they like — and a dog who only ever
+   follows one of them is a dog ignoring the person standing right next to
+   him. So he changes his mind: whoever comes close enough, and is clearly
+   nearer than the one he is with, gets him, and then keeps him for a few
+   seconds. The two together are what make it "sometimes" rather than a dog
+   flickering between two people standing side by side. */
+const SCRIB_NOTICE = 72;    // close enough to catch his eye
+const SCRIB_WIN = 26;       // and nearer than his current leader by this much
+let SCRIB_DWELL = 4.5;      // and then he stays with them a while (tests shorten it)
+/* The players, as opposed to everybody walking along: two of the three slots
+   have a driver in a two-player game and the third is tagging along. */
+function scribDrivers() { return isCoop3() ? SLOTS() : SLOTS().slice(0, 2); }
+function scribDefaultLead() {
+  return (save.flags.limeyJoined && !isCoop3()) ? LIMEY : actorOf('diction');
+}
+function scribLead() {
+  if (!isCoop()) return scribDefaultLead();
+  const named = SCRIB.lead && SLOTS().find(a => a.char === SCRIB.lead);
+  return named || scribDefaultLead();
+}
+function scribThink(dt) {
+  if (!isCoop() || !save.flags.scribbleFriend) { SCRIB.lead = null; SCRIB.leadT = 0; return; }
+  SCRIB.leadT = (SCRIB.leadT || 0) + (dt || 0);
+  if (SCRIB.leadT < SCRIB_DWELL) return;
+  const now = scribLead();
+  const dNow = Math.hypot(now.x - SCRIB.x, now.y - SCRIB.y);
+  let best = null, bestD = Infinity;
+  scribDrivers().forEach((A) => {
+    if (A === now || A.lvl !== SCRIB.lvl) return;
+    const d = Math.hypot(A.x - SCRIB.x, A.y - SCRIB.y);
+    if (d < bestD) { bestD = d; best = A; }
+  });
+  if (!best || bestD > SCRIB_NOTICE || bestD > dNow - SCRIB_WIN) return;
+  SCRIB.lead = best.char;
+  SCRIB.leadT = 0;
+  /* A little hop, so it reads as him deciding rather than as him drifting. */
+  poof(SCRIB.x, SCRIB.y - 10, '#3a3a3a', 3);
+  AudioSys.sfx('step');
+}
+/* Footsteps for every player, so he can walk behind whichever of them he has
+   taken to. The older trails each belong to one particular pair — trailN is
+   the middle slot's and is not even written in a three-player game, because
+   there Limey has his own driver and nobody is following her — so a dog who
+   may follow anybody needs a set of his own. */
+function markCoopTrails() {
+  if (!isCoop()) return;
+  SLOTS().forEach((A) => {
+    if (!A.trail) A.trail = [];
+    const last = A.trail[A.trail.length - 1];
+    if (!last || Math.hypot(A.x - last.x, A.y - last.y) > 2) {
+      A.trail.push({ x: A.x, y: A.y });
+      if (A.trail.length > 90) A.trail.shift();
+    }
+  });
+}
 function updateScribble() {
   if (!save.flags.scribbleFriend) return;
   if (riseWalk(SCRIB) || bedWalk(SCRIB) || seatWalk(SCRIB)) return;
@@ -12533,13 +12599,18 @@ function updateScribble() {
      line — everybody has a driver and they go where they like — so the one
      nobody is steering walks behind Diction and stays with him. */
   const conga = save.flags.limeyJoined && !isCoop3();
-  const target = conga
-    ? trailPointBack(trailL, 50, { x: SCRIB.x, y: SCRIB.y })
-    : trailPointBack(trailD(), 96, { x: SCRIB.x, y: SCRIB.y });
+  /* In co-op he walks behind whoever he has settled on, down that player's
+     own footsteps, and closer than he keeps to the back of a solo line —
+     he is following a person, not bringing up the rear of a procession. */
+  const lead = scribLead();
+  const target = isCoop()
+    ? trailPointBack(lead.trail || [], 56, { x: SCRIB.x, y: SCRIB.y })
+    : conga
+      ? trailPointBack(trailL, 50, { x: SCRIB.x, y: SCRIB.y })
+      : trailPointBack(trailD(), 96, { x: SCRIB.x, y: SCRIB.y });
   const dx = target.x - SCRIB.x, dy = target.y - SCRIB.y;
   const d = Math.hypot(dx, dy);
   if (boxBlocked(SCRIB.x, SCRIB.y)) {
-    const lead = save.flags.limeyJoined && !isCoop3() ? LIMEY : actorOf('diction');
     if (!(Math.hypot(lead.x - SCRIB.x, lead.y - SCRIB.y) <= 2)) {
       poof(SCRIB.x, SCRIB.y - 14, '#3a3a3a', 6);
       SCRIB.x = lead.x; SCRIB.y = lead.y; SCRIB.spd = 0;
@@ -12547,8 +12618,7 @@ function updateScribble() {
     }
     return;
   }
-  const scribLead = conga ? LIMEY : actorOf('diction');
-  const roomS = Math.max(0, Math.hypot(scribLead.x - SCRIB.x, scribLead.y - SCRIB.y) - 26);
+  const roomS = Math.max(0, Math.hypot(lead.x - SCRIB.x, lead.y - SCRIB.y) - 26);
   const step = followStep(SCRIB, d, roomS);
   SCRIB.moving = step > 0.4;
   if (SCRIB.moving) {
@@ -12706,7 +12776,22 @@ function tagAlong(A, back) {
      walking distance away is where they should be: the tow is for closing a
      gap that has grown too big, and never for pulling anybody in. */
   const room = Math.max(0, Math.hypot(dic.x - A.x, dic.y - A.y) - back);
-  const step = followStep(A, d, room);
+  /* Walking pace, and a hurry only when they are really out of sight.
+
+     This used the same top speed as a sibling tagging along in a one-player
+     game — SPEED * 1.9, which is FASTER THAN A DASHING PLAYER (SPEED * 1.75).
+     In three-player that character has their own player, who need only take
+     their hand off the keys for nine tenths of a second to watch them bolt
+     across the square at more than a sprint. "Sometimes Limey suddenly just
+     sprints to Diction" is exactly that, and the speed was the whole of it.
+
+     So: a walk while they are anywhere near, and a trot when the gap is more
+     than half a screen, so a leader who dashes off does not strand them. Both
+     are under what their own player could do, which is the rule — nothing the
+     game drives should outrun the person it took the character from. */
+  const gap = Math.hypot(dic.x - A.x, dic.y - A.y);
+  const top = SPEED * (gap > 200 ? 1.4 : 1);
+  const step = followStep(A, d, room, top);
   A.moving = step > 0.4;
   if (!A.moving) { A.walk = 0; return true; }
   const nx = A.x + dx / d * step, ny = A.y + dy / d * step;
@@ -12761,6 +12846,10 @@ function updateCoop(dt) {
      step: they slid across the ground with their feet flat on the floor,
      which is exactly what it looked like. */
   const towed = [false, false, false];
+  /* Kept where the rest of the game can see it: who is being towed decides
+     who comes along when somebody travels, and that is worked out somewhere
+     else entirely. */
+  G.towed = towed;
   if (isCoop3()) {
     [[1, !!(d2x || d2y)], [2, p3 && !!(d3x || d3y)]].forEach(([slot, driven]) => {
       if (slot === 2 && !p3) return;
@@ -20054,10 +20143,53 @@ function carryOn() { return !!G.carry; }
    that is the three of you, and in co-op it is the one player who opened their
    map, in their own half of the screen, while the others carry on with whatever
    they were doing. */
+/* Who goes when one player opens their map.
+
+   Being carried happens to a person, in their own half of the screen, while
+   whoever else is playing carries on with what they were doing — so the one
+   who opened the map is the one the pages lift. But anybody who is only going
+   because they were following them goes too, and belongs in the air alongside
+   them rather than appearing on the ground at the far end:
+
+     - the dog walks behind whoever he has settled on;
+     - with two players Limey has no driver of his own and falls in behind the
+       middle slot;
+     - and in co-op a character whose player has their hands off the keys is
+       being towed behind Diction. That one used to be left standing in the
+       land everybody had left, with the tow unable to reach across lands to
+       fetch them.
+
+   Playing alone the whole family travels together, as before. */
+function travelParty(opener) {
+  if (!isCoop() || !opener) return SLOTS().slice();
+  const lead = ACTOR_OF[opener] || P;
+  const going = [lead];
+  const add = (A) => { if (A && going.indexOf(A) === -1) going.push(A); };
+  if (lead.char === 'diction') {
+    SLOTS().forEach((A, i) => { if (G.towed && G.towed[i]) add(A); });
+  }
+  if (!isCoop3() && lead === FOLLOW) add(LIMEY);
+  if (save.flags.scribbleFriend && scribLead() === lead) add(SCRIB);
+  return going;
+}
+/* Set the hangers-on down beside the one they were following, rather than at
+   whatever spot they held in the land they have just left. */
+function bringAlong(going, lead, to) {
+  going.forEach((A) => {
+    if (A === lead) return;
+    A.lvl = to;
+    const taken = going.filter(B => B !== A).map(B => [B.x, B.y]);
+    [A.x, A.y] = freeSpotNear(lead.x, lead.y,
+      [[-40, 8], [40, 8], [-28, 40], [28, 40], [0, 48], [0, -44], [0, 0]], taken);
+    A.spd = 0; A.walk = 0; A.moving = false; A.stuckT = 0;
+    if (A.trail) A.trail = [];
+  });
+}
 function travelFromMap(to, opener) {
   AudioSys.sfx('door');
+  const who = travelParty(opener);
   loadLevel(to, undefined, opener);
-  const who = opener ? [ACTOR_OF[opener]] : SLOTS().slice();
+  if (opener) bringAlong(who, ACTOR_OF[opener] || P, to);
   startCarry('travel', who, () => maybeArrival(to));
 }
 function startCarry(why, who, onDone) {
@@ -20950,6 +21082,8 @@ function frameInner(ts) {
       // every land with somebody in it keeps living
       updateDetector(dt);
       withWorld(actorOf('diction').lvl, () => markTrail());   // the path the family walks down
+      markCoopTrails();     // and one set of footsteps per player, for the dog
+      scribThink(dt);       // who he has decided to walk behind
       livenUp(dt);          // where everybody is looking, and how they lean
       updateCarry(dt);      // and anybody the pages have got hold of
       activeWorlds().forEach(id => withWorld(id, () => {
@@ -21246,6 +21380,21 @@ window.DN = {
   /* whether the round view is on the card or the processor, and whether the
      player has been told so */
   softGL: () => softGL(),
+  /* the fastest a player can go, so a test can say what "sprinting" means
+     without writing the numbers down twice */
+  speeds: () => ({ walk: SPEED, dash: SPEED * 1.75, followTop: FOLLOW_TOP }),
+  /* Who the dog has decided to walk behind, and how long he gives it before
+     he will change his mind again — shortened by a test that would rather not
+     sit through four and a half seconds of him thinking about it. */
+  scribLead: () => ({ lead: SCRIB.lead || null, who: scribLead().char,
+    heldFor: Math.round((SCRIB.leadT || 0) * 10) / 10, dwell: SCRIB_DWELL }),
+  scribDwell: (s) => { if (s !== undefined) SCRIB_DWELL = s; return SCRIB_DWELL; },
+  // give him an opinion, or take it away so the default can be seen
+  scribLeadSet: (c) => { SCRIB.lead = c || null; SCRIB.leadT = 0; return scribLead().char; },
+  // who is being towed, which decides who comes along when somebody travels
+  towedNow: () => (G.towed || []).slice(),
+  scribPut: (col, row) => { SCRIB.x = (col + 0.5) * TILE; SCRIB.y = (row + 1) * TILE - 6;
+    SCRIB.spd = 0; return [Math.round(SCRIB.x), Math.round(SCRIB.y)]; },
   /* how many frames have thrown, and the last thing one said */
   crashes: () => ({ n: G.crashes || 0, last: G.lastCrash || null,
     note: (document.getElementById('crash-note') || {}).textContent || null }),
