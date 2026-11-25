@@ -9835,7 +9835,27 @@ window.R3Factory = function (env) {
      higher bar than descending, or a machine sitting between the two would
      be handed pixels and have them taken away again. */
   const PERF_FAST = 0.020;
-  const perf = { n: 0, acc: 0, rung: 0 };
+  const perf = { n: 0, acc: 0, rung: 0, good: 0, climbs: 0 };
+  /* Earning sharpness back after something has been given up.
+
+     `rung === 0` used to be the whole condition for climbing, and it is a
+     one-way door: the first slow window ever seen takes a rung, and from then
+     on the view is pinned at one buffer pixel per game pixel no matter how
+     fast the machine turns out to be. The first two and a half seconds of the
+     round view are the worst two and a half seconds it will ever have —
+     shaders compiling, textures uploading, the level being built — so a
+     perfectly good desktop asking for two or three pixels each very often
+     spends the rest of the session soft, which is exactly what it looks like:
+     a little fuzzy, for ever, for no reason.
+
+     So a machine that has given something up can still earn pixels back, on
+     a stricter test than one that has not: comfortably fast for three windows
+     running, not one. And it cannot chase its own tail, because there is a
+     budget — four climbs in a session — and a climb that is followed by a
+     slow window spends the whole of what is left. One regretted climb and it
+     stops trying. */
+  const CLIMB_WINDOWS = 3;
+  const CLIMB_BUDGET = 4;
   /* Each rung returns true if it actually changed something. One that cannot
      (no shadows to turn off on a machine that never had them) reports so and
      the ladder moves straight on rather than spending a window on nothing —
@@ -9910,18 +9930,27 @@ window.R3Factory = function (env) {
     const mean = perf.acc / perf.n;
     perf.n = 0; perf.acc = 0;
     if (mean <= PERF_SLOW) {
-      /* Coping. Stop descending, keep watching — and if nothing has been
-         taken away yet and the machine is not merely coping but comfortable,
-         give back the sharpness the screen asked for, a step at a time.
-         `rung === 0` is the whole safeguard against the two chasing each
-         other: one thing given up and the climb is over for good. */
-      if (perf.rung === 0 && mean < PERF_FAST && quality < QUALITY_ASK) {
+      /* Coping. Stop descending, keep watching — and if the machine is not
+         merely coping but comfortable, give back the sharpness the screen
+         asked for, a step at a time. Nothing given up yet: at once, as
+         before. Something given up: only after three comfortable windows
+         running, and only while there is budget left. */
+      if (mean < PERF_FAST) perf.good++; else perf.good = 0;
+      const mayClimb = perf.rung === 0
+        || (perf.good >= CLIMB_WINDOWS && perf.climbs < CLIMB_BUDGET);
+      if (mayClimb && mean < PERF_FAST && quality < QUALITY_ASK) {
         quality = Math.min(QUALITY_ASK, quality + 0.5);
+        if (perf.rung !== 0) perf.climbs++;
         try { renderer.setPixelRatio(quality); renderer.setSize(960, 540, false); } catch (e) {}
         resheetAll();   // the cast is drawn at the resolution the view is
       }
       return;
     }
+    /* Slow. Any run of comfort is over, and a climb that was followed by this
+       was a climb too far: spend the rest of the budget so it is not tried
+       again. */
+    perf.good = 0;
+    if (perf.climbs > 0) perf.climbs = CLIMB_BUDGET;
     /* How many rungs this window is worth.
 
        One at a time is fine for a machine that is merely slow, and far too
@@ -9947,6 +9976,7 @@ window.R3Factory = function (env) {
   /* what the ladder has given up so far, for a test and for the numbers on
      the pause screen */
   R.perf = () => ({ rung: perf.rung, rungs: RUNGS.length, quality,
+    good: perf.good, climbs: perf.climbs, climbBudget: CLIMB_BUDGET,
     shadows: !!(renderer && renderer.shadowMap && renderer.shadowMap.enabled),
     smoke: !perfOff.smoke, ghost: !perfOff.ghost });
   /* test seams: drive the ladder with a machine that is not this one.
@@ -9971,7 +10001,7 @@ window.R3Factory = function (env) {
      be driven on a machine that is not asking for it. */
   R.perfAsk = (v) => { if (v) QUALITY_ASK = v; return QUALITY_ASK; };
   R.perfReset = () => {
-    perf.rung = 0; perf.n = 0; perf.acc = 0;
+    perf.rung = 0; perf.n = 0; perf.acc = 0; perf.good = 0; perf.climbs = 0;
     /* And put back what the rungs took. Without this a test can only ever
        watch the ladder once: the second run finds everything already gone,
        every rung reporting nothing to give, and races to the bottom in a
@@ -11010,7 +11040,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v163 · A camera gets more than one look at the glass";
+const GAME_VERSION = "v165 · A game that has stopped should be able to say so";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -14970,7 +15000,18 @@ function speedReport() {
     `round view: ${lad ? lad.quality : '—'} per game pixel, screen asked for ${g.ask === undefined ? '—' : g.ask}`,
     `given up so far: ${gave}`,
     `graphics: ${g.software ? 'SOFTWARE (no card) — ' : ''}${g.name || '—'}`,
+    /* The one line on this page somebody can act on. Software WebGL is a
+       browser setting, not a property of the machine: a desktop that can run
+       this beautifully will draw it on the processor at a tenth of the speed
+       if hardware acceleration is switched off, and look soft and move in
+       steps for exactly that reason. */
+    ...(g.software ? ['  → this is why it looks soft and moves in steps.'
+      + ' Turn ON hardware acceleration in your browser settings'
+      + ' (Chrome: Settings → System) and reload — it is perhaps ten times faster'] : []),
     `last frame cost the card: ${g.calls} draw calls, ${g.tris} triangles`,
+    /* The line that tells a frozen picture apart from a slow one. */
+    `frames that threw: ${G.crashes || 'none'}`
+      + (G.crashes ? ` — last: ${G.lastCrash}` : ''),
     `where a frame goes (ms, over ${pr.frames} frames): FRAME ${pr.FRAME || '—'}`
       + (parts.length ? ' · ' + parts.join(' · ') : ' (not measured)'),
   ].join('\n');
@@ -18567,7 +18608,33 @@ let flatOffered = false;
 function offerFlatView() {
   if (flatOffered || VIEWMODE !== 'paper') return false;
   flatOffered = true;
-  toast('🐢 Still slow? Try ⚙️ Menu → Flat view — it is much lighter');
+  toast(softGL()
+    ? '🐢 This browser is drawing without the graphics card — see ⚙️ Menu → Speed check'
+    : '🐢 Still slow? Try ⚙️ Menu → Flat view — it is much lighter');
+  return true;
+}
+/* Whether the round view is being drawn by the graphics card or by the
+   processor pretending to be one.
+
+   Worth saying out loud, and early, rather than leaving somebody to wonder
+   why a perfectly good desktop looks soft and moves in steps. Software WebGL
+   is what a browser falls back to when hardware acceleration is off or the
+   card is on its blocklist, and it is perhaps a tenth of the speed: the
+   picture goes fuzzy because the resolution ladder takes it all the way down,
+   and everything that moves moves in visible jumps because there are ten or
+   twenty frames a second to move in. Nothing in this game can fix that — a
+   line in the browser's own settings can, and nobody will go looking for it
+   while the game quietly pretends this is normal. */
+function softGL() {
+  try { const g = R3 && R3.gfx && R3.gfx(); return !!(g && g.software); } catch (e) { return false; }
+}
+let softOffered = false;
+function offerHardware() {
+  if (softOffered || VIEWMODE !== 'paper' || !softGL()) return false;
+  softOffered = true;
+  /* Short, because a toast is gone in under three seconds. The part worth
+     reading slowly is on the speed check, which this points at. */
+  toast('🐢 Drawing without the graphics card — see ⚙️ Menu → Speed check');
   return true;
 }
 function toast(msg) {
@@ -20777,14 +20844,31 @@ function updateCameo() {
 
 /* ---------------- main loop ---------------- */
 /* a crash must never leave a silent blue screen: show the message, keep looping */
+/* When a frame throws.
+
+   The loop catches it, so the game does not die outright — it keeps asking
+   for frames and keeps throwing, which means the world stops updating and
+   nothing moves. That is what "the animations stop" looks like from the
+   sofa, and what it used to look like in here was one small note with the
+   first message in it, written once and never touched again.
+
+   So: every throw is counted, the note says how many and offers the two
+   things that help, and the speed check reports it. A game that has stopped
+   moving should be able to say that it has stopped moving. */
 function showCrash(msg) {
+  G.crashes = (G.crashes || 0) + 1;
+  G.lastCrash = msg;
   let el = document.getElementById('crash-note');
   if (!el) {
     el = document.createElement('div');
     el.id = 'crash-note';
     document.getElementById('game-wrap').appendChild(el);
   }
-  el.textContent = '🛠️ Oops, a hiccup: ' + msg;
+  /* One is a hiccup. Every frame is the game being over, and saying "a
+     hiccup" about that is worse than saying nothing. */
+  el.textContent = G.crashes > 20
+    ? `🛠️ The game has stopped (${G.crashes} errors): ${msg} — reload the page, or try ⚙️ Menu → Flat view`
+    : '🛠️ Oops, a hiccup: ' + msg;
 }
 window.addEventListener('error', (ev) => showCrash(ev.message || 'unknown error'));
 let lastTs = 0;
@@ -20800,11 +20884,17 @@ function frameReal(ts) {
   try {
     frameInner(ts);
   } catch (e) {
-    if (!G.crashed) { G.crashed = true; showCrash(e.message || String(e)); console.error(e); }
+    /* Every one, not only the first: a frame that throws once is a hiccup
+       and a frame that throws for ever is the game being over, and the only
+       way to tell them apart is to count. The console gets the first one
+       only — a stack trace sixty times a second helps nobody. */
+    showCrash(e.message || String(e));
+    if (!G.crashed) { G.crashed = true; console.error(e); }
     requestAnimationFrame(frame);
   }
 }
 function frameInner(ts) {
+  if (G.breakFor > 0) { G.breakFor--; throw new Error('a test asked this frame to break'); }
   const t_frame = profOn ? performance.now() : 0;
   if (profOn) profFrames++;
   fpsTick(ts);
@@ -20913,6 +21003,10 @@ function frameInner(ts) {
       try {
         setDusk(duskLevel());   // the cutouts are drawn with the same art code
         R3.render(dt);
+        /* Once the view is really up and the renderer has named itself. Not on
+           the first frame: the context is made lazily and asking too early
+           gets an honest "do not know yet". */
+        if (!softOffered && G.t > 4) offerHardware();
         setGL(true);
         ctx.clearRect(0, 0, VW, VH);
         paintAtmosphere(ctx, VW, VH);  // the land's own light, over the 3D world
@@ -21149,6 +21243,18 @@ window.DN = {
   /* whether the game has mentioned the flat view yet; pass false to forget
      having said it, so a test can watch it said again */
   flatOffered: (v) => { if (v === false) flatOffered = false; return flatOffered; },
+  /* whether the round view is on the card or the processor, and whether the
+     player has been told so */
+  softGL: () => softGL(),
+  /* how many frames have thrown, and the last thing one said */
+  crashes: () => ({ n: G.crashes || 0, last: G.lastCrash || null,
+    note: (document.getElementById('crash-note') || {}).textContent || null }),
+  // the speed check's own text, so a test can read what a player would read
+  speedText: () => speedReport(),
+  /* make the next few frames throw, so the handling can be watched */
+  breakFrame: (n) => { G.breakFor = (n === undefined ? 1 : n); return G.breakFor; },
+  softOffered: (v) => { if (v === false) softOffered = false; return softOffered; },
+  offerHardware: () => offerHardware(),
   /* tools seam: hold the FLAT view at this resolution whatever the machine
      thinks of the idea. Without it, a measurement of what resolution does to
      the drawing is also a measurement of how fast the machine taking it is:
