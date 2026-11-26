@@ -11040,7 +11040,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v168 · In two-player the whole family travels together";
+const GAME_VERSION = "v169 · In three-player each character minds their own business";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -12850,13 +12850,7 @@ function updateCoop(dt) {
      who comes along when somebody travels, and that is worked out somewhere
      else entirely. */
   G.towed = towed;
-  if (isCoop3()) {
-    [[1, !!(d2x || d2y)], [2, p3 && !!(d3x || d3y)]].forEach(([slot, driven]) => {
-      if (slot === 2 && !p3) return;
-      handsOff[slot] = (driven || handsBusy(slot)) ? 0 : handsOff[slot] + dt;
-      towed[slot] = handsOff[slot] > HANDS_OFF;
-    });
-  } else { handsOff = [0, 0, 0]; }
+  handsOff = [0, 0, 0];
   // each player walks inside their own land
   withWorld(P.lvl, () => {
     if (!carriedNow(P) && !busyNow(P)) moveActor(P, d1x, d1y, dash1, stickScaleOf(0));
