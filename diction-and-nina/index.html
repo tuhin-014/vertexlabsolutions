@@ -11040,7 +11040,7 @@ const SPEED = 3.6;
 const DT_MOVE_MAX = 0.12;            // a frame longer than this is a stall, not a frame
 function frameK() { return (G.dtMove || 1 / 60) * 60; }
 const SAVE_KEY = 'dictionNinaSave-v2';
-const GAME_VERSION = "v167 · Only the one who opened the map flies, and the dog picks his own person";
+const GAME_VERSION = "v168 · In two-player the whole family travels together";
 
 /* ---------------- state ---------------- */
 const G = {
@@ -16117,8 +16117,9 @@ function mapUnproject(sx, sy) {
 function openMap(who) {
   const opener = isCoop() ? (who || 'P') : null;
   const openerName = opener ? whoName(opener) : null;
+  const goesNote = isCoop3() && openerName ? ' — only ' + openerName + ' goes' : '';
   openOverlay(`<h2>🗺️ ${openerName ? openerName + "'s Map" : 'Map of Wordsville'}</h2>
-    <p>📖 ${save.pages}/${TOTAL_PAGES} Golden Pages recovered. Click a place to travel${openerName ? ' — only ' + openerName + ' goes' : ''}.</p>
+    <p>📖 ${save.pages}/${TOTAL_PAGES} Golden Pages recovered. Click a place to travel${goesNote}.</p>
     <canvas id="map-canvas" width="740" height="440" style="width:100%;border:3px solid #14110f;border-radius:14px;background:#f2e4bf;cursor:pointer;display:block"></canvas>
     <button class="big-btn secondary" id="close-map">Close (Esc)</button>`);
   const cv = panelEl.querySelector('#map-canvas');
@@ -20161,7 +20162,7 @@ function carryOn() { return !!G.carry; }
 
    Playing alone the whole family travels together, as before. */
 function travelParty(opener) {
-  if (!isCoop() || !opener) return SLOTS().slice();
+  if (!isCoop() || !opener || !isCoop3()) return SLOTS().slice();
   const lead = ACTOR_OF[opener] || P;
   const going = [lead];
   const add = (A) => { if (A && going.indexOf(A) === -1) going.push(A); };
